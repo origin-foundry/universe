@@ -1,0 +1,27 @@
+name: PR policy
+
+# Runs the version of this workflow and of scripts/check_pr_policy.py on main, never the PR's
+# copy, so a PR can't loosen the policy that judges it. It only reads PR metadata and files
+# through the API and never executes code from the PR.
+on:
+  pull_request_target:
+    types: [opened, edited, labeled, unlabeled, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  policy:
+    name: policy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4  # base branch (main), not the PR head
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Check PR against the two-PR workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: python scripts/check_pr_policy.py

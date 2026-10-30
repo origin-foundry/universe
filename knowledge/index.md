@@ -19,3 +19,4 @@ okf_version: "0.2"
 * [Architecture](/architecture/) - Stack, crate layout and background jobs.
 * [Product](/product/) - UI views, presets and validation, delivery phases.
 * [Decisions](/decisions/) - Architecture decision records.
+* [Process](/process/) - Playbooks for running the development workflow.

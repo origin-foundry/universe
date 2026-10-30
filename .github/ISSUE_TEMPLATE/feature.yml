@@ -1,0 +1,34 @@
+name: Feature
+description: A unit of work that becomes one spec, one design PR and one build PR.
+labels: [feature]
+body:
+  - type: dropdown
+    id: phase
+    attributes:
+      label: Phase
+      options:
+        - "0. Foundations"
+        - "1. Calendar core"
+        - "2. Bodies & Kepler"
+        - "3. N-body"
+        - "4. Proper time & multiple systems"
+        - "5. Ships"
+        - "6. Polish"
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Outcome
+      description: What can the user do when this is done? No technical detail; that belongs in the spec.
+    validations:
+      required: true
+  - type: textarea
+    id: concepts
+    attributes:
+      label: Knowledge concepts
+      description: Concepts in knowledge/ this feature relies on or will change.
+  - type: textarea
+    id: out-of-scope
+    attributes:
+      label: Out of scope
