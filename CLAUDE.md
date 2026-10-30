@@ -11,10 +11,14 @@ A desktop app for defining physically grounded, non-Earth calendars across multi
 ## How work flows
 
 1. A feature starts as a GitHub issue on the project board.
-2. Spec Kit: `/speckit.specify` → `/speckit.clarify` → (owner reviews the spec) → `/speckit.plan` → `/speckit.tasks` → `/speckit.analyze`.
+2. Spec Kit skills (in `.claude/skills/`): `/speckit-specify` → `/speckit-clarify` → (owner reviews the spec) → `/speckit-plan` → `/speckit-tasks` → `/speckit-analyze`.
 3. **Design PR** (label `design`): `specs/NNN-name/` plus any `knowledge/` updates. The owner merges it.
-4. `/speckit.implement` on a new branch → **build PR** (label `build`), body contains `Design: #<design PR number>`.
+4. `/speckit-implement` on a new branch → **build PR** (label `build`), body contains `Design: #<design PR number>`.
 5. Changes with no behaviour change may go straight to a PR labelled `fast-lane`.
+
+Tasks stay in `tasks.md`; they are not turned into GitHub issues (one issue per feature). Don't use `/speckit-constitution` to rewrite the constitution: amendments go through a design PR the owner approves.
+
+Spec Kit is installed with uv. This machine intercepts TLS, so uv needs `--system-certs`, e.g. `uv tool upgrade --system-certs specify-cli`.
 
 Ask the owner questions one at a time with options to choose from, never as a list.
 
