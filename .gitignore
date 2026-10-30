@@ -1,0 +1,25 @@
+# Rust
+/target/
+
+# Node / UI
+node_modules/
+/ui/dist/
+
+# Tauri
+/src-tauri/target/
+/src-tauri/gen/
+
+# Project files and local state
+*.universe
+*.universe-journal
+.claude/settings.local.json
+
+# Python
+__pycache__/
+*.pyc
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
