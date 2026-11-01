@@ -4,7 +4,7 @@
 
 **Created**: 2026-11-01
 
-**Status**: Draft
+**Status**: Approved by the owner, 2026-11-01
 
 **Input**: User description: "App skeleton (issue #9, Phase 0 spec 001). The Universe desktop app opens a window on Windows, and every automated check runs on every PR: Rust format/lint/tests on Windows and Linux, dependency advisories, UI type/lint/format/tests, a Windows app build, an architecture-rules check (crate dependencies only point downward per knowledge/architecture/crate-layout.md; no floating point in calendar, expression, format or zone crates), and Dependabot updates for Rust and npm dependencies. The workspace contains the agreed crates (knowledge/architecture/crate-layout.md) as empty placeholders. Out of scope: time types (spec 002), the project file (spec 003), any calendar or physics behaviour."
 
