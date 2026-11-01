@@ -5,9 +5,8 @@
 node_modules/
 /ui/dist/
 
-# Tauri
-/src-tauri/target/
-/src-tauri/gen/
+# Tauri (the app crate lives in crates/uni-app; specs/001-app-skeleton/research.md, R1)
+/crates/uni-app/gen/
 
 # Project files and local state
 *.universe

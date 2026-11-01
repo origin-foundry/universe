@@ -38,7 +38,7 @@ All commands below are typed into **PowerShell**: Start menu → type `PowerShel
 1. Install `rustup`, Rust's installer and version manager: `winget install --id Rustlang.Rustup --exact --source winget`
 2. Close and reopen PowerShell.
 3. Check it: `rustup --version`.
-4. You don't need to choose a Rust version. The first time you build in this repository, `rustup` reads `rust-toolchain.toml` and installs exactly that version, with `rustfmt` and `clippy`.
+4. You don't need to choose a Rust version. The first time you build in this repository, `rustup` reads `rust-toolchain.toml` and installs exactly that version (currently **1.99.1**), with `rustfmt` and `clippy`.
 5. If step 1 or the first build fails with a certificate error, see [Certificate errors](#certificate-errors).
 
 ### C++ Build Tools
@@ -90,7 +90,11 @@ Some antivirus products and company networks inspect encrypted (HTTPS) traffic b
   setx NODE_OPTIONS "--use-system-ca"
   ```
 
-  Close and reopen PowerShell afterwards.
+  Close and reopen PowerShell afterwards. Terminals inside an app that was already running (for example, the Claude app or VS Code) won't see it until you restart that app. Until then, set it for the current terminal only:
+
+  ```powershell
+  $env:NODE_OPTIONS = "--use-system-ca"
+  ```
 - **winget**: the commands in this guide all use `--source winget`. The Microsoft Store source (`msstore`) pins its certificate, so interception breaks it with `0x8a15005e: The server certificate did not match any of the expected values`. If you see that error, add `--source winget` to the command.
 - **rustup** (installing or updating Rust): if it reports a certificate error, make it download through Windows' own TLS for this session, then retry:
 

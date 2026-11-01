@@ -1,0 +1,21 @@
+# cargo-deny configuration (specs/001-app-skeleton/research.md, R12).
+
+[graph]
+all-features = true
+
+[advisories]
+# Vulnerabilities always fail; unmaintained crates fail when they're our direct dependencies.
+unmaintained = "workspace"
+yanked = "deny"
+
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+allow-wildcard-paths = true
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+
+# Licences aren't checked: the whole project is GPL-3.0 and only used personally (ADR 0004).
