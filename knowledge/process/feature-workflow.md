@@ -5,7 +5,7 @@ description: The normal path of a feature from Backlog to Done, who does each st
 tags: [process, workflow, board, roles]
 status: stable
 generated: { by: claude-code/claude-opus-5-5, at: 2026-11-01T15:00:00Z }
-verified: { by: human:origin-foundry, at: 2026-11-01T20:13:48Z }
+verified: { by: human:origin-foundry, at: 2026-11-01T20:16:11Z }
 ---
 
 # Roles
@@ -28,7 +28,7 @@ One issue per feature. Its card moves through the board's Status columns:
 | **Specifying** | Claude | Claude writes `spec.md` with `/speckit-specify`, then asks clarifying questions one at a time (`/speckit-clarify`). | The spec is ready to review | Claude, to Spec review |
 | **Spec review** | Owner | The owner reads the spec and approves it, or asks for changes, in conversation. | The owner approves | **Owner**, to Planning |
 | **Planning** | Claude | Claude writes the plan, research, contracts and tasks (`/speckit-plan`, `/speckit-tasks`), cross-checks them (`/speckit-analyze`), and opens the **design PR**. | The design PR is open | Claude, to Design review |
-| **Design review** | Owner | The ready gate assigns the owner when the checks pass. The owner reviews; any knowledge concept that changed is re-verified in conversation first; then the owner approves and merges the design PR. | The design PR is merged | **Owner**, to Building |
+| **Design review** | Owner | The ready gate assigns the owner when the checks pass. The owner reviews; any knowledge concept that changed is re-verified in conversation first, and the owner waits for Claude to confirm the verification commit is pushed; then the owner approves and merges the design PR. | The design PR is merged | **Owner**, to Building |
 | **Building** | Claude, plus owner tasks | Claude works through `tasks.md` on a build branch, ticking tasks as they're done. Tasks marked **(owner)** are handed to the owner and ticked once the owner confirms. Claude opens the **build PR**. | The build PR is open | Claude, to PR review |
 | **PR review** | Owner | The ready gate assigns the owner when the checks pass. The owner reviews, approves and merges the build PR. | The build PR is merged | Automatic |
 | **Done** | Automation | Merging the build PR closes the issue (`Closes #N`); the board's "Pull request merged" and "Item closed" workflows move the card here. | | |
