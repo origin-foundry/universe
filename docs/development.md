@@ -23,19 +23,19 @@ All commands below are typed into **PowerShell**: Start menu → type `PowerShel
 ### Python
 
 1. Check what you have: `python --version`. If it says 3.11 or later, skip to the next section.
-2. Otherwise: `winget install --id Python.Python.3.13 --exact`
+2. Otherwise: `winget install --id Python.Python.3.13 --exact --source winget`
 3. Close and reopen PowerShell, then check again with `python --version`.
 
 ### Node.js
 
 1. Check what you have: `node --version`. If it says `v22` or later, skip to step 4.
-2. Otherwise: `winget install --id OpenJS.NodeJS.LTS --exact`
+2. Otherwise: `winget install --id OpenJS.NodeJS.LTS --exact --source winget`
 3. Close and reopen PowerShell, then run `node --version` and `npm --version`.
 4. If your network intercepts encrypted connections (antivirus web scanning or a company proxy), do the Node.js step under [Certificate errors](#certificate-errors) now.
 
 ### Rust
 
-1. Install `rustup`, Rust's installer and version manager: `winget install --id Rustlang.Rustup --exact`
+1. Install `rustup`, Rust's installer and version manager: `winget install --id Rustlang.Rustup --exact --source winget`
 2. Close and reopen PowerShell.
 3. Check it: `rustup --version`.
 4. You don't need to choose a Rust version. The first time you build in this repository, `rustup` reads `rust-toolchain.toml` and installs exactly that version, with `rustfmt` and `clippy`.
@@ -48,7 +48,7 @@ Rust on Windows needs Microsoft's C++ linker and the Windows SDK. They come in t
 1. Run (one line):
 
    ```powershell
-   winget install --id Microsoft.VisualStudio.2022.BuildTools --exact --override "--wait --passive --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"
+   winget install --id Microsoft.VisualStudio.2022.BuildTools --exact --source winget --override "--wait --passive --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"
    ```
 
 2. A Visual Studio Installer window opens and shows progress. It closes by itself when it's done.
@@ -58,7 +58,7 @@ Rust on Windows needs Microsoft's C++ linker and the Windows SDK. They come in t
 
 Windows 11 and an up-to-date Windows 10 already have it. The [prerequisites check](#check-your-setup) tells you if it's missing. If it is:
 
-1. `winget install --id Microsoft.EdgeWebView2Runtime --exact`
+1. `winget install --id Microsoft.EdgeWebView2Runtime --exact --source winget`
 
 ## Check your setup
 
@@ -91,6 +91,7 @@ Some antivirus products and company networks inspect encrypted (HTTPS) traffic b
   ```
 
   Close and reopen PowerShell afterwards.
+- **winget**: the commands in this guide all use `--source winget`. The Microsoft Store source (`msstore`) pins its certificate, so interception breaks it with `0x8a15005e: The server certificate did not match any of the expected values`. If you see that error, add `--source winget` to the command.
 - **rustup** (installing or updating Rust): if it reports a certificate error, make it download through Windows' own TLS for this session, then retry:
 
   ```powershell
