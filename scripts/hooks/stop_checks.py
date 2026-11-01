@@ -52,9 +52,12 @@ def main():
         failures.append(
             run("cargo clippy", ["cargo", "clippy", "--workspace", "--all-targets", "--quiet", "--", "-D", "warnings"])
         )
-    if (ROOT / "ui" / "package.json").exists():
-        failures.append(run("UI typecheck", ["npm", "run", "--silent", "typecheck"], cwd=ROOT / "ui"))
-        failures.append(run("UI lint", ["npm", "run", "--silent", "lint"], cwd=ROOT / "ui"))
+        if (ROOT / "scripts" / "check_architecture.py").exists():
+            failures.append(run("Architecture", [sys.executable, "scripts/check_architecture.py"]))
+    # The UI's package lives at the repository root (specs/001-app-skeleton/research.md, R1).
+    if (ROOT / "package.json").exists():
+        failures.append(run("UI typecheck", ["npm", "run", "--silent", "typecheck"]))
+        failures.append(run("UI lint", ["npm", "run", "--silent", "lint"]))
     failures = [f for f in failures if f]
     if not failures:
         return 0
