@@ -3,8 +3,9 @@ type: Playbook
 title: GitHub setup
 description: One-time steps the owner takes on GitHub to switch on the workflow and its approval gates.
 tags: [process, github, setup, phase-0]
-status: draft
+status: stable
 generated: { by: claude-code/claude-opus-5-5, at: 2026-10-31T12:00:00Z }
+verified: { by: human:origin-foundry, at: 2026-11-01T09:22:25Z }
 ---
 
 # Purpose

@@ -1,7 +1,7 @@
 # Bundle update log
 
 ## 2026-11-01
-* **Update**: PRs are opened ready for review instead of as drafts, because the Actions token can't take a PR out of draft; the ready gate now assigns the owner and comments when every check passes. Amended [ADR 0007](/decisions/0007-bot-identity-and-gates.md) (also correcting its PR-policy description) and the [GitHub setup](/process/github-setup.md) playbook; both back to draft pending owner approval.
+* **Update**: PRs are opened ready for review instead of as drafts, because the Actions token can't take a PR out of draft; the ready gate now assigns the owner and comments when every check passes. Amended [ADR 0007](/decisions/0007-bot-identity-and-gates.md) (also correcting its PR-policy description) and the [GitHub setup](/process/github-setup.md) playbook; both both re-verified by human:origin-foundry in review of #7.
 * **Verification**: human:origin-foundry reviewed PR #2 and verified the [GitHub setup](/process/github-setup.md) playbook.
 
 ## 2026-10-30

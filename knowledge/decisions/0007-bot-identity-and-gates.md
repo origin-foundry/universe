@@ -3,10 +3,11 @@ type: Process Decision
 title: "ADR 0007: Bot identity and approval gates"
 description: Claude works as a separate bot account; rulesets, CODEOWNERS and the project board enforce the owner's approval steps.
 tags: [decision, process, github, security]
-status: draft
+status: stable
 decided: 2026-10-30
 amended: 2026-11-01
 generated: { by: claude-code/claude-opus-5-5, at: 2026-10-30T09:10:00Z }
+verified: { by: human:origin-foundry, at: 2026-11-01T09:22:25Z }
 ---
 
 # Context
