@@ -26,8 +26,8 @@ jobs:
       - id: parts
         run: |
           echo "rust=$([ -f Cargo.toml ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
-          echo "ui=$([ -f ui/package.json ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
-          echo "tauri=$([ -d src-tauri ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "ui=$([ -f package.json ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "tauri=$([ -f crates/uni-app/tauri.conf.json ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
 
   knowledge:
     name: knowledge
@@ -50,17 +50,21 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        include:
+          # The app crate is Windows-only; on Linux it would need WebKitGTK (research.md, R6).
+          - os: ubuntu-latest
+            scope: --workspace --exclude uni-app
+          - os: windows-latest
+            scope: --workspace
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt, clippy
+      - name: Install the pinned Rust toolchain (rust-toolchain.toml)
+        run: rustup toolchain install
       - uses: Swatinem/rust-cache@v2
       - run: cargo fmt --all --check
-      - run: cargo clippy --workspace --all-targets -- -D warnings
-      - run: cargo test --workspace
+      - run: cargo clippy ${{ matrix.scope }} --all-targets -- -D warnings
+      - run: cargo test ${{ matrix.scope }}
 
   rust-deps:
     name: rust-deps
@@ -78,16 +82,13 @@ jobs:
     needs: detect
     if: needs.detect.outputs.ui == 'true'
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ui
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: ui/package-lock.json
+          cache-dependency-path: package-lock.json
       - run: npm ci
       - run: npm run typecheck
       - run: npm run lint
@@ -102,14 +103,13 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@stable
+      - name: Install the pinned Rust toolchain (rust-toolchain.toml)
+        run: rustup toolchain install
       - uses: Swatinem/rust-cache@v2
       - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: ui/package-lock.json
+          cache-dependency-path: package-lock.json
       - run: npm ci
-        working-directory: ui
-      - run: npm run tauri build -- --no-bundle
-        working-directory: ui
+      - run: npm run tauri -- build --no-bundle

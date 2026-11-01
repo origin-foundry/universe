@@ -85,11 +85,11 @@ description: "Task list for spec 001, app skeleton"
 
 **Independent Test**: quickstart.md §2.
 
-- [ ] T020 [US2] In `.github/workflows/ci.yml`, update the `detect` job: `rust` = `Cargo.toml` exists; `ui` = root `package.json` exists; `tauri` = `crates/uni-app/tauri.conf.json` exists.
-- [ ] T021 [US2] In `ci.yml`, make the `rust` job run `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings` and `cargo test --workspace` on Windows, and add `--exclude uni-app` to the clippy and test commands on Ubuntu (research.md R6).
-- [ ] T022 [US2] In `ci.yml`, make the `ui` job run from the repository root: drop `working-directory: ui`, set `cache-dependency-path: package-lock.json`, and run `npm ci`, `typecheck`, `lint`, `format:check`, `test` and `npm audit --audit-level=high`.
-- [ ] T023 [US2] In `ci.yml`, make the `app-build (windows)` job run `npm ci` then `npm run tauri -- build --no-bundle` from the repository root.
-- [ ] T024 [US2] Check that `rust-deps` (cargo-deny) passes against the new `deny.toml` with the real `Cargo.lock`.
+- [x] T020 [US2] In `.github/workflows/ci.yml`, update the `detect` job: `rust` = `Cargo.toml` exists; `ui` = root `package.json` exists; `tauri` = `crates/uni-app/tauri.conf.json` exists.
+- [x] T021 [US2] In `ci.yml`, make the `rust` job run `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings` and `cargo test --workspace` on Windows, and add `--exclude uni-app` to the clippy and test commands on Ubuntu (research.md R6).
+- [x] T022 [US2] In `ci.yml`, make the `ui` job run from the repository root: drop `working-directory: ui`, set `cache-dependency-path: package-lock.json`, and run `npm ci`, `typecheck`, `lint`, `format:check`, `test` and `npm audit --audit-level=high`.
+- [x] T023 [US2] In `ci.yml`, make the `app-build (windows)` job run `npm ci` then `npm run tauri -- build --no-bundle` from the repository root.
+- [x] T024 [US2] Check that `rust-deps` (cargo-deny) passes against the new `deny.toml` with the real `Cargo.lock`.
 - [ ] T025 [US2] Locally, introduce each deliberate failure from quickstart.md §2's first six rows one at a time (Rust formatting, a Clippy warning, a failing Rust test, a TypeScript type error, a failing UI test, a Rust syntax error in `uni-app`). Confirm that the same command CI runs fails with a message naming the problem, then revert each. Also prove the advisory checks (spec US2 scenario 5): temporarily add a dependency version with a published RustSec advisory to a placeholder crate, and confirm `cargo deny check advisories` fails naming the advisory; do the same for npm with a package version that has a published high-severity advisory and `npm audit --audit-level=high`. Revert both. Record all results in the build PR description.
 
 **Checkpoint**: on the build PR, every job runs and passes, none is skipped, and they finish within 20 minutes (SC-003, SC-005).
