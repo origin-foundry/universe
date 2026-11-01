@@ -27,7 +27,7 @@ The token lives in `.claude/settings.local.json` (gitignored), which Claude Code
 3. **Never paste the token into a Claude conversation**, and don't edit a file Claude has written or read in the current session: the app shows Claude the new contents of such files. Copying the template avoids this. If a token is ever shown, regenerate it.
 4. Claude verifies it without displaying it: the account should be `origin-foundry-bot` with push but not admin access.
 
-Settings are picked up mid-session. From then on, owner-only commands in a Claude session must drop the bot token for that command: `env -u GH_TOKEN gh …`.
+Settings are picked up mid-session, so from then on Claude acts as the bot. Claude never drops the bot token to act as the owner (see CLAUDE.md): owner-only steps are done by the owner. During the original setup the owner explicitly asked Claude to script the board with their login, before this rule existed; in a terminal of your own, `gh` uses your login anyway.
 
 This repo's git is configured to take credentials from `gh` rather than Windows Credential Manager, so pushes from Claude Code go out as the bot and pushes from your own terminals go out as you:
 
@@ -63,9 +63,9 @@ Settings → Rules → Rulesets → New branch ruleset `main`, **Active**, targe
 
 Claude can check the result through the read-only `rules/branches/main` API; the guard blocks the `rulesets` API entirely.
 
-## 6. Project board (owner, scripted by Claude)
+## 6. Project board (owner)
 
-1. `gh project create --owner "@me" --title Universe` as the owner. (`gh project link` fails for personal accounts, so the repo is linked with the `linkProjectV2ToRepository` GraphQL mutation.)
+1. From your own terminal, `gh project create --owner "@me" --title Universe`. (`gh project link` fails for personal accounts, so the repo is linked with the `linkProjectV2ToRepository` GraphQL mutation.)
 2. Fields: Phase (0–6), Area (bundle areas plus `process`), Size (S/M/L).
 3. Status options replaced through `updateProjectV2Field`: Backlog, Specifying, **Spec review**, Planning, **Design review**, Building, **PR review**, Done.
 4. Owner, in the UI: project ⋯ → Settings → Manage access → add `origin-foundry-bot` as **Write**. Granting access is the owner's own decision, never Claude's.

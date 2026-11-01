@@ -29,6 +29,7 @@ Ask the owner questions one at a time with options to choose from, never as a li
 - Only move board cards into review columns, never out of them.
 - Never add `verified:` to a knowledge concept or change the constitution without the owner's explicit approval.
 - Never commit secrets.
+- Never read, print or ask for the bot token (`.claude/settings.local.json`). Never act as the owner, e.g. by dropping `GH_TOKEN` to use their stored login: owner-only actions (repo settings, rulesets, access grants, merges) are done by the owner.
 
 ## Checks
 
