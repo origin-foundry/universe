@@ -13,7 +13,7 @@ BLOCKED = [
     (r"\bgit\s+push\b[^;&|]*\s(--force\b|-f\b|--force-with-lease\b)", "force-pushing"),
     (r"\bgit\s+push\b[^;&|]*\s--mirror\b", "mirror-pushing"),
     (r"\bgh\s+pr\s+merge\b", "merging a PR"),
-    (r"\bgh\s+pr\s+ready\b", "marking a PR ready (CI does this when checks pass)"),
+    (r"\bgh\s+pr\s+ready\b", "changing a PR's draft state (PRs open ready for review)"),
     (r"\bgh\s+pr\s+review\b[^;&|]*--approve\b", "approving a PR"),
     (r"\bgh\s+api\b[^;&|]*/(rulesets|branches/[^/\s]+/protection)\b", "changing repository rules"),
     (r"\bgh\s+(ruleset|repo\s+edit)\b", "changing repository settings"),

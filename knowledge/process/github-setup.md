@@ -5,7 +5,7 @@ description: One-time steps the owner takes on GitHub to switch on the workflow 
 tags: [process, github, setup, phase-0]
 status: stable
 generated: { by: claude-code/claude-opus-5-5, at: 2026-10-31T12:00:00Z }
-verified: { by: human:origin-foundry, at: 2026-11-01T08:27:18Z }
+verified: { by: human:origin-foundry, at: 2026-11-01T09:22:25Z }
 ---
 
 # Purpose
@@ -74,10 +74,12 @@ Claude can check the result through the read-only `rules/branches/main` API; the
 
 ## 7. First PR (bot)
 
-Claude pushes `setup/workflow-guardrails` as the bot and opens it as a **draft** labelled `design`, with a feature issue on the board in Design review. The policy check and ready gate only run once this PR is on `main`, so the owner reviews it fully by hand, marks it ready, approves and merges it, then adds the required status checks.
+Claude pushes `setup/workflow-guardrails` as the bot and opens it labelled `design`, with a feature issue on the board in Design review. The policy check and ready gate only run once this PR is on `main`, so the owner reviews it fully by hand, approves and merges it, then adds the required status checks.
+
+(The original setup PR was opened as a draft. The first gated PR showed that the Actions token can't take a PR out of draft, so PRs are now opened ready for review; see [ADR 0007](/decisions/0007-bot-identity-and-gates.md).)
 
 # Done when
 
 - The bot can push branches and open PRs but can't push to or merge into `main`.
-- After the setup PR is merged, a draft PR with passing checks is marked ready and assigned to `origin-foundry` automatically.
+- A PR whose checks all pass is assigned to `origin-foundry` automatically, with an "All checks passed" comment.
 - A PR without exactly one kind label fails `policy`.

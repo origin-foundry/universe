@@ -1,7 +1,12 @@
 name: Ready gate
 
-# When every check on a draft PR has passed, mark it ready for review and hand it to the owner.
-# Triggered after CI or PR policy finishes; runs from main, so a PR can't change this behaviour.
+# When every check on a PR's latest commit has passed, hand the PR to the owner: assign them,
+# request their review (unless they wrote it) and say so in a comment. Triggered after CI or
+# PR policy finishes; runs from main, so a PR can't change this behaviour.
+#
+# PRs are opened ready for review, not as drafts: the workflow token isn't allowed to take a
+# PR out of draft. GitHub requests the code owner's review as soon as a PR opens, so the
+# assignment and comment are the signal that it's the owner's turn.
 on:
   workflow_run:
     workflows: [CI, PR policy]
@@ -9,6 +14,7 @@ on:
 
 permissions:
   pull-requests: write
+  issues: write
   checks: read
 
 jobs:
@@ -22,14 +28,14 @@ jobs:
       OWNER: origin-foundry
       HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
     steps:
-      - name: Find the PR, check every check run, then hand over
+      - name: Check every check run, then hand over to the owner
         run: |
-          pr=$(gh pr list --state open --json number,headRefOid,isDraft \
-                 --jq ".[] | select(.headRefOid == \"$HEAD_SHA\") | .number")
+          pr=$(gh api "repos/$GH_REPO/commits/$HEAD_SHA/pulls" --jq '[.[] | select(.state == "open") | .number][0] // empty')
           if [ -z "$pr" ]; then echo "No open PR for $HEAD_SHA"; exit 0; fi
-          if [ "$(gh pr view "$pr" --json isDraft --jq .isDraft)" != "true" ]; then
-            echo "PR #$pr is not a draft; nothing to do"; exit 0
-          fi
+          read -r head author assigned < <(gh api "repos/$GH_REPO/pulls/$pr" \
+            --jq "[.head.sha, .user.login, ([.assignees[].login] | index(\"$OWNER\") != null)] | @tsv")
+          if [ "$head" != "$HEAD_SHA" ]; then echo "PR #$pr has newer commits; a later run will decide"; exit 0; fi
+          if [ "$assigned" = "true" ]; then echo "PR #$pr is already assigned to $OWNER"; exit 0; fi
           # Every check run on the head commit must be complete and successful (or skipped).
           bad=$(gh api "repos/$GH_REPO/commits/$HEAD_SHA/check-runs?per_page=100" \
                   --jq '[.check_runs[] | select(.name != "gate")
@@ -37,6 +43,10 @@ jobs:
                                   or (.conclusion != "success" and .conclusion != "skipped" and .conclusion != "neutral"))
                          | .name] | join(", ")')
           if [ -n "$bad" ]; then echo "Not ready yet: $bad"; exit 0; fi
-          gh pr ready "$pr"
-          gh pr edit "$pr" --add-assignee "$OWNER" --add-reviewer "$OWNER"
-          echo "PR #$pr is ready and assigned to $OWNER"
+          gh api -X POST "repos/$GH_REPO/issues/$pr/assignees" -f "assignees[]=$OWNER" --silent
+          if [ "$author" != "$OWNER" ]; then
+            gh api -X POST "repos/$GH_REPO/pulls/$pr/requested_reviewers" -f "reviewers[]=$OWNER" --silent
+          fi
+          gh api -X POST "repos/$GH_REPO/issues/$pr/comments" --silent \
+            -f body="All checks passed on ${HEAD_SHA:0:7}. Over to you, @$OWNER."
+          echo "PR #$pr handed to $OWNER"

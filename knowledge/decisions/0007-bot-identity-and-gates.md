@@ -5,8 +5,9 @@ description: Claude works as a separate bot account; rulesets, CODEOWNERS and th
 tags: [decision, process, github, security]
 status: stable
 decided: 2026-10-30
+amended: 2026-11-01
 generated: { by: claude-code/claude-opus-5-5, at: 2026-10-30T09:10:00Z }
-verified: { by: human:origin-foundry, at: 2026-10-30T22:14:45Z }
+verified: { by: human:origin-foundry, at: 2026-11-01T09:22:25Z }
 ---
 
 # Context
@@ -33,9 +34,11 @@ A repository ruleset (available because the repo is public; see [ADR 0004](/deci
 
 ## Required checks
 
-Rust (format, lint, tests on Windows and Linux), UI (types, lint, format, tests), app build on Windows, knowledge bundle validation (`scripts/check_okf.py`), spec traceability (build PRs link a merged design PR and have all tasks ticked; code changes update the bundle or carry a `no-design-change` label), architecture rules (dependency direction, no `f64` in calendar crates), dependency advisories, plus GitHub secret scanning and Dependabot.
+Rust (format, lint, tests on Windows and Linux), UI (types, lint, format, tests), app build on Windows, knowledge bundle validation (`scripts/check_okf.py`), PR policy (exactly one of `design`, `build`, `fast-lane`; build PRs link a merged design PR, have all its tasks ticked and don't change design or guardrail files; guardrail files change only in design PRs), architecture rules (dependency direction, no `f64` in calendar crates), dependency advisories, plus GitHub secret scanning and Dependabot.
 
-PRs open as drafts. A workflow marks a PR ready and assigns it to the owner only when every required check passes.
+## Handing PRs to the owner
+
+PRs are opened **ready for review**, not as drafts: the Actions token isn't allowed to take a PR out of draft (found on the first gated PR, 2026-11-01). GitHub requests the code owner's review as soon as a PR opens. The **ready gate** workflow then waits until every check on the PR's latest commit has passed, and only then **assigns the owner** and posts an "All checks passed" comment. The assignment is the signal that it's the owner's turn; a PR that isn't assigned yet isn't ready.
 
 ## Project board
 
