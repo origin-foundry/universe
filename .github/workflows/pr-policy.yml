@@ -16,7 +16,7 @@ jobs:
     name: policy
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4  # base branch (main), not the PR head
+      - uses: actions/checkout@v7  # base branch (main), not the PR head
       - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
