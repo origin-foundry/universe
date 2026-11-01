@@ -39,15 +39,15 @@ def main():
     reasons = [reason for pattern, reason in BLOCKED if re.search(pattern, command)]
     if TOKEN_FILE.search(command) and not TOKEN_FILE_ALLOWED.match(command):
         reasons.append("touching the bot token file")
-    for reason in reasons[:1]:
-        print(
-                f"Blocked by the repository guard: {reason} is reserved for the owner "
-                "(see Human Gates in .specify/memory/constitution.md). "
-                "Ask the owner instead of working around this.",
-                file=sys.stderr,
-            )
-            return 2
-    return 0
+    if not reasons:
+        return 0
+    print(
+        f"Blocked by the repository guard: {reasons[0]} is reserved for the owner "
+        "(see Human Gates in .specify/memory/constitution.md). "
+        "Ask the owner instead of working around this.",
+        file=sys.stderr,
+    )
+    return 2
 
 
 if __name__ == "__main__":

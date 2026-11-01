@@ -43,7 +43,10 @@ def main():
     if not has_changes():
         return 0
 
-    failures = [run("Knowledge bundle", [sys.executable, "scripts/check_okf.py", "knowledge"])]
+    failures = [
+        run("Knowledge bundle", [sys.executable, "scripts/check_okf.py", "knowledge"]),
+        run("Script tests", [sys.executable, "-m", "unittest", "discover", "-s", "scripts/tests"]),
+    ]
     if (ROOT / "Cargo.toml").exists():
         failures.append(run("cargo fmt", ["cargo", "fmt", "--all", "--check"]))
         failures.append(
