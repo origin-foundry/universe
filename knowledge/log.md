@@ -1,5 +1,8 @@
 # Bundle update log
 
+## 2026-11-01
+* **Verification**: human:origin-foundry reviewed PR #2 and verified the [GitHub setup](/process/github-setup.md) playbook.
+
 ## 2026-10-30
 * **Creation**: Added the [GitHub setup](/process/github-setup.md) playbook (draft) for switching on the workflow and its gates.
 * **Verification**: human:origin-foundry reviewed the whole bundle area by area; all 41 concepts are now `status: stable` and verified. Changes made during review: moved [light-delay queries](/time/light-delay.md) from formats to time; test dates in [presets and validation](/product/presets-and-validation.md) are generated from an independent open-source implementation; workflow setup folded into Phase 0 of the [delivery phases](/product/delivery-phases.md).
