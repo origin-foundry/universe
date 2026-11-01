@@ -3,8 +3,9 @@ type: Design
 title: Crate layout
 description: The Rust workspace crates and their dependency direction.
 tags: [architecture, rust, crates, layering]
-status: draft
+status: stable
 generated: { by: claude-code/claude-opus-5-5, at: 2026-10-30T08:24:17Z }
+verified: { by: human:origin-foundry, at: 2026-11-01T14:12:05Z }
 ---
 
 # Layout

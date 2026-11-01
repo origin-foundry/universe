@@ -6,7 +6,7 @@ A desktop app for defining physically grounded, non-Earth calendars across multi
 
 - **Rules:** `.specify/memory/constitution.md`. Every plan must comply; violations need a written justification.
 - **Design:** `knowledge/index.md` (an Open Knowledge Format v0.2 bundle). This is the source of truth for what the system is. `DESIGN.md` is superseded; never edit it.
-- **Workflow:** `knowledge/decisions/0006-spec-driven-two-pr-workflow.md` and `knowledge/decisions/0007-bot-identity-and-gates.md`.
+- **Workflow:** `knowledge/process/feature-workflow.md` (the step-by-step path, roles and who moves each board card), from `knowledge/decisions/0006-spec-driven-two-pr-workflow.md` and `knowledge/decisions/0007-bot-identity-and-gates.md`.
 
 ## How work flows
 
