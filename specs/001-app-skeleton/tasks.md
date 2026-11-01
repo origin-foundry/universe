@@ -104,7 +104,7 @@ description: "Task list for spec 001, app skeleton"
 
 ### Tests for User Story 3 (write first; they must fail)
 
-- [ ] T026 [P] [US3] Create fixtures under `scripts/tests/fixtures/architecture/`, each a minimal Cargo workspace plus its own `layout.md` containing a `crate-dependencies` block (data-model.md):
+- [x] T026 [P] [US3] Create fixtures under `scripts/tests/fixtures/architecture/`, each a minimal Cargo workspace plus its own `layout.md` containing a `crate-dependencies` block (data-model.md):
   - `ok/`
   - `upward/` (a lower crate depends on a higher one)
   - `unlisted/` (an edge the block doesn't allow)
@@ -115,19 +115,19 @@ description: "Task list for spec 001, app skeleton"
   - `float-type/` (`f64` in an exact crate)
   - `float-literal/` (`1.0` in an exact crate)
   - `float-ignored/` (`f64` and `1.0` only in comments and string literals: must pass)
-- [ ] T027 [US3] Write `scripts/tests/test_check_architecture.py`: one test per fixture asserting the exit code (0/1/2) and the finding prefix and text from contracts/check-scripts.md (e.g. `error: dependency: upper -> lower`, `error: float: src/lib.rs:3: f64 in exact crate`). Skip with a clear message when `cargo` isn't installed, as on the `knowledge` job.
+- [x] T027 [US3] Write `scripts/tests/test_check_architecture.py`: one test per fixture asserting the exit code (0/1/2) and the finding prefix and text from contracts/check-scripts.md (e.g. `error: dependency: upper -> lower`, `error: float: src/lib.rs:3: f64 in exact crate`). Skip with a clear message when `cargo` isn't installed, as on the `knowledge` job.
 
 ### Implementation for User Story 3
 
-- [ ] T028 [US3] Implement `scripts/check_architecture.py` per contracts/check-scripts.md and data-model.md:
+- [x] T028 [US3] Implement `scripts/check_architecture.py` per contracts/check-scripts.md and data-model.md:
   - Parse the single block opened with ```` ```yaml crate-dependencies ```` (the `exact` key lists the exact crates).
   - Validate it ("every name in a list is itself a key", "no crate depends on itself", "no cycles", "every crate named in `exact` is a key").
   - Compare it with `cargo metadata --format-version 1 --no-deps` (normal, build and dev dependencies on workspace crates).
   - Scan the exact crates' `.rs` files for `f32`/`f64` and float literals, ignoring comments and string literals.
   
   Work until T027 passes.
-- [ ] T029 [US3] Add an `architecture` job to `ci.yml` (Ubuntu; Rust toolchain; Python 3.13 with PyYAML). It runs `python -m unittest discover -s scripts/tests -p test_check_architecture.py -v` (`scripts/tests` isn't a Python package, so it's discovered by path), then `python scripts/check_architecture.py`, and runs whenever `detect` finds Rust.
-- [ ] T030 [US3] Run `python scripts/check_architecture.py` on the real workspace: it must pass. Then temporarily add `uni-calendar` as a dependency of `uni-physics` and `let x: f64 = 1.0;` to `uni-calendar`, confirm both are reported, and revert.
+- [x] T029 [US3] Add an `architecture` job to `ci.yml` (Ubuntu; Rust toolchain; Python 3.13 with PyYAML). It runs `python -m unittest discover -s scripts/tests -p test_check_architecture.py -v` (`scripts/tests` isn't a Python package, so it's discovered by path), then `python scripts/check_architecture.py`, and runs whenever `detect` finds Rust.
+- [x] T030 [US3] Run `python scripts/check_architecture.py` on the real workspace: it must pass. Then temporarily add `uni-calendar` as a dependency of `uni-physics` and `let x: f64 = 1.0;` to `uni-calendar`, confirm both are reported, and revert.
 
 **Checkpoint**: the architecture rules hold, and breaking them is caught locally and in CI.
 
