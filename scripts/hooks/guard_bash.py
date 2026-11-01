@@ -18,7 +18,16 @@ BLOCKED = [
     (r"\bgh\s+api\b[^;&|]*/(rulesets|branches/[^/\s]+/protection)\b", "changing repository rules"),
     (r"\bgh\s+(ruleset|repo\s+edit)\b", "changing repository settings"),
     (r"\bgit\s+(commit|push)\b[^;&|]*--no-verify\b", "skipping git hooks"),
+    # The bot token is never read, printed or bypassed, and Claude never acts as the owner.
+    (r"\benv\b[^;&|]*\s-u\s*GH_TOKEN\b", "dropping the bot token to act as the owner"),
+    (r"\bunset\s+GH_TOKEN\b|Remove-Item\s+Env:\\?GH_TOKEN", "dropping the bot token to act as the owner"),
+    (r"(^|[\s;&|(])GH_TOKEN=|\$env:GH_TOKEN\s*=", "overriding the bot token"),
+    (r"\bgh\s+auth\s+(token|switch|login|logout)\b", "reading or switching GitHub credentials"),
 ]
+
+# Commands may mention the token file only to confirm it is gitignored.
+TOKEN_FILE = re.compile(r"settings\.local\.json")
+TOKEN_FILE_ALLOWED = re.compile(r"^\s*git\s+check-ignore\b[^;&|]*$")
 
 
 def main():
@@ -27,9 +36,11 @@ def main():
     except json.JSONDecodeError:
         return 0
     command = (payload.get("tool_input") or {}).get("command") or ""
-    for pattern, reason in BLOCKED:
-        if re.search(pattern, command):
-            print(
+    reasons = [reason for pattern, reason in BLOCKED if re.search(pattern, command)]
+    if TOKEN_FILE.search(command) and not TOKEN_FILE_ALLOWED.match(command):
+        reasons.append("touching the bot token file")
+    for reason in reasons[:1]:
+        print(
                 f"Blocked by the repository guard: {reason} is reserved for the owner "
                 "(see Human Gates in .specify/memory/constitution.md). "
                 "Ask the owner instead of working around this.",

@@ -31,6 +31,17 @@ class GuardBlocks(unittest.TestCase):
             "gh repo edit --visibility private",
             "git commit -m x --no-verify",
             "cd x && git push origin main",
+            "env -u GH_TOKEN gh api user",
+            "unset GH_TOKEN; gh pr merge 2",
+            "GH_TOKEN=abc gh api user",
+            "export GH_TOKEN=abc",
+            "$env:GH_TOKEN = 'x'",
+            "Remove-Item Env:GH_TOKEN",
+            "gh auth token",
+            "gh auth switch --user origin-foundry",
+            "cat .claude/settings.local.json",
+            "python -c \"open('.claude/settings.local.json').read()\"",
+            "git check-ignore -q .claude/settings.local.json && cat .claude/settings.local.json",
         ]:
             self.assertEqual(guard(command), 2, command)
 
@@ -43,6 +54,10 @@ class GuardBlocks(unittest.TestCase):
             "gh pr view 12",
             "gh pr review 12 --comment -b ok",
             "python scripts/check_okf.py knowledge",
+            "git check-ignore -v .claude/settings.local.json",
+            "cp .claude/settings.local.example.json /tmp/x.json",
+            "gh auth status",
+            "grep -n GH_TOKEN .github/workflows/pr-policy.yml",
         ]:
             self.assertEqual(guard(command), 0, command)
 

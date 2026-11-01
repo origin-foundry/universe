@@ -6,7 +6,10 @@
       "Bash(git push -f:*)",
       "Bash(gh pr merge:*)",
       "Bash(gh pr ready:*)",
-      "Edit(DESIGN.md)"
+      "Edit(DESIGN.md)",
+      "Read(./.claude/settings.local.json)",
+      "Edit(./.claude/settings.local.json)",
+      "Write(./.claude/settings.local.json)"
     ]
   },
   "hooks": {
