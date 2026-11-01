@@ -54,25 +54,25 @@ description: "Task list for spec 001, app skeleton"
 
 ### Scaffold for User Story 1
 
-- [ ] T012 [US1] Create the Tauri app crate's scaffold, `crates/uni-app`, with **no `app_info` yet**:
+- [x] T012 [US1] Create the Tauri app crate's scaffold, `crates/uni-app`, with **no `app_info` yet**:
   - `Cargo.toml`: workspace package fields and lints; dependencies `tauri` (2.x) and `serde` (with `derive`); build dependency `tauri-build`; **no workspace-crate dependencies yet**.
   - `build.rs` calling `tauri_build::build()`.
   - `src/main.rs`, which hides the console in release builds and calls `uni_app::run()`.
   - `src/lib.rs` with only `run()`, which builds and runs the Tauri app.
   - `tauri.conf.json`: `productName` "Universe"; identifier `io.github.origin-foundry.universe`; one window titled "Universe", 1200×800 and resizable; `devUrl` `http://localhost:5173`; `frontendDist` `../../ui/dist`; `beforeDevCommand` `npm run ui:dev`; `beforeBuildCommand` `npm run ui:build`; a strict CSP (`default-src 'self'`).
   - `capabilities/default.json` granting only `core:default`.
-- [ ] T013 [US1] Verify research.md R1's risk: from the repository root, `npx tauri info` finds `crates/uni-app/tauri.conf.json`. If it doesn't, try the CLI's option for naming the app directory. If neither works, **stop**: moving the crate needs a design PR that changes the crate layout. Record the outcome in the build PR description.
+- [x] T013 [US1] Verify research.md R1's risk: from the repository root, `npx tauri info` finds `crates/uni-app/tauri.conf.json`. If it doesn't, try the CLI's option for naming the app directory. If neither works, **stop**: moving the crate needs a design PR that changes the crate layout. Record the outcome in the build PR description.
 
 ### Tests for User Story 1 (write first; they must fail)
 
-- [ ] T014 [P] [US1] In `crates/uni-app/src/lib.rs`, add a `#[cfg(test)]` unit test that `app_info()` returns `name == "Universe"` and `version == env!("CARGO_PKG_VERSION")` (contracts/app-info-command.md). Confirm it fails, because `app_info` doesn't exist yet.
-- [ ] T015 [P] [US1] Write `ui/src/App.test.tsx`, mocking `invoke` from `@tauri-apps/api/core`. (a) It resolves `{ name: "Universe", version: "9.9.9" }`: expect the texts "Universe", "9.9.9" and "No universe open". (b) It rejects: expect "Version unavailable" and "No universe open". Confirm it fails, because `App` doesn't exist yet.
+- [x] T014 [P] [US1] In `crates/uni-app/src/lib.rs`, add a `#[cfg(test)]` unit test that `app_info()` returns `name == "Universe"` and `version == env!("CARGO_PKG_VERSION")` (contracts/app-info-command.md). Confirm it fails, because `app_info` doesn't exist yet.
+- [x] T015 [P] [US1] Write `ui/src/App.test.tsx`, mocking `invoke` from `@tauri-apps/api/core`. (a) It resolves `{ name: "Universe", version: "9.9.9" }`: expect the texts "Universe", "9.9.9" and "No universe open". (b) It rejects: expect "Version unavailable" and "No universe open". Confirm it fails, because `App` doesn't exist yet.
 
 ### Implementation for User Story 1
 
-- [ ] T016 [US1] Create a placeholder app icon with a script (a plain 1024×1024 PNG of the letter "U", generated in code; no third-party artwork) and run `npx tauri icon` to fill `crates/uni-app/icons/`.
-- [ ] T017 [US1] In `crates/uni-app/src/lib.rs`, add `#[tauri::command] fn app_info() -> AppInfo { name, version }` and register it in `run()`. Create `ui/index.html`, `ui/src/main.tsx` and `ui/src/App.tsx`. `App` calls `invoke("app_info")` once on mount and shows the name, the version (or "Version unavailable" if the call fails) and "No universe open". Work until T014 and T015 pass.
-- [ ] T018 [US1] Add npm scripts to `package.json`: `ui:dev` (`vite`), `ui:build` (`vite build`), `tauri` (`tauri`), `dev` (`tauri dev`), `app` (`tauri build --no-bundle`, then launch `target/release/uni-app.exe`), and `predev`/`preapp` (`python scripts/check_prereqs.py`).
+- [x] T016 [US1] Create a placeholder app icon with a script (a plain 1024×1024 PNG of the letter "U", generated in code; no third-party artwork) and run `npx tauri icon` to fill `crates/uni-app/icons/`.
+- [x] T017 [US1] In `crates/uni-app/src/lib.rs`, add `#[tauri::command] fn app_info() -> AppInfo { name, version }` and register it in `run()`. Create `ui/index.html`, `ui/src/main.tsx` and `ui/src/App.tsx`. `App` calls `invoke("app_info")` once on mount and shows the name, the version (or "Version unavailable" if the call fails) and "No universe open". Work until T014 and T015 pass.
+- [x] T018 [US1] Add npm scripts to `package.json`: `ui:dev` (`vite`), `ui:build` (`vite build`), `tauri` (`tauri`), `dev` (`tauri dev`), `app` (`tauri build --no-bundle`, then launch `target/release/uni-app.exe`), and `predev`/`preapp` (`python scripts/check_prereqs.py`).
 - [ ] T019 [US1] **(owner)** Run quickstart.md §1 on your machine, timing from a fresh clone of the build branch to the first window (SC-001 target: under 15 minutes, with prerequisites already installed): `npm ci`; `npm run dev` (check the window's three texts; edit "No universe open" and see it update within 3 s); close the window cleanly; `npm run app`; then take Node off `PATH` temporarily and check that `npm run dev` stops with the prerequisites report. Report the timings (SC-001, SC-002).
 
 **Checkpoint**: User Story 1 works end to end on the owner's machine.

@@ -5,6 +5,13 @@
   "license": "GPL-3.0-only",
   "type": "module",
   "scripts": {
+    "predev": "python scripts/check_prereqs.py",
+    "dev": "tauri dev",
+    "preapp": "python scripts/check_prereqs.py",
+    "app": "tauri build --no-bundle && node scripts/launch-app.mjs",
+    "tauri": "tauri",
+    "ui:dev": "vite",
+    "ui:build": "vite build",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "format:check": "prettier --check ui package.json tsconfig.json vite.config.ts eslint.config.js .prettierrc.json",
