@@ -1,0 +1,42 @@
+name: Ready gate
+
+# When every check on a draft PR has passed, mark it ready for review and hand it to the owner.
+# Triggered after CI or PR policy finishes; runs from main, so a PR can't change this behaviour.
+on:
+  workflow_run:
+    workflows: [CI, PR policy]
+    types: [completed]
+
+permissions:
+  pull-requests: write
+  checks: read
+
+jobs:
+  gate:
+    name: gate
+    if: github.event.workflow_run.event == 'pull_request' || github.event.workflow_run.event == 'pull_request_target'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      OWNER: origin-foundry
+      HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+    steps:
+      - name: Find the PR, check every check run, then hand over
+        run: |
+          pr=$(gh pr list --state open --json number,headRefOid,isDraft \
+                 --jq ".[] | select(.headRefOid == \"$HEAD_SHA\") | .number")
+          if [ -z "$pr" ]; then echo "No open PR for $HEAD_SHA"; exit 0; fi
+          if [ "$(gh pr view "$pr" --json isDraft --jq .isDraft)" != "true" ]; then
+            echo "PR #$pr is not a draft; nothing to do"; exit 0
+          fi
+          # Every check run on the head commit must be complete and successful (or skipped).
+          bad=$(gh api "repos/$GH_REPO/commits/$HEAD_SHA/check-runs?per_page=100" \
+                  --jq '[.check_runs[] | select(.name != "gate")
+                         | select(.status != "completed"
+                                  or (.conclusion != "success" and .conclusion != "skipped" and .conclusion != "neutral"))
+                         | .name] | join(", ")')
+          if [ -n "$bad" ]; then echo "Not ready yet: $bad"; exit 0; fi
+          gh pr ready "$pr"
+          gh pr edit "$pr" --add-assignee "$OWNER" --add-reviewer "$OWNER"
+          echo "PR #$pr is ready and assigned to $OWNER"

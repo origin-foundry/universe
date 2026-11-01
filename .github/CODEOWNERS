@@ -1,0 +1,9 @@
+# The owner approves every change (ADR 0007). The explicit entries document the files
+# that matter most; the catch-all already covers them.
+*                                   @origin-foundry
+/.specify/memory/constitution.md    @origin-foundry
+/knowledge/                         @origin-foundry
+/specs/                             @origin-foundry
+/.claude/                           @origin-foundry
+/.github/                           @origin-foundry
+/scripts/                           @origin-foundry

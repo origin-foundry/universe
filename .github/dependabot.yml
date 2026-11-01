@@ -1,0 +1,8 @@
+# Cargo and npm ecosystems are added by the Phase 0 build spec, once their manifests exist.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    labels: [fast-lane]
