@@ -25,7 +25,7 @@ Ask the owner questions one at a time with options to choose from, never as a li
 ## Hard rules
 
 - Never push to `main`, merge a PR, or touch the repository ruleset.
-- Open PRs as drafts. CI marks them ready and assigns the owner when all checks pass.
+- Open PRs ready for review (never drafts). The ready gate assigns the owner when every check passes; don't assign or ping the owner yourself.
 - Only move board cards into review columns, never out of them.
 - Never add `verified:` to a knowledge concept or change the constitution without the owner's explicit approval.
 - Never commit secrets.

@@ -47,7 +47,7 @@ These rules bind Claude (and any other agent) working on this repository:
 
 - Never push to `main`, never merge a PR, never bypass or edit the repository ruleset.
 - Work as the bot account, never with the owner's credentials.
-- Open PRs as drafts; the CI gate marks them ready and assigns the owner.
+- Open PRs ready for review, not as drafts. The ready gate assigns the owner once every check passes; until then the PR isn't the owner's to review.
 - On the project board, move cards **into** review columns only. Only the owner moves cards **out** of Spec review, Design review and PR review.
 - Never mark knowledge concepts verified, or change this constitution, without the owner's explicit approval.
 - Never commit secrets. The repository is public.
@@ -64,4 +64,7 @@ The repository is GPL-3.0. Vendored third-party code keeps its own licence notic
 
 This constitution overrides any other practice in the repository. Amendments go through a design PR that the owner merges, update the version below (major: a principle removed or redefined; minor: a principle added or materially expanded; patch: clarifications), and update any affected templates or knowledge concepts in the same PR.
 
-**Version**: 1.0.0 | **Ratified**: pending owner approval | **Last Amended**: 2026-10-30
+**Version**: 1.0.1 | **Ratified**: 2026-11-01 | **Last Amended**: 2026-11-01
+
+- 1.0.1: PRs open ready for review instead of as drafts; the ready gate assigns the owner when every check passes.
+- 1.0.0: Ratified by merging #2.

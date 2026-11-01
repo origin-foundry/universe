@@ -1,6 +1,6 @@
 <!--
 Label this PR with exactly one of: design, build, fast-lane. The PR policy check enforces the rules.
-Open it as a draft; CI marks it ready and assigns the owner when every check passes.
+Open it ready for review, not as a draft. The ready gate assigns the owner when every check passes.
 -->
 
 ## What and why
