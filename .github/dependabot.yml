@@ -1,8 +1,14 @@
 # Cargo and npm ecosystems are added by the Phase 0 build spec, once their manifests exist.
 version: 2
 updates:
+  # Action updates edit workflow files, including guardrail workflows (pr-policy.yml,
+  # ready-gate.yml) that may only change in a design PR. So they're labelled design, and
+  # grouped into one PR a week so they don't conflict with each other.
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
-    labels: [fast-lane]
+    labels: [design]
+    groups:
+      github-actions:
+        patterns: ["*"]
