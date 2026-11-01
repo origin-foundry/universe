@@ -4,9 +4,9 @@ How to prove the build PR meets the spec. Commands run from the repository root.
 
 ## 1. Fresh checkout to running app (US1, SC-001, SC-002)
 
-1. On a Windows 10 or 11 machine, follow `docs/development.md` to install the prerequisites. Time it; the target is under 15 minutes in total (SC-001).
+1. On a Windows 10 or 11 machine, follow `docs/development.md` to install the prerequisites. Note the time, but there's no target: it depends on download speeds.
 2. `python scripts/check_prereqs.py` should report every item as `ok`.
-3. `npm ci`
+3. Start timing from a fresh clone; SC-001's target is under 15 minutes to the first window. Run `npm ci`.
 4. `npm run dev` should open a window titled **Universe** showing the name, the version and "No universe open".
 5. Change the "No universe open" text in the UI source and save. The window should update within 3 seconds without restarting (SC-002).
 6. Close the window. The terminal should show no errors.
