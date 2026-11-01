@@ -1,6 +1,7 @@
 # Bundle update log
 
 ## 2026-11-01
+* **Creation**: Added the [feature workflow](/process/feature-workflow.md) playbook (draft): the path from Backlog to Done, roles, and who moves each board card.
 * **Update**: Spec 001 (app skeleton): [crate layout](/architecture/crate-layout.md) gains the machine-readable list of allowed dependencies that the architecture check enforces, the `exact` crates, the sky-function interface rule, and the root `package.json`. Back to draft pending owner approval.
 * **Update**: PRs are opened ready for review instead of as drafts, because the Actions token can't take a PR out of draft; the ready gate now assigns the owner and comments when every check passes. Amended [ADR 0007](/decisions/0007-bot-identity-and-gates.md) (also correcting its PR-policy description) and the [GitHub setup](/process/github-setup.md) playbook; both re-verified by human:origin-foundry in review of #7.
 * **Verification**: human:origin-foundry reviewed PR #2 and verified the [GitHub setup](/process/github-setup.md) playbook.
