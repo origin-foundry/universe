@@ -139,7 +139,7 @@ description: "Task list for spec 001, app skeleton"
 
 **Independent Test**: quickstart.md §4.
 
-- [ ] T031 [US4] In `.github/dependabot.yml`, add `cargo` (directory `/`) and `npm` (directory `/`) entries: weekly, each with one group matching `*`, labelled `fast-lane`, alongside the existing `github-actions` entry. Remove the comment about adding them later.
+- [x] T031 [US4] In `.github/dependabot.yml`, add `cargo` (directory `/`) and `npm` (directory `/`) entries: weekly, each with one group matching `*`, labelled `fast-lane`, alongside the existing `github-actions` entry. Remove the comment about adding them later.
 
 **Checkpoint**: the configuration covers all three ecosystems.
 
@@ -147,14 +147,14 @@ description: "Task list for spec 001, app skeleton"
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T032 [P] Add a "Development" section to `README.md` linking `docs/development.md`, and update its status line to say the app skeleton exists.
-- [ ] T033 Run the full local verification and record the results in the build PR description:
+- [x] T032 [P] Add a "Development" section to `README.md` linking `docs/development.md`, and update its status line to say the app skeleton exists.
+- [x] T033 Run the full local verification and record the results in the build PR description:
   - `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`
   - `npm run typecheck`, `npm run lint`, `npm run format:check`, `npm test`
   - `python scripts/check_architecture.py`
   - `python -m unittest discover -s scripts/tests`
   - `python scripts/check_okf.py knowledge`
-- [ ] T034 Open the build PR as the bot: label `build`, body with `Design: #<design PR>` and `Closes #9`. List generated files (lock files, icons) separately from hand-written files, so the review stays near 30 minutes (plan.md Complexity Tracking). Move card #9 to **PR review**.
+- [x] T034 Open the build PR as the bot: label `build`, body with `Design: #<design PR>` and `Closes #9`. List generated files (lock files, icons) separately from hand-written files, so the review stays near 30 minutes (plan.md Complexity Tracking). Move card #9 to **PR review**.
 
 ---
 
