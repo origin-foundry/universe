@@ -6,7 +6,7 @@ Decisions for spec 001. Each records what was chosen, why, and what else was con
 
 - **Decision**: One npm package at the repository root (`package.json`), holding the UI's dependencies and the Tauri CLI. The UI's sources stay in `ui/` (Vite's `root` is `ui/`). The Tauri app crate is `crates/uni-app`, with `tauri.conf.json` beside its `Cargo.toml`. The Cargo workspace is at the root (`Cargo.toml`), with every crate under `crates/`.
 - **Rationale**: Keeps the agreed crate layout (`/architecture/crate-layout.md`) unchanged and gives one place to run commands from. The Tauri CLI finds the app by searching the working directory for `tauri.conf.json`, so running it from the root finds `crates/uni-app`.
-- **Risk to verify first in the build**: if the CLI doesn't find `crates/uni-app/tauri.conf.json` from the root, fall back to passing the app directory explicitly; if that isn't supported either, move the app crate to `src-tauri/` and amend the crate layout in a design PR. Task T001 checks this before anything else is built on it.
+- **Risk to verify first in the build**: if the CLI doesn't find `crates/uni-app/tauri.conf.json` from the root, fall back to passing the app directory explicitly; if that isn't supported either, move the app crate to `src-tauri/` and amend the crate layout in a design PR. Task T015 checks this before anything else is built on it.
 - **Alternatives**: `src-tauri/` at the root (Tauri's convention, but contradicts the verified crate layout); npm workspaces with a separate `ui/package.json` (two package files for one UI, and Tauri's CLI would still need locating).
 
 ## R2. Commands: development and run (FR-004)
