@@ -1,4 +1,3 @@
-# Cargo and npm ecosystems are added by the Phase 0 build spec, once their manifests exist.
 version: 2
 updates:
   # Action updates edit workflow files, including guardrail workflows (pr-policy.yml,
@@ -11,4 +10,24 @@ updates:
     labels: [design]
     groups:
       github-actions:
+        patterns: ["*"]
+
+  # Rust and npm updates only change manifests and lock files, which the PR policy allows in
+  # fast-lane PRs. One grouped PR per ecosystem a week (spec 001, FR-015).
+  - package-ecosystem: cargo
+    directory: /
+    schedule:
+      interval: weekly
+    labels: [fast-lane]
+    groups:
+      cargo:
+        patterns: ["*"]
+
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    labels: [fast-lane]
+    groups:
+      npm:
         patterns: ["*"]

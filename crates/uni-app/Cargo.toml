@@ -1,0 +1,20 @@
+[package]
+name = "uni-app"
+description = "The Universe desktop app: Tauri commands, background jobs and progress events."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+name = "uni_app"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+serde = { version = "1", features = ["derive"] }
+
+[lints]
+workspace = true

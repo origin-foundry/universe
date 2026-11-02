@@ -1,0 +1,3 @@
+# cargo metadata may create these while the tests run
+Cargo.lock
+target/

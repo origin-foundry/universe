@@ -1,0 +1,12 @@
+# Generated or not ours to format
+package-lock.json
+Cargo.lock
+target/
+ui/dist/
+crates/uni-app/gen/
+crates/uni-app/icons/
+.specify/
+.claude/skills/
+
+# Markdown is written by hand and reviewed as prose
+*.md

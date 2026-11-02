@@ -1,0 +1,6 @@
+# One exact Rust version for local builds, CI and Dependabot (specs/001-app-skeleton/research.md, R5).
+# Bump it deliberately, in a fast-lane PR.
+[toolchain]
+channel = "1.99.1"
+components = ["rustfmt", "clippy"]
+profile = "minimal"
