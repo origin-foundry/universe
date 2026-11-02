@@ -4,7 +4,7 @@
 
 **Created**: 2026-11-02
 
-**Status**: Draft
+**Status**: Approved by the owner, 2026-11-02
 
 **Input**: User description: "Exact time core (issue #10, Phase 0 spec 002). The app has exact, ordered time values and exact fractions that later calendar and physics work can build on, with no rounding error. Out of scope: reference frames beyond plain absolute time, clocks, calendars."
 
