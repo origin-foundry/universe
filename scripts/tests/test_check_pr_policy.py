@@ -64,7 +64,8 @@ class BuildPRs(unittest.TestCase):
         self.assertTrue(any("1 unticked" in e for e in errors))
 
     def test_changing_spec_or_knowledge_fails(self):
-        for f in ("specs/001-foundations/spec.md", "knowledge/overview.md", ".claude/settings.json"):
+        for f in ("specs/001-foundations/spec.md", "knowledge/overview.md", ".claude/settings.json",
+                  "scripts/check_architecture.py"):
             errors = check(pr(["build"], ["crates/x.rs", f], body="Design: #7", design=MERGED_DESIGN))
             self.assertTrue(any(f in e for e in errors), f)
 
@@ -75,7 +76,9 @@ class FastLanePRs(unittest.TestCase):
 
     def test_guardrails_and_design_files_fail(self):
         for f in (".specify/memory/constitution.md", "scripts/hooks/stop_checks.py",
-                  ".github/workflows/pr-policy.yml", ".github/CODEOWNERS", "knowledge/glossary.md"):
+                  ".github/workflows/pr-policy.yml", ".github/CODEOWNERS", "knowledge/glossary.md",
+                  "scripts/check_architecture.py", "scripts/tests/test_check_architecture.py",
+                  "scripts/tests/fixtures/architecture/ok/layout.md"):
             errors = check(pr(["fast-lane"], [f]))
             self.assertTrue(errors, f)
 

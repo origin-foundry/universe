@@ -32,6 +32,10 @@ PRODUCT_CODE = ["crates/*", "ui/*", "src-tauri/*", "Cargo.toml", "Cargo.lock", "
 GUARDRAILS = [
     ".specify/memory/constitution.md", ".claude/*", "scripts/hooks/*", "scripts/check_pr_policy.py",
     ".github/CODEOWNERS", ".github/workflows/pr-policy.yml", ".github/workflows/ready-gate.yml",
+    # The architecture check enforces constitution principles III and V; its tests and fixtures
+    # define what it catches, so weakening any of them needs a design PR too.
+    "scripts/check_architecture.py", "scripts/tests/test_check_architecture.py",
+    "scripts/tests/fixtures/architecture/*",
 ]
 DESIGN_ONLY = ["knowledge/*", "specs/*"] + GUARDRAILS
 SPEC_DIR_RE = re.compile(r"^specs/(\d{3}-[a-z0-9-]+)/")
