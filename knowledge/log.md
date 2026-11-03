@@ -1,5 +1,8 @@
 # Bundle update log
 
+## 2026-11-02
+* **Update**: Spec 002 (exact time core): `uni-time` joins the exact crates in the [crate layout](/architecture/crate-layout.md), and [timeline and frames](/time/timeline-and-frames.md) says the floating-point boundary for physics lives in `uni-physics`. Both re-verified by human:origin-foundry in review of #17.
+
 ## 2026-11-01
 * **Creation**: Added the [feature workflow](/process/feature-workflow.md) playbook: the path from Backlog to Done, roles, and who moves each board card. Verified by human:origin-foundry in review of #13.
 * **Update**: Spec 001 (app skeleton): [crate layout](/architecture/crate-layout.md) gains the machine-readable list of allowed dependencies that the architecture check enforces, the `exact` crates, the sky-function interface rule, and the root `package.json`. Re-verified by human:origin-foundry in review of #12 (recorded in #13, because the commit arrived after #12 merged).

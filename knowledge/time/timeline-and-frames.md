@@ -5,7 +5,7 @@ description: The hidden absolute timeline (GCT), system time (SBT), and how inst
 tags: [time, gct, sbt, frames, precision]
 status: stable
 generated: { by: claude-code/claude-opus-5-5, at: 2026-10-30T08:24:17Z }
-verified: { by: human:origin-foundry, at: 2026-10-30T22:10:03Z }
+verified: { by: human:origin-foundry, at: 2026-11-03T15:30:50Z }
 ---
 
 # Absolute timeline
@@ -22,7 +22,7 @@ GCT zero is a **hidden technical zero**, chosen by the app when a universe is cr
 | Calendar arithmetic | Exact rationals (`i128 / i128`) and integers | Leap rules and unit lengths must never accumulate float error. |
 | Physics integration | `f64` seconds relative to a simulation epoch near the middle of the range | At ±3.2 × 10¹² s (100k years), f64 resolution is ~0.5 ms, comfortably within the second-precision target. |
 
-Conversions between `Instant` and physics `f64` happen at one well-tested boundary.
+Conversions between `Instant` and physics `f64` happen at one well-tested boundary, in `uni-physics`. `uni-time` itself is an exact crate with no floating point (see [crate layout](/architecture/crate-layout.md)).
 
 # Frame chain
 
