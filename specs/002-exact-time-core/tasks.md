@@ -98,7 +98,7 @@ Built before US1 because spans and instants convert to and from fractions (US3),
 
 ### Tests (write first; they must fail)
 
-- [ ] T011 [US3] In `crates/uni-time/src/span.rs`, add a `ratio_conversions` test module:
+- [x] T011 [US3] In `crates/uni-time/src/span.rs`, add a `ratio_conversions` test module:
   - `as_secs_ratio` of 1.5 s gives 3/2, and of −1 ns gives −1/1_000_000_000;
   - round trip span → ratio → span (any rounding) is exact for whole nanoseconds;
   - `from_secs_ratio(1/3, Down/Up/NearestEven)` gives 333_333_333 / 333_333_334 / 333_333_333 ns;
@@ -109,26 +109,26 @@ Built before US1 because spans and instants convert to and from fractions (US3),
 
 ### Implementation
 
-- [ ] T012 [US3] Implement `as_secs_ratio`, `from_secs_ratio` and `checked_mul_ratio` in `crates/uni-time/src/span.rs`, using `Ratio`'s exact arithmetic and `round`. Work until T011 passes.
+- [x] T012 [US3] Implement `as_secs_ratio`, `from_secs_ratio` and `checked_mul_ratio` in `crates/uni-time/src/span.rs`, using `Ratio`'s exact arithmetic and `round`. Work until T011 passes.
 
 ---
 
 ## Phase 6: Independent oracle and performance
 
-- [ ] T013 [P] Write `crates/uni-time/tests/properties.rs` with `proptest` at 10,000 cases per property (`ProptestConfig::with_cases(10_000)`). Each `Ratio` operation (add, sub, mul, div, cmp, floor, rem_floor, round in all three directions) is compared with `num_rational::BigRational`: where the exact result fits in our range, ours must equal the oracle's; where it doesn't, ours must return `Overflow`. Also check:
+- [x] T013 [P] Write `crates/uni-time/tests/properties.rs` with `proptest` at 10,000 cases per property (`ProptestConfig::with_cases(10_000)`). Each `Ratio` operation (add, sub, mul, div, cmp, floor, rem_floor, round in all three directions) is compared with `num_rational::BigRational`: where the exact result fits in our range, ours must equal the oracle's; where it doesn't, ours must return `Overflow`. Also check:
   - instant + span − span = instant;
   - `a.since(b) + b = a` (via `checked_add`);
   - span → ratio → span round trips.
   
   Inputs include values near the range limits.
-- [ ] T014 [P] Write `crates/uni-time/tests/timing.rs`, a `#[test] #[ignore]` that times a million mixed operations (`Instant::checked_add`, `since`, `Ratio::checked_add`/`checked_mul`, `Span::from_secs_ratio`) with `std::time::Instant` and asserts the elapsed `Duration` is under one second. No floats (R7).
-- [ ] T015 Run `cargo test -p uni-time --release -- --ignored` and record the timing in the build PR description (SC-005).
+- [x] T014 [P] Write `crates/uni-time/tests/timing.rs`, a `#[test] #[ignore]` that times a million mixed operations (`Instant::checked_add`, `since`, `Ratio::checked_add`/`checked_mul`, `Span::from_secs_ratio`) with `std::time::Instant` and asserts the elapsed `Duration` is under one second. No floats (R7).
+- [x] T015 Run `cargo test -p uni-time --release -- --ignored` and record the timing in the build PR description (SC-005).
 
 ---
 
 ## Phase 7: Polish
 
-- [ ] T016 Remove "the frame chain (GCT, SBT, proper time) and clock tables" from the crate doc in `crates/uni-time/src/lib.rs` if it isn't already gone, noting those arrive in later phases. Add doc comments with a short example to each public type.
+- [x] T016 Remove "the frame chain (GCT, SBT, proper time) and clock tables" from the crate doc in `crates/uni-time/src/lib.rs` if it isn't already gone, noting those arrive in later phases. Add doc comments with a short example to each public type.
 - [ ] T017 Run the full local verification and record the results in the build PR description:
   - `cargo fmt --all --check`
   - `cargo clippy --workspace --all-targets -- -D warnings`

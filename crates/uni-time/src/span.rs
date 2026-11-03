@@ -1,5 +1,5 @@
 use crate::wide::mul_div_round;
-use crate::{Rounding, TimeError};
+use crate::{Ratio, Rounding, TimeError};
 
 type R<T> = Result<T, TimeError>;
 
@@ -61,6 +61,24 @@ impl Span {
         let quotient = mul_div_round(self.0, 1, i128::from(n), rounding).ok_or(TimeError::OutOfRange)?;
         Span::from_nanos(quotient)
     }
+
+    /// This span as an exact fraction of seconds.
+    pub fn as_secs_ratio(self) -> R<Ratio> {
+        Ratio::new(self.0, NANOS_PER_SEC)
+    }
+
+    /// The span nearest `secs` seconds, rounding anything finer than a nanosecond as asked.
+    pub fn from_secs_ratio(secs: Ratio, rounding: Rounding) -> R<Span> {
+        let nanos = mul_div_round(secs.numer(), NANOS_PER_SEC, secs.denom(), rounding)
+            .ok_or(TimeError::OutOfRange)?;
+        Span::from_nanos(nanos)
+    }
+
+    /// This span scaled by an exact fraction, rounding to a nanosecond as asked.
+    pub fn checked_mul_ratio(self, r: Ratio, rounding: Rounding) -> R<Span> {
+        let nanos = mul_div_round(self.0, r.numer(), r.denom(), rounding).ok_or(TimeError::OutOfRange)?;
+        Span::from_nanos(nanos)
+    }
 }
 
 #[cfg(test)]
@@ -112,5 +130,65 @@ mod tests {
     fn ordering() {
         assert!(ns(-1) < Span::ZERO && Span::ZERO < ns(1));
         assert!(ns(-(LIMIT - 1)) < ns(LIMIT - 1));
+    }
+}
+
+#[cfg(test)]
+mod ratio_conversions {
+    use super::*;
+
+    fn q(n: i128, d: i128) -> Ratio {
+        Ratio::new(n, d).unwrap()
+    }
+
+    #[test]
+    fn span_to_seconds_is_exact() {
+        assert_eq!(Span::from_nanos(1_500_000_000).unwrap().as_secs_ratio(), Ok(q(3, 2)));
+        assert_eq!(Span::from_nanos(-1).unwrap().as_secs_ratio(), Ok(q(-1, 1_000_000_000)));
+    }
+
+    #[test]
+    fn whole_nanoseconds_round_trip_exactly() {
+        for n in [0, 1, -1, 999_999_999, -123_456_789_012_345, (1i128 << 64) * 1_000_000_000 - 1] {
+            let span = Span::from_nanos(n).unwrap();
+            for rounding in [Rounding::Down, Rounding::Up, Rounding::NearestEven] {
+                assert_eq!(Span::from_secs_ratio(span.as_secs_ratio().unwrap(), rounding), Ok(span));
+            }
+        }
+    }
+
+    #[test]
+    fn sub_nanosecond_results_round_only_as_asked() {
+        let third = q(1, 3);
+        assert_eq!(Span::from_secs_ratio(third, Rounding::Down).unwrap().as_nanos(), 333_333_333);
+        assert_eq!(Span::from_secs_ratio(third, Rounding::Up).unwrap().as_nanos(), 333_333_334);
+        assert_eq!(Span::from_secs_ratio(third, Rounding::NearestEven).unwrap().as_nanos(), 333_333_333);
+        let minus_third = q(-1, 3);
+        assert_eq!(Span::from_secs_ratio(minus_third, Rounding::Down).unwrap().as_nanos(), -333_333_334);
+        assert_eq!(Span::from_secs_ratio(minus_third, Rounding::Up).unwrap().as_nanos(), -333_333_333);
+    }
+
+    #[test]
+    fn ties_round_to_even() {
+        let two_and_a_half_ns = q(5, 2_000_000_000);
+        let three_and_a_half_ns = q(7, 2_000_000_000);
+        assert_eq!(Span::from_secs_ratio(two_and_a_half_ns, Rounding::NearestEven).unwrap().as_nanos(), 2);
+        assert_eq!(Span::from_secs_ratio(three_and_a_half_ns, Rounding::NearestEven).unwrap().as_nanos(), 4);
+    }
+
+    #[test]
+    fn scaling_by_a_fraction() {
+        let one_second = Span::from_secs(1);
+        assert_eq!(one_second.checked_mul_ratio(q(1, 7), Rounding::Down).unwrap().as_nanos(), 142_857_142);
+        assert_eq!(one_second.checked_mul_ratio(q(-1, 7), Rounding::Down).unwrap().as_nanos(), -142_857_143);
+        let huge = q(i128::MAX, i128::MAX - 1); // just over 1, with a huge numerator
+        assert_eq!(one_second.checked_mul_ratio(huge, Rounding::Down), Ok(one_second));
+    }
+
+    #[test]
+    fn out_of_range_is_an_error_never_clipped() {
+        let big = Span::from_nanos((1i128 << 64) * 1_000_000_000 - 1).unwrap();
+        assert_eq!(big.checked_mul_ratio(q(2, 1), Rounding::Down), Err(TimeError::OutOfRange));
+        assert_eq!(Span::from_secs_ratio(q(i128::MAX, 1), Rounding::Down), Err(TimeError::OutOfRange));
     }
 }
