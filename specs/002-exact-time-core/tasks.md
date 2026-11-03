@@ -139,7 +139,7 @@ Built before US1 because spans and instants convert to and from fractions (US3),
   - `python scripts/check_okf.py knowledge`
   
   Also confirm `uni-time` is caught by the architecture check: temporarily add `let x: f64 = 1.0;` and revert.
-- [ ] T018 Open the build PR as the bot: label `build`, body containing `Design: #<design PR>` and `Closes #10`. Move card #10 to **PR review**.
+- [x] T018 Open the build PR as the bot: label `build`, body containing `Design: #<design PR>` and `Closes #10`. Move card #10 to **PR review**.
 
 ---
 
