@@ -10,11 +10,11 @@
 #![deny(clippy::float_arithmetic)]
 
 mod error;
-mod wide;
 mod instant;
 mod ratio;
 mod rounding;
 mod span;
+mod wide;
 
 pub use error::TimeError;
 pub use instant::Instant;

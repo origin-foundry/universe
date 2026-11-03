@@ -33,7 +33,8 @@ impl Instant {
     }
 
     pub fn from_nanos(nanos: i128) -> R<Instant> {
-        let secs = i64::try_from(nanos.div_euclid(NANOS_PER_SEC)).map_err(|_| TimeError::OutOfRange)?;
+        let secs =
+            i64::try_from(nanos.div_euclid(NANOS_PER_SEC)).map_err(|_| TimeError::OutOfRange)?;
         let nanos = u32::try_from(nanos.rem_euclid(NANOS_PER_SEC)).expect("0 ≤ remainder < 10⁹");
         Ok(Instant { secs, nanos })
     }
@@ -62,7 +63,8 @@ impl Instant {
     /// The span from `earlier` to `self` (negative if `self` is earlier). Always fits, because
     /// spans reach just past the widest gap between two instants.
     pub fn since(self, earlier: Instant) -> Span {
-        Span::from_nanos(self.as_nanos() - earlier.as_nanos()).expect("any gap between instants fits in a span")
+        Span::from_nanos(self.as_nanos() - earlier.as_nanos())
+            .expect("any gap between instants fits in a span")
     }
 }
 
@@ -117,7 +119,10 @@ mod tests {
     #[test]
     fn range_edges_are_errors() {
         let one = Span::from_nanos(1).unwrap();
-        assert_eq!(at(i64::MAX, 999_999_999).checked_add(one), Err(TimeError::OutOfRange));
+        assert_eq!(
+            at(i64::MAX, 999_999_999).checked_add(one),
+            Err(TimeError::OutOfRange)
+        );
         assert_eq!(at(i64::MIN, 0).checked_sub(one), Err(TimeError::OutOfRange));
     }
 

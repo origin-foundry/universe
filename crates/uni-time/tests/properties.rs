@@ -25,12 +25,19 @@ fn int() -> impl Strategy<Value = i128> {
 }
 
 fn ratio() -> impl Strategy<Value = Ratio> {
-    (int(), int().prop_filter("non-zero denominator", |&d| d != 0))
+    (
+        int(),
+        int().prop_filter("non-zero denominator", |&d| d != 0),
+    )
         .prop_filter_map("representable", |(n, d)| Ratio::new(n, d).ok())
 }
 
 fn rounding() -> impl Strategy<Value = Rounding> {
-    prop_oneof![Just(Rounding::Down), Just(Rounding::Up), Just(Rounding::NearestEven)]
+    prop_oneof![
+        Just(Rounding::Down),
+        Just(Rounding::Up),
+        Just(Rounding::NearestEven)
+    ]
 }
 
 fn big(r: Ratio) -> BigRational {
@@ -39,9 +46,14 @@ fn big(r: Ratio) -> BigRational {
 
 /// Our expected answer for an exact oracle value: the same value if it fits, else `Overflow`.
 fn expect(oracle: &BigRational) -> Result<Ratio, TimeError> {
-    let (n, d) = (i128::try_from(oracle.numer()), i128::try_from(oracle.denom()));
+    let (n, d) = (
+        i128::try_from(oracle.numer()),
+        i128::try_from(oracle.denom()),
+    );
     match (n, d) {
-        (Ok(n), Ok(d)) if n != i128::MIN => Ok(Ratio::new(n, d).expect("oracle is reduced and fits")),
+        (Ok(n), Ok(d)) if n != i128::MIN => {
+            Ok(Ratio::new(n, d).expect("oracle is reduced and fits"))
+        }
         _ => Err(TimeError::Overflow),
     }
 }

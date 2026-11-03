@@ -24,7 +24,10 @@ fn a_million_operations_take_under_a_second() {
         let gap = black_box(t.since(Instant::ZERO));
         q = black_box(q.checked_add(small).unwrap());
         let _ = black_box(q.checked_mul(small).unwrap());
-        let _ = black_box(Span::from_secs_ratio(Ratio::new(i128::from(i), 3).unwrap(), Rounding::NearestEven));
+        let _ = black_box(Span::from_secs_ratio(
+            Ratio::new(i128::from(i), 3).unwrap(),
+            Rounding::NearestEven,
+        ));
         black_box(gap);
     }
     let elapsed = start.elapsed();

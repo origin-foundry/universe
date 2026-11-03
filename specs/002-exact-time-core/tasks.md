@@ -129,7 +129,7 @@ Built before US1 because spans and instants convert to and from fractions (US3),
 ## Phase 7: Polish
 
 - [x] T016 Remove "the frame chain (GCT, SBT, proper time) and clock tables" from the crate doc in `crates/uni-time/src/lib.rs` if it isn't already gone, noting those arrive in later phases. Add doc comments with a short example to each public type.
-- [ ] T017 Run the full local verification and record the results in the build PR description:
+- [x] T017 Run the full local verification and record the results in the build PR description:
   - `cargo fmt --all --check`
   - `cargo clippy --workspace --all-targets -- -D warnings`
   - `cargo test --workspace`

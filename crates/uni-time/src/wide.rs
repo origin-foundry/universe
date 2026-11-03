@@ -45,13 +45,19 @@ impl U256 {
     /// Sum of two magnitudes whose sum is known to fit (both are below 2²⁵⁵ here).
     pub(crate) fn add(self, o: U256) -> U256 {
         let (lo, carry) = self.lo.overflowing_add(o.lo);
-        U256 { lo, hi: self.hi + o.hi + u128::from(carry) }
+        U256 {
+            lo,
+            hi: self.hi + o.hi + u128::from(carry),
+        }
     }
 
     /// Difference of two magnitudes, `self ≥ o`.
     pub(crate) fn sub(self, o: U256) -> U256 {
         let (lo, borrow) = self.lo.overflowing_sub(o.lo);
-        U256 { lo, hi: self.hi - o.hi - u128::from(borrow) }
+        U256 {
+            lo,
+            hi: self.hi - o.hi - u128::from(borrow),
+        }
     }
 
     /// Quotient and remainder by a divisor of at most 2¹²⁷.
@@ -100,16 +106,29 @@ impl Signed {
     /// The exact product of two i128s.
     pub(crate) fn mul(a: i128, b: i128) -> Signed {
         let magnitude = U256::mul(a.unsigned_abs(), b.unsigned_abs());
-        Signed { negative: (a < 0) != (b < 0) && !magnitude.is_zero(), magnitude }
+        Signed {
+            negative: (a < 0) != (b < 0) && !magnitude.is_zero(),
+            magnitude,
+        }
     }
 
     pub(crate) fn add(self, o: Signed) -> Signed {
         if self.negative == o.negative {
-            return Signed { negative: self.negative, magnitude: self.magnitude.add(o.magnitude) };
+            return Signed {
+                negative: self.negative,
+                magnitude: self.magnitude.add(o.magnitude),
+            };
         }
-        let (big, small) = if self.magnitude >= o.magnitude { (self, o) } else { (o, self) };
+        let (big, small) = if self.magnitude >= o.magnitude {
+            (self, o)
+        } else {
+            (o, self)
+        };
         let magnitude = big.magnitude.sub(small.magnitude);
-        Signed { negative: big.negative && !magnitude.is_zero(), magnitude }
+        Signed {
+            negative: big.negative && !magnitude.is_zero(),
+            magnitude,
+        }
     }
 
     pub(crate) fn cmp(self, o: Signed) -> Ordering {
@@ -127,7 +146,8 @@ impl Signed {
 pub(crate) fn mul_div_round(a: i128, b: i128, d: i128, rounding: Rounding) -> Option<i128> {
     debug_assert!(d != 0);
     let product = Signed::mul(a, b);
-    let negative = product.negative && d > 0 || !product.magnitude.is_zero() && !product.negative && d < 0;
+    let negative =
+        product.negative && d > 0 || !product.magnitude.is_zero() && !product.negative && d < 0;
     let divisor = d.unsigned_abs();
     let (q, r) = product.magnitude.divrem(divisor);
     let q = q.to_u128()?;
@@ -159,10 +179,22 @@ mod tests {
     #[test]
     fn products_and_division_are_exact() {
         let p = U256::mul(u128::MAX, u128::MAX); // (2¹²⁸ − 1)² = 2²⁵⁶ − 2¹²⁹ + 1
-        assert_eq!(p, U256 { hi: u128::MAX - 1, lo: 1 });
+        assert_eq!(
+            p,
+            U256 {
+                hi: u128::MAX - 1,
+                lo: 1
+            }
+        );
         let x = U256::mul(i128::MAX as u128, 1_000_000_007);
-        assert_eq!(x.divrem(1_000_000_007), (U256::from_u128(i128::MAX as u128), 0));
-        assert_eq!(x.divrem(i128::MAX as u128), (U256::from_u128(1_000_000_007), 0));
+        assert_eq!(
+            x.divrem(1_000_000_007),
+            (U256::from_u128(i128::MAX as u128), 0)
+        );
+        assert_eq!(
+            x.divrem(i128::MAX as u128),
+            (U256::from_u128(1_000_000_007), 0)
+        );
     }
 
     #[test]

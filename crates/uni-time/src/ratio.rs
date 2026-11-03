@@ -31,7 +31,11 @@ impl Ratio {
             return Err(TimeError::DivisionByZero);
         }
         let g = gcd(num.unsigned_abs(), den.unsigned_abs());
-        Ratio::from_parts((num < 0) != (den < 0), num.unsigned_abs() / g, den.unsigned_abs() / g)
+        Ratio::from_parts(
+            (num < 0) != (den < 0),
+            num.unsigned_abs() / g,
+            den.unsigned_abs() / g,
+        )
     }
 
     pub fn from_int(n: i128) -> R<Ratio> {
@@ -61,7 +65,12 @@ impl Ratio {
             return Ok(Ratio::ZERO);
         }
         let g2 = gcd(g, t.magnitude.divrem(g).1);
-        let num = t.magnitude.divrem(g2).0.to_u128().ok_or(TimeError::Overflow)?;
+        let num = t
+            .magnitude
+            .divrem(g2)
+            .0
+            .to_u128()
+            .ok_or(TimeError::Overflow)?;
         let den = (b / g).checked_mul(d / g2).ok_or(TimeError::Overflow)?;
         Ratio::from_parts(t.negative, num, den)
     }
@@ -88,12 +97,18 @@ impl Ratio {
         if o.num == 0 {
             return Err(TimeError::DivisionByZero);
         }
-        let reciprocal = Ratio { num: o.den * o.num.signum(), den: o.num.abs() };
+        let reciprocal = Ratio {
+            num: o.den * o.num.signum(),
+            den: o.num.abs(),
+        };
         self.checked_mul(reciprocal)
     }
 
     pub fn checked_neg(self) -> R<Ratio> {
-        Ok(Ratio { num: -self.num, den: self.den }) // num is never i128::MIN
+        Ok(Ratio {
+            num: -self.num,
+            den: self.den,
+        }) // num is never i128::MIN
     }
 
     /// The largest whole number not above this value (towards −∞).
@@ -104,7 +119,10 @@ impl Ratio {
     /// `self − floor(self)`, always in `[0, 1)`.
     pub fn rem_floor(self) -> Ratio {
         // gcd(num mod den, den) = gcd(num, den) = 1, so this is already in lowest terms.
-        Ratio { num: self.num.rem_euclid(self.den), den: self.den }
+        Ratio {
+            num: self.num.rem_euclid(self.den),
+            den: self.den,
+        }
     }
 
     /// The nearest whole number in the chosen direction.
@@ -116,7 +134,10 @@ impl Ratio {
     fn from_parts(negative: bool, num: u128, den: u128) -> R<Ratio> {
         let num = i128::try_from(num).map_err(|_| TimeError::Overflow)?;
         let den = i128::try_from(den).map_err(|_| TimeError::Overflow)?;
-        Ok(Ratio { num: if negative { -num } else { num }, den })
+        Ok(Ratio {
+            num: if negative { -num } else { num },
+            den,
+        })
     }
 }
 
@@ -165,7 +186,10 @@ mod tests {
     #[test]
     fn zero_denominator_and_min_are_errors() {
         assert_eq!(Ratio::new(1, 0), Err(TimeError::DivisionByZero));
-        assert_eq!(r(1, 2).checked_div(Ratio::ZERO), Err(TimeError::DivisionByZero));
+        assert_eq!(
+            r(1, 2).checked_div(Ratio::ZERO),
+            Err(TimeError::DivisionByZero)
+        );
         assert_eq!(Ratio::new(i128::MIN, 1), Err(TimeError::Overflow));
         assert_eq!(Ratio::from_int(i128::MIN), Err(TimeError::Overflow));
         assert_eq!(Ratio::new(1, i128::MIN), Err(TimeError::Overflow));
@@ -183,9 +207,18 @@ mod tests {
 
     #[test]
     fn overflow_is_an_error() {
-        assert_eq!(r(i128::MAX, 1).checked_add(Ratio::ONE), Err(TimeError::Overflow));
-        assert_eq!(r(i128::MAX, 1).checked_mul(r(2, 1)), Err(TimeError::Overflow));
-        assert_eq!(r(1, i128::MAX).checked_add(r(1, i128::MAX - 1)), Err(TimeError::Overflow));
+        assert_eq!(
+            r(i128::MAX, 1).checked_add(Ratio::ONE),
+            Err(TimeError::Overflow)
+        );
+        assert_eq!(
+            r(i128::MAX, 1).checked_mul(r(2, 1)),
+            Err(TimeError::Overflow)
+        );
+        assert_eq!(
+            r(1, i128::MAX).checked_add(r(1, i128::MAX - 1)),
+            Err(TimeError::Overflow)
+        );
     }
 
     #[test]
