@@ -16,8 +16,8 @@ description: "Task list for spec 002, exact time core"
 
 ## Phase 1: Setup
 
-- [ ] T001 In `crates/uni-time/Cargo.toml`, add `[dev-dependencies]`: `proptest`, `num-rational` (with the `num-bigint` feature) and `num-bigint`, at current versions. Add no runtime dependencies.
-- [ ] T002 Replace `crates/uni-time/src/lib.rs` with: a crate doc comment (exact moments, spans and fractions; no floating point, constitution III); `#![deny(clippy::float_arithmetic)]`; `mod error; mod rounding; mod ratio; mod span; mod instant;`; and `pub use` of `Instant`, `Span`, `Ratio`, `Rounding`, `TimeError`. Create the five module files as empty placeholders, so the crate still builds.
+- [x] T001 In `crates/uni-time/Cargo.toml`, add `[dev-dependencies]`: `proptest`, `num-rational` (with the `num-bigint` feature) and `num-bigint`, at current versions. Add no runtime dependencies.
+- [x] T002 Replace `crates/uni-time/src/lib.rs` with: a crate doc comment (exact moments, spans and fractions; no floating point, constitution III); `#![deny(clippy::float_arithmetic)]`; `mod error; mod rounding; mod ratio; mod span; mod instant;`; and `pub use` of `Instant`, `Span`, `Ratio`, `Rounding`, `TimeError`. Create the five module files as empty placeholders, so the crate still builds.
 
 ---
 
@@ -25,8 +25,8 @@ description: "Task list for spec 002, exact time core"
 
 **Purpose**: the error and rounding types every story uses.
 
-- [ ] T003 [P] Write `crates/uni-time/src/error.rs`: `TimeError { OutOfRange, DivisionByZero, Overflow }` deriving `Debug, Clone, Copy, PartialEq, Eq`, implementing `Display` with the messages in data-model.md ("time is out of range", "division by zero", "fraction too large to represent exactly"), and `std::error::Error`. Include a unit test of the three messages.
-- [ ] T004 [P] Write `crates/uni-time/src/rounding.rs`: `Rounding { Down, Up, NearestEven }`, deriving `Debug, Clone, Copy, PartialEq, Eq`, with a doc comment for each direction (Down is towards −∞, Up is towards +∞, NearestEven sends ties to even).
+- [x] T003 [P] Write `crates/uni-time/src/error.rs`: `TimeError { OutOfRange, DivisionByZero, Overflow }` deriving `Debug, Clone, Copy, PartialEq, Eq`, implementing `Display` with the messages in data-model.md ("time is out of range", "division by zero", "fraction too large to represent exactly"), and `std::error::Error`. Include a unit test of the three messages.
+- [x] T004 [P] Write `crates/uni-time/src/rounding.rs`: `Rounding { Down, Up, NearestEven }`, deriving `Debug, Clone, Copy, PartialEq, Eq`, with a doc comment for each direction (Down is towards −∞, Up is towards +∞, NearestEven sends ties to even).
 
 **Checkpoint**: `cargo build -p uni-time` and `cargo clippy -p uni-time -- -D warnings` pass.
 
@@ -40,7 +40,7 @@ Built before US1 because spans and instants convert to and from fractions (US3),
 
 ### Tests (write first; they must fail)
 
-- [ ] T005 [US2] In `crates/uni-time/src/ratio.rs`, write unit tests for the contract's `Ratio` API:
+- [x] T005 [US2] In `crates/uni-time/src/ratio.rs`, write unit tests for the contract's `Ratio` API:
   - `new` reduces (2/4 → 1/2; −2/−4 → 1/2; 2/−4 → −1/2) and gives zero as 0/1;
   - `new(_, 0)` and `checked_div` by zero → `DivisionByZero`;
   - `new(i128::MIN, 1)` and `from_int(i128::MIN)` → `Overflow`;
@@ -54,7 +54,7 @@ Built before US1 because spans and instants convert to and from fractions (US3),
 
 ### Implementation
 
-- [ ] T006 [US2] Implement `Ratio` in `crates/uni-time/src/ratio.rs` per the contract and data-model.md: fields `num` and `den`, kept in lowest terms with `den > 0` and `num != i128::MIN`; `checked_*` operations cancel common factors before multiplying (R3); `Ord` compares by value without overflow (cross-multiplying through a 256-bit product built from two `u128` halves, or an equivalent exact method). Work until T005 passes.
+- [x] T006 [US2] Implement `Ratio` in `crates/uni-time/src/ratio.rs` per the contract and data-model.md: fields `num` and `den`, kept in lowest terms with `den > 0` and `num != i128::MIN`; `checked_*` operations cancel common factors before multiplying (R3); `Ord` compares by value without overflow (cross-multiplying through a 256-bit product built from two `u128` halves, or an equivalent exact method). Work until T005 passes.
 
 **Checkpoint**: Story 2 works on its own.
 
@@ -66,14 +66,14 @@ Built before US1 because spans and instants convert to and from fractions (US3),
 
 ### Tests (write first; they must fail)
 
-- [ ] T007 [P] [US1] In `crates/uni-time/src/span.rs`, write unit tests:
+- [x] T007 [P] [US1] In `crates/uni-time/src/span.rs`, write unit tests:
   - `from_nanos` at ±(2⁶⁴×10⁹ − 1) succeeds and ±2⁶⁴×10⁹ fails with `OutOfRange`;
   - `from_secs` and `as_nanos`;
   - add, sub and negate, including results out of range;
   - `checked_mul_int`, and `checked_div_int` with each `Rounding` for 7 ns ÷ 2 (Down 3, Up 4, NearestEven 4) and −7 ns ÷ 2 (−4, −3, −4);
   - division by 0 → `DivisionByZero`;
   - ordering.
-- [ ] T008 [P] [US1] In `crates/uni-time/src/instant.rs`, write unit tests:
+- [x] T008 [P] [US1] In `crates/uni-time/src/instant.rs`, write unit tests:
   - `new(0, 1_000_000_000)` → `OutOfRange`;
   - `from_nanos(-500_000_000)` gives `secs −1, nanos 500_000_000`;
   - `as_nanos` round-trips;
@@ -85,8 +85,8 @@ Built before US1 because spans and instants convert to and from fractions (US3),
 
 ### Implementation
 
-- [ ] T009 [US1] Implement `Span` in `crates/uni-time/src/span.rs` per the contract (the US1 methods only: construction, `as_nanos`, add, sub, negate, integer multiply and divide). Keep the range |nanoseconds| < 2⁶⁴ × 10⁹ (data-model.md). Work until T007 passes.
-- [ ] T010 [US1] Implement `Instant` in `crates/uni-time/src/instant.rs` per the contract and data-model.md, converting through `as_nanos`/`from_nanos` (i128 nanoseconds; R1). Work until T008 passes.
+- [x] T009 [US1] Implement `Span` in `crates/uni-time/src/span.rs` per the contract (the US1 methods only: construction, `as_nanos`, add, sub, negate, integer multiply and divide). Keep the range |nanoseconds| < 2⁶⁴ × 10⁹ (data-model.md). Work until T007 passes.
+- [x] T010 [US1] Implement `Instant` in `crates/uni-time/src/instant.rs` per the contract and data-model.md, converting through `as_nanos`/`from_nanos` (i128 nanoseconds; R1). Work until T008 passes.
 
 **Checkpoint**: Story 1 works on its own.
 
