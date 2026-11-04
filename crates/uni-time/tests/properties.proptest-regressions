@@ -1,0 +1,8 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc f3f4215d37f2b178676da102af4714e7bc10911d7eede8a5a84b2a67d4cc16be # shrinks to a = Ratio { num: 21267647932558653966460912964485513117, den: 2 }, r = NearestEven
+cc a22782a432f9359825ffbaa13f6dd16004d65165b128568837a52b80dd79729f # shrinks to s = -1557982572018067206953472553, f = Ratio { num: 1, den: 2 }, r = NearestEven
