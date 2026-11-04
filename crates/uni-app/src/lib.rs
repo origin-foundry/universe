@@ -223,6 +223,8 @@ fn exit_app(app: AppHandle, session: State<'_, Session>) {
 const MENU_EVENTS: [&str; 5] = ["new", "open", "save", "save-as", "close"];
 const EXIT: &str = "exit";
 
+/// The accelerators are shown in the menu, but on Windows the web view has the keyboard
+/// focus and they never fire, so `ui/src/shortcuts.ts` handles them. Keep the two in step.
 fn build_menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
     let item = |id: &str, text: &str, accelerator: &str, enabled: bool| {
         MenuItemBuilder::with_id(id, text)

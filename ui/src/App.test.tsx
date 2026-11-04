@@ -91,6 +91,29 @@ describe("App", () => {
     expect(document.title).toBe("Aster • — Universe");
   });
 
+  it("opens the name form with Ctrl+N, which the native menu never sees", async () => {
+    core(none);
+    render(<App />);
+    await screen.findByText("9.9.9");
+    const event = new KeyboardEvent("keydown", { key: "n", ctrlKey: true, cancelable: true });
+    act(() => {
+      window.dispatchEvent(event);
+    });
+    expect(await screen.findByLabelText("Name")).toBeInTheDocument();
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  it("ignores Ctrl+S while no universe is open, as the menu does", async () => {
+    core(none);
+    render(<App />);
+    await screen.findByText("9.9.9");
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "s", ctrlKey: true }));
+    });
+    await Promise.resolve();
+    expect(invoke).not.toHaveBeenCalledWith("save_universe");
+  });
+
   it("opens the name form from the File menu's New", async () => {
     core(none);
     render(<App />);

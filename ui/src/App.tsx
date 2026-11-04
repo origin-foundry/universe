@@ -15,6 +15,7 @@ import {
   windowTitle,
 } from "./fileFlows";
 import NewUniverseForm from "./NewUniverseForm";
+import { type MenuAction, NEEDS_OPEN_UNIVERSE, shortcutFor } from "./shortcuts";
 
 /** Matches `AppInfo` in crates/uni-app/src/lib.rs. */
 interface AppInfo {
@@ -71,7 +72,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const flows: Record<string, () => void> = {
+    const flows: Record<MenuAction, () => void> = {
       new: () => void startNew(),
       open: () => void run(openFlow),
       save: () => void run(saveFlow),
@@ -84,10 +85,22 @@ export default function App() {
         }),
     };
     const unlisten = [
-      listen<string>("menu", (event) => flows[event.payload]?.()),
+      listen<string>("menu", (event) => flows[event.payload as MenuAction]?.()),
       listen("close-requested", () => void closeWindowFlow(current.current)),
     ];
+    // The native menu never sees its shortcuts while the web view has the focus
+    // (see shortcuts.ts), so they're handled here.
+    const onKeyDown = (event: KeyboardEvent) => {
+      const action = shortcutFor(event);
+      if (action === null) return;
+      event.preventDefault(); // e.g. Ctrl+O, Ctrl+S and Ctrl+N are also browser commands
+      if (event.repeat) return;
+      if (NEEDS_OPEN_UNIVERSE.has(action) && !current.current.open) return;
+      flows[action]();
+    };
+    window.addEventListener("keydown", onKeyDown);
     return () => {
+      window.removeEventListener("keydown", onKeyDown);
       unlisten.forEach((p) =>
         p.then(
           (stop) => stop?.(),
