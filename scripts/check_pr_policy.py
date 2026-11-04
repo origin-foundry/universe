@@ -36,6 +36,8 @@ GUARDRAILS = [
     # define what it catches, so weakening any of them needs a design PR too.
     "scripts/check_architecture.py", "scripts/tests/test_check_architecture.py",
     "scripts/tests/fixtures/architecture/*",
+    # The privacy check keeps personal details out of this public repo.
+    "scripts/check_privacy.py", "scripts/tests/test_check_privacy.py",
 ]
 DESIGN_ONLY = ["knowledge/*", "specs/*"] + GUARDRAILS
 SPEC_DIR_RE = re.compile(r"^specs/(\d{3}-[a-z0-9-]+)/")

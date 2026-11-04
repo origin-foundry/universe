@@ -22,3 +22,7 @@ __pycache__/
 Thumbs.db
 .vscode/
 .idea/
+
+# Private, machine-only files (never committed)
+CLAUDE.local.md
+.privacy-words
