@@ -172,7 +172,7 @@ impl OpenUniverse {
     }
 
     /// Makes every save fail just before its rename while `on`, to test crash safety.
-    #[cfg(feature = "test-hooks")]
+    #[cfg(test)]
     pub fn fail_saves_before_rename(&mut self, on: bool) {
         self.fail_before_rename = on;
     }

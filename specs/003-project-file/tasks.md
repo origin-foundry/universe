@@ -116,8 +116,8 @@ description: "Task list for spec 003, project file"
 
 ## Phase 6: Polish
 
-- [ ] T019 Add doc comments with a short example to `UniverseName` and `OpenUniverse`, and a "Project files" section to `docs/development.md` covering where files go, what the `.v<n>.universe` copies are, and that they can be deleted once you're happy with the migrated file.
-- [ ] T020 Run the full local verification and record the results in the build PR description:
+- [X] T019 Add doc comments with a short example to `UniverseName` and `OpenUniverse`, and a "Project files" section to `docs/development.md` covering where files go, what the `.v<n>.universe` copies are, and that they can be deleted once you're happy with the migrated file.
+- [X] T020 Run the full local verification and record the results in the build PR description:
   - `cargo fmt --all --check`
   - `cargo clippy --workspace --all-targets -- -D warnings`
   - `cargo test --workspace`

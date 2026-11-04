@@ -5,6 +5,8 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
+# The app is never published to crates.io; this also lets its path dependencies pass cargo-deny.
+publish = false
 
 [lib]
 name = "uni_app"

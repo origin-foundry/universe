@@ -85,6 +85,11 @@ Notes here are public: keep them general. Anything true only of a particular mac
   - a PR can stop following its branch: closing and reopening it (as the bot) makes GitHub re-read it;
   - "last pusher could not be determined" blocks the merge even with the owner's approval; a fresh push fixes it, or, if the incident is ongoing, the owner may use the admin bypass.
 
+**Rust**
+
+- Test-only hooks go behind `#[cfg(test)]`, with the tests that use them as unit tests inside the crate. A crate's dev-dependency on itself (to switch a feature on for its integration tests) fails `scripts/check_architecture.py` as an upward dependency, and changing that check needs a design PR.
+- A crate with a path-only dependency on another workspace crate needs `publish = false`, or `cargo deny` reports the dependency as a wildcard.
+
 **Spec Kit**
 
 - Each Spec Kit command checks `.specify/extensions.yml` for hooks; there is none yet.

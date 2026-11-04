@@ -13,9 +13,3 @@ rusqlite = { version = "0.41.1", features = ["bundled", "backup", "serialize"] }
 
 [dev-dependencies]
 tempfile = "3.27.0"
-# Turns this crate's own test hooks on for its integration tests (contracts/store-and-commands.md).
-uni-store = { path = ".", features = ["test-hooks"] }
-
-[features]
-# Lets tests make a save fail just before its rename. Never enabled outside this crate's tests.
-test-hooks = []

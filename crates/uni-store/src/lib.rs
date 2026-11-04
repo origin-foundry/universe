@@ -9,6 +9,9 @@ mod name;
 mod schema;
 mod universe;
 
+#[cfg(test)]
+mod crash_safety_tests;
+
 pub use error::StoreError;
 pub use name::{MAX_NAME_CHARS, UniverseName};
 pub use schema::{APPLICATION_ID, MIGRATIONS, SCHEMA_VERSION};
