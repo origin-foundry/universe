@@ -68,6 +68,7 @@ Notes here are public: keep them general. Anything true only of a particular mac
   - Node and npm need `NODE_OPTIONS=--use-system-ca`; shells started by an app that was already running don't see a newly saved value, so set it per command;
   - `winget` needs `--source winget`, because the Microsoft Store source pins its certificate;
   - `pip` downloads can arrive corrupted; use `uv` instead.
+- If the app restarts by itself under `npm run dev` (its window and a console window close and a new window opens, with no "File ... changed. Rebuilding application..." line), it's antivirus, not `tauri dev`: `tauri dev` always logs that line before it relaunches the app. Some antivirus products run each new build of an executable in a sandbox first, then close it and start it for real a few seconds later; every rebuild of `uni-app.exe` triggers it again. The antivirus's own log names the executable. The fix is an antivirus exception for the repository's `target/` folder, which is the machine owner's call (`docs/development.md`, "The app restarts by itself").
 - Rust lives in `~/.cargo/bin`, which may not be on `PATH` in Claude's shell: `export PATH="$HOME/.cargo/bin:$PATH"`.
 - If incremental builds fail with "Access is denied" on their session directories, build with `CARGO_INCREMENTAL=0`.
 - Long paths (such as Claude's scratchpad) can exceed the Windows path limit for some tools. Put generated or temporary files under `target/` (gitignored) instead.
