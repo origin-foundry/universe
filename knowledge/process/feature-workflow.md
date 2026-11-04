@@ -5,7 +5,7 @@ description: The normal path of a feature from Backlog to Done, who does each st
 tags: [process, workflow, board, roles]
 status: stable
 generated: { by: claude-code/claude-opus-5-5, at: 2026-11-01T15:00:00Z }
-verified: { by: human:origin-foundry, at: 2026-11-01T20:16:11Z }
+verified: { by: human:origin-foundry, at: 2026-11-04T13:22:06Z }
 ---
 
 # Roles
@@ -32,6 +32,24 @@ One issue per feature. Its card moves through the board's Status columns:
 | **Building** | Claude, plus owner tasks | Claude works through `tasks.md` on a build branch, ticking tasks as they're done. Tasks marked **(owner)** are handed to the owner and ticked once the owner confirms. Claude opens the **build PR**. | The build PR is open | Claude, to PR review |
 | **PR review** | Owner | The ready gate assigns the owner when the checks pass. The owner reviews, approves and merges the build PR. | The build PR is merged | Automatic |
 | **Done** | Automation | Merging the build PR closes the issue (`Closes #N`); the board's "Pull request merged" and "Item closed" workflows move the card here. | | |
+
+## Merging
+
+- **Design and build PRs**: **Create a merge commit**. History keeps each task, review fix and verification commit, so it shows how a feature was built and when each approval landed.
+- **Fast-lane PRs**: **Squash and merge**. Each small change becomes one commit on `main` that names its PR.
+
+GitHub can't enforce a method per label, so this is a convention, recorded here and in `CLAUDE.md`.
+
+## Keeping the record durable
+
+Long conversations with Claude get condensed, and anything that exists only in the conversation can be lost. Claude therefore gives every pitfall, workaround, decision or fragile manual step a durable home as part of the work, without being asked:
+
+- the working notes in `CLAUDE.md`;
+- a script that does the fiddly part (for example, `scripts/board.py` for board moves);
+- a knowledge concept or ADR;
+- or an automated check that enforces it.
+
+Claude says when it has done so. Each spec also starts in a fresh Claude session, which reads `CLAUDE.md`, this bundle and the spec's `tasks.md` from scratch.
 
 ## How the owner knows it's their turn
 
