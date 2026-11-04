@@ -1,5 +1,8 @@
 # Bundle update log
 
+## 2026-11-04
+* **Update**: Spec 003 (project file): [storage schema](/storage/schema.md) gains the application identifier value, versioning and migrations, the in-memory working copy, crash-safe saves and file locking, and notes what schema version 1 contains. Back to draft pending owner approval.
+
 ## 2026-11-02
 * **Update**: Spec 002 (exact time core): `uni-time` joins the exact crates in the [crate layout](/architecture/crate-layout.md), and [timeline and frames](/time/timeline-and-frames.md) says the floating-point boundary for physics lives in `uni-physics`. Both re-verified by human:origin-foundry in review of #17.
 

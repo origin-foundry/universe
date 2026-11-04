@@ -3,21 +3,26 @@ type: Data Model
 title: Storage schema
 description: The SQLite project file - definition tables and disposable cache tables.
 tags: [storage, sqlite, schema]
-status: stable
+status: draft
 generated: { by: claude-code/claude-opus-5-5, at: 2026-10-30T08:24:17Z }
-verified: { by: human:origin-foundry, at: 2026-10-30T22:12:40Z }
 ---
 
 # File
 
-One `.universe` file per project (SQLite, with `PRAGMA application_id` set so it's recognisable).
+One `.universe` file per project (SQLite, with `PRAGMA application_id = 0x554E4956`, "UNIV", so it's recognisable).
+
+- **Versions**: `meta.schema_version` is the file's schema version. Each feature that needs new tables or columns adds a numbered migration. The app refuses files from a newer schema version. It migrates older ones on open, after copying the original beside it as `<name>.v<old>.universe`.
+- **Working copy**: an open universe is held in an in-memory database; changes reach the file only when the owner saves (document model, spec 003).
+- **Crash-safe saves**: a save writes a temporary file in the same folder and atomically renames it over the original, so the file is always the complete old or the complete new version.
+- **One writer**: the app holds an exclusive lock on the file while it's open; a second open reports the file as in use.
+- **Built so far**: schema version 1 has `meta` and `universe(id, name)` only. The tables below are the target design, added by the features that use them.
 
 # Schema
 
 ## Definition tables
 
 ```
-meta(schema_version, created_at, app_version)
+meta(schema_version, app_version, created_at)                -- created_at: whole seconds since 1970 UTC
 universe(id, name, display_calendar_id, display_format_id)    -- GCT zero is implicit, never stored as user data
 system(id, name, galactic_pos_xyz, galactic_vel_xyz, sbt_rate_override, sbt_offset)
 body(id, system_id, parent_id, name, kind, mass, radius, j2)
