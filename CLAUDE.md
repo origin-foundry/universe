@@ -71,6 +71,7 @@ Notes here are public: keep them general. Anything true only of a particular mac
 - Rust lives in `~/.cargo/bin`, which may not be on `PATH` in Claude's shell: `export PATH="$HOME/.cargo/bin:$PATH"`.
 - If incremental builds fail with "Access is denied" on their session directories, build with `CARGO_INCREMENTAL=0`.
 - Long paths (such as Claude's scratchpad) can exceed the Windows path limit for some tools. Put generated or temporary files under `target/` (gitignored) instead.
+- File locks (`File::try_lock`) are mandatory on Windows: while one handle holds the lock, no other handle can read the file, not even SQLite's or `fs::copy` in the same process. Renaming another file over it still works. `uni-store` therefore reads an open project through its locked handle and gives SQLite the bytes (`deserialize`), and locks the new file before renaming it into place on save.
 - Python's `open(..., "w")` writes Windows line endings: pass `newline="
 "`. When reading `gh` or Python output into shell variables, strip `` (`| tr -d ''`).
 - Don't chain checks through `| tail`: it hides the exit code. Check `$?` or `${PIPESTATUS[0]}`, which is how a failing test was once committed and pushed.
