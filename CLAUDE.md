@@ -18,9 +18,9 @@ A desktop app for defining physically grounded, non-Earth calendars across multi
 
 Tasks stay in `tasks.md`; they are not turned into GitHub issues (one issue per feature). Don't use `/speckit-constitution` to rewrite the constitution: amendments go through a design PR the owner approves.
 
-Spec Kit is installed with uv. This machine intercepts TLS, so uv needs `--system-certs`, e.g. `uv tool upgrade --system-certs specify-cli`.
-
 Ask the owner questions one at a time with options to choose from, never as a list.
+
+**Merging** (the owner merges, Claude never does): design and build PRs use **Create a merge commit**, which keeps each task, review fix and verification commit in history. Fast-lane PRs use **Squash and merge**: one commit per small change. When a design PR changes a knowledge concept, the owner re-verifies it in conversation; Claude pushes the verification commit and says "pushed" before the owner merges.
 
 ## Hard rules
 
@@ -35,9 +35,51 @@ Ask the owner questions one at a time with options to choose from, never as a li
 
 - Knowledge bundle: `python scripts/check_okf.py knowledge`
 - PR policy (runs in CI): `scripts/check_pr_policy.py`
-- A Stop hook (`scripts/hooks/stop-checks.sh`) runs the fast local checks before a turn ends; fix what it reports rather than working around it.
+- Architecture rules: `python scripts/check_architecture.py`
+- A Stop hook (`scripts/hooks/stop_checks.py`) runs the fast local checks before a turn ends; fix what it reports rather than working around it.
+
+## Board
+
+Use `scripts/board.py`, never hand-written GraphQL (`gh project` doesn't work for a personal account's project):
+
+- `python scripts/board.py show 11`
+- `python scripts/board.py move 11 "Design review"`
+- `python scripts/board.py add 24 --status Backlog --phase "0. Foundations" --area storage --size S`
+
+It refuses to move a card out of a review column, because those moves are the owner's. Test changes to it with `scripts/tests/test_board.py` only, never by moving real cards: a "test" move once moved #11 out of Building by mistake.
 
 ## Conventions
 
 - Bundle concepts: one file per concept, frontmatter with `type`, `title`, `description`, `status`, `generated`; absolute links (`/area/concept.md`); list every concept in its folder's `index.md` with its description; add a `log.md` entry for every change.
 - Commit messages: imperative subject line, body explaining why.
+
+## Working notes
+
+Practical knowledge learned the hard way. **Keep this section current**: whenever something like this comes up, add it here (or, better, to a script or check) in the same piece of work, and fix or remove notes that turn out to be wrong.
+
+**This machine (Windows, TLS-intercepting network)**
+
+- HTTPS is intercepted, so tools with their own certificate list fail:
+  - `uv` needs `--system-certs`, e.g. `uv tool upgrade --system-certs specify-cli`.
+  - Node and npm need `NODE_OPTIONS=--use-system-ca`. It's saved for the user, but shells started by an already-running app don't see it, so set it per command.
+  - `winget` needs `--source winget`, because the Microsoft Store source pins its certificate.
+  - `pip` downloads get corrupted; use `uv` instead.
+- Rust lives in `~/.cargo/bin`, which may not be on `PATH` in Claude's shell: `export PATH="$HOME/.cargo/bin:$PATH"`.
+- Use `CARGO_INCREMENTAL=0` for builds from Claude's shell; incremental builds hit "Access is denied" on their session directories.
+- The scratchpad's path is too long for some tools (Windows path limit). Put generated or temporary files under `target/` (gitignored) instead.
+- Python's `open(..., "w")` writes Windows line endings: pass `newline="\n"`. When reading `gh` or Python output into shell variables, strip `\r` (`| tr -d '\r'`).
+- Don't chain checks through `| tail`: it hides the exit code. Check `$?` or `${PIPESTATUS[0]}`, which is how a failing test was once committed and pushed.
+
+**GitHub**
+
+- The bot's token can't run GraphQL queries that read `login`, `name` or `slug` on some objects (it lacks `read:org`). Use REST (`gh api repos/...`) for those.
+- The ready gate assigns the owner only when every check passes. Dependabot PRs whose checks fail just sit there; look for them.
+- During GitHub incidents (check https://www.githubstatus.com):
+  - pushes can be refused with "Internal Server Error": retry later, always naming the branch (`git push origin <branch>:<branch>`), never a bare `git push` from a background job while switching branches;
+  - a PR can stop following its branch: closing and reopening it (as the bot) makes GitHub re-read it;
+  - "last pusher could not be determined" blocks the merge even with the owner's approval; a fresh push fixes it, or, if the incident is ongoing, the owner may use the admin bypass.
+
+**Spec Kit**
+
+- Each Spec Kit command checks `.specify/extensions.yml` for hooks; there is none yet.
+- `.specify/feature.json` points to the current spec folder and is gitignored. Set it when starting a spec.

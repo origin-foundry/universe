@@ -1,6 +1,7 @@
 # Bundle update log
 
 ## 2026-11-04
+* **Update**: The [feature workflow](/process/feature-workflow.md) gains the merge-method rule and "Keeping the record durable" (protecting against lost conversation context). Back to draft pending owner approval.
 * **Update**: Spec 003 (project file): [storage schema](/storage/schema.md) gains the application identifier value, versioning and migrations, the in-memory working copy, crash-safe saves and file locking, and notes what schema version 1 contains. Re-verified by human:origin-foundry in review of #25.
 
 ## 2026-11-02
