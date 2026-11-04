@@ -4,7 +4,7 @@
 
 **Created**: 2026-11-04
 
-**Status**: Draft
+**Status**: Approved by the owner, 2026-11-04
 
 **Input**: User description: "Project file (issue #11, Phase 0 spec 003). From the app, the user can create a new empty universe, save it as a file, close it and open it again. Out of scope: any content in the universe (systems, calendars), JSON export, caches."
 
