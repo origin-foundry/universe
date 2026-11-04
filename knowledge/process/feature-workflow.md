@@ -3,8 +3,9 @@ type: Playbook
 title: Feature workflow
 description: The normal path of a feature from Backlog to Done, who does each step, and who moves the board card.
 tags: [process, workflow, board, roles]
-status: draft
+status: stable
 generated: { by: claude-code/claude-opus-5-5, at: 2026-11-01T15:00:00Z }
+verified: { by: human:origin-foundry, at: 2026-11-04T13:22:06Z }
 ---
 
 # Roles
