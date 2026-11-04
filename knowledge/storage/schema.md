@@ -3,8 +3,9 @@ type: Data Model
 title: Storage schema
 description: The SQLite project file - definition tables and disposable cache tables.
 tags: [storage, sqlite, schema]
-status: draft
+status: stable
 generated: { by: claude-code/claude-opus-5-5, at: 2026-10-30T08:24:17Z }
+verified: { by: human:origin-foundry, at: 2026-11-04T11:11:15Z }
 ---
 
 # File
