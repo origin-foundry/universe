@@ -40,6 +40,8 @@ jobs:
       - run: pip install pyyaml
       - name: Validate knowledge bundle
         run: python scripts/check_okf.py knowledge
+      - name: Check for personal or machine-specific details
+        run: python scripts/check_privacy.py
       - name: Test repository scripts
         run: python -m unittest discover -s scripts/tests -v
 

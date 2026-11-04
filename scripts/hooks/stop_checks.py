@@ -46,6 +46,7 @@ def main():
     failures = [
         run("Knowledge bundle", [sys.executable, "scripts/check_okf.py", "knowledge"]),
         run("Script tests", [sys.executable, "-m", "unittest", "discover", "-s", "scripts/tests"]),
+        run("Privacy", [sys.executable, "scripts/check_privacy.py"]),
     ]
     if (ROOT / "Cargo.toml").exists():
         failures.append(run("cargo fmt", ["cargo", "fmt", "--all", "--check"]))
