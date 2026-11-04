@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "The main window gets Tauri's core defaults and nothing else (least privilege).",
+  "description": "The main window gets Tauri's core defaults plus the native Open, Save and message dialogs, and nothing else (least privilege).",
   "windows": ["main"],
-  "permissions": ["core:default"]
+  "permissions": ["core:default", "dialog:allow-open", "dialog:allow-save", "dialog:allow-message"]
 }

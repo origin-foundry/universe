@@ -30,3 +30,29 @@ body {
   margin: 0;
   font-size: 1.1rem;
 }
+
+.empty p {
+  margin: 0 0 1rem;
+}
+
+.actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+.new-universe {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 20rem;
+}
+
+.new-universe h2 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.new-universe [role="alert"] {
+  margin: 0;
+  color: #c62828;
+}

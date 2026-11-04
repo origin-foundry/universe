@@ -5,6 +5,8 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
+# The app is never published to crates.io; this also lets its path dependencies pass cargo-deny.
+publish = false
 
 [lib]
 name = "uni_app"
@@ -15,6 +17,11 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 tauri = { version = "2", features = [] }
 serde = { version = "1", features = ["derive"] }
+uni-store = { path = "../uni-store" }
+tauri-plugin-dialog = "2.8"
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+tempfile = "3.27.0"

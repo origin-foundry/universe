@@ -71,8 +71,11 @@ Notes here are public: keep them general. Anything true only of a particular mac
 - Rust lives in `~/.cargo/bin`, which may not be on `PATH` in Claude's shell: `export PATH="$HOME/.cargo/bin:$PATH"`.
 - If incremental builds fail with "Access is denied" on their session directories, build with `CARGO_INCREMENTAL=0`.
 - Long paths (such as Claude's scratchpad) can exceed the Windows path limit for some tools. Put generated or temporary files under `target/` (gitignored) instead.
+- File locks (`File::try_lock`) are mandatory on Windows: while one handle holds the lock, no other handle can read the file, not even SQLite's or `fs::copy` in the same process. Renaming another file over it still works. `uni-store` therefore reads an open project through its locked handle and gives SQLite the bytes (`deserialize`), and locks the new file before renaming it into place on save.
 - Python's `open(..., "w")` writes Windows line endings: pass `newline="
-"`. When reading `gh` or Python output into shell variables, strip `` (`| tr -d ''`).
+"`. When reading `gh` or Python output into shell variables, strip `
+` (`| tr -d '
+'`).
 - Don't chain checks through `| tail`: it hides the exit code. Check `$?` or `${PIPESTATUS[0]}`, which is how a failing test was once committed and pushed.
 
 **GitHub**
@@ -83,6 +86,15 @@ Notes here are public: keep them general. Anything true only of a particular mac
   - pushes can be refused with "Internal Server Error": retry later, always naming the branch (`git push origin <branch>:<branch>`), never a bare `git push` from a background job while switching branches;
   - a PR can stop following its branch: closing and reopening it (as the bot) makes GitHub re-read it;
   - "last pusher could not be determined" blocks the merge even with the owner's approval; a fresh push fixes it, or, if the incident is ongoing, the owner may use the admin bypass.
+
+**Rust**
+
+- Test-only hooks go behind `#[cfg(test)]`, with the tests that use them as unit tests inside the crate. A crate's dev-dependency on itself (to switch a feature on for its integration tests) fails `scripts/check_architecture.py` as an upward dependency, and changing that check needs a design PR.
+- A crate with a path-only dependency on another workspace crate needs `publish = false`, or `cargo deny` reports the dependency as a wildcard.
+
+**Tauri**
+
+- Native menu accelerators don't fire on Windows while the web view has the keyboard focus, which is nearly always: WebView2 is a separate child window, so the menu's accelerator table never sees the keys. Handle shortcuts in the UI (`ui/src/shortcuts.ts`) and keep them in step with the menu labels in `crates/uni-app/src/lib.rs`. Vitest can't catch this; only a run of the real app can.
 
 **Spec Kit**
 

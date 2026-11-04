@@ -80,6 +80,15 @@ Run from the repository folder.
 | `npm run dev` | Starts the app in development mode. UI changes appear in the window as soon as you save; Rust changes rebuild and restart the app. The first run compiles everything and takes several minutes. |
 | `npm run app` | Builds the optimised app (no installer) and starts it. |
 
+## Project files
+
+A universe is saved as a single `.universe` file, wherever you choose in the Save dialog. It's a SQLite database marked as a Universe project, so other programs' databases and renamed files are refused when opened.
+
+- **Saving is like a document.** Changes stay in the app until you save (Ctrl+S). A new universe isn't on disk until its first save. Saving writes a temporary `<name>.universe.saving-…` file beside the project and then swaps it in, so a crash or power cut leaves either the old file or the new one, never a broken one. If you ever see a leftover `.saving-…` file, the save it belonged to didn't finish, and it can be deleted.
+- **One window at a time.** While a universe is open its file is locked, so opening it a second time says it's in use.
+- **Older files.** When you open a file saved by an older version of Universe, it's upgraded in the app, and the original is first kept beside it as `<name>.v<old version>.universe` (for example `Aster.v0.universe`). The upgraded version reaches the file the next time you save. Once you're happy with the upgraded file, you can delete the `.v<n>.universe` copy.
+- **Newer files** (saved by a newer version of Universe) are refused and left untouched.
+
 ## Certificate errors
 
 Some antivirus products and company networks inspect encrypted (HTTPS) traffic by re-signing it with their own certificate. Windows trusts that certificate, but tools with their own certificate list don't. The symptoms are errors mentioning `certificate`, `UNABLE_TO_GET_ISSUER_CERT_LOCALLY`, `SELF_SIGNED_CERT_IN_CHAIN` or `invalid peer certificate`.
