@@ -110,7 +110,7 @@ description: "Task list for spec 003, project file"
   
   Work until T013 passes.
 - [X] T017 [US3] Implement `ui/src/fileFlows.ts`, `ui/src/NewUniverseForm.tsx` and the `App.tsx` changes: listen for `menu` and `close-requested` events; keep the document title in step with the state. Work until T014 and T015 pass.
-- [ ] T018 [US3] **(owner)** Run quickstart.md steps 4 and 5 with `npm run dev` and report the time for steps a to f (SC-001: under 1 minute) and anything unexpected.
+- [X] T018 [US3] **(owner)** Run quickstart.md steps 4 and 5 with `npm run dev` and report the time for steps a to f (SC-001: under 1 minute) and anything unexpected.
 
 ---
 
@@ -126,7 +126,7 @@ description: "Task list for spec 003, project file"
   - `python scripts/check_architecture.py`
   - `python -m unittest discover -s scripts/tests`
   - `python scripts/check_okf.py knowledge`
-- [ ] T021 Open the build PR as the bot: label `build`, body with `Design: #<design PR>` and `Closes #11`, and a review order of store, then app, then UI (plan.md Complexity Tracking). Move card #11 to **PR review**.
+- [X] T021 Open the build PR as the bot: label `build`, body with `Design: #<design PR>` and `Closes #11`, and a review order of store, then app, then UI (plan.md Complexity Tracking). Move card #11 to **PR review**.
 
 ---
 
