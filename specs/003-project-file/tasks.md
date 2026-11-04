@@ -83,33 +83,33 @@ description: "Task list for spec 003, project file"
 
 ### Tests (write first; they must fail)
 
-- [ ] T013 [P] [US3] In `crates/uni-app/src/lib.rs`, write a `#[cfg(test)]` test of the state holder, with no Tauri runtime:
+- [X] T013 [P] [US3] In `crates/uni-app/src/lib.rs`, write a `#[cfg(test)]` test of the state holder, with no Tauri runtime:
   - new → state `open: true, dirty: true, path: None`;
   - `save_as` to a temp path → clean, with the path set;
   - close → `open: false`;
   - open → the name matches.
-- [ ] T014 [P] [US3] Write `ui/src/fileFlows.test.ts`, with `invoke` and the dialog plugin mocked:
+- [X] T014 [P] [US3] Write `ui/src/fileFlows.test.ts`, with `invoke` and the dialog plugin mocked:
   - New with a clean universe open asks nothing;
   - New with a dirty one shows Save / Don't save / Cancel, and Cancel stops;
   - Save on an untitled universe opens the Save dialog with the universe's name as the suggested file name and the `.universe` filter;
   - a cancelled dialog changes nothing;
   - a `StoreError` message from `invoke` is shown to the owner;
   - when Save fails with the `Missing` message, the flow offers Save As.
-- [ ] T015 [P] [US3] Update `ui/src/App.test.tsx` and write `ui/src/NewUniverseForm.test.tsx`:
+- [X] T015 [P] [US3] Update `ui/src/App.test.tsx` and write `ui/src/NewUniverseForm.test.tsx`:
   - the empty screen shows "No universe open" and **New universe** and **Open universe…** buttons;
   - the form rejects empty and too-long names with the message from data-model.md;
   - an open universe shows its name, and the document title is `Aster — Universe`, or `Aster • — Universe` when dirty.
 
 ### Implementation
 
-- [ ] T016 [US3] In `crates/uni-app/src/lib.rs`:
+- [X] T016 [US3] In `crates/uni-app/src/lib.rs`:
   - add the `Mutex<Option<OpenUniverse>>` state and the six commands from the contract;
   - add the File menu (New Ctrl+N, Open Ctrl+O, Save Ctrl+S, Save As Ctrl+Shift+S, Close Ctrl+W, Exit), emitting `menu` events, with Save, Save As and Close enabled only while a universe is open;
   - register the dialog plugin;
   - turn `CloseRequested` into a `close-requested` event, and let the window close once the UI has finished.
   
   Work until T013 passes.
-- [ ] T017 [US3] Implement `ui/src/fileFlows.ts`, `ui/src/NewUniverseForm.tsx` and the `App.tsx` changes: listen for `menu` and `close-requested` events; keep the document title in step with the state. Work until T014 and T015 pass.
+- [X] T017 [US3] Implement `ui/src/fileFlows.ts`, `ui/src/NewUniverseForm.tsx` and the `App.tsx` changes: listen for `menu` and `close-requested` events; keep the document title in step with the state. Work until T014 and T015 pass.
 - [ ] T018 [US3] **(owner)** Run quickstart.md steps 4 and 5 with `npm run dev` and report the time for steps a to f (SC-001: under 1 minute) and anything unexpected.
 
 ---
