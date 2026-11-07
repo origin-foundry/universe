@@ -9,6 +9,6 @@ repository.workspace = true
 workspace = true
 
 [dev-dependencies]
-num-bigint = "0.4.8"  # must match num-rational's version
+num-bigint = "0.5.1"  # must match num-rational's version
 num-rational = { version = "0.4.2", features = ["num-bigint"] }
 proptest = "1.12.0"
