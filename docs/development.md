@@ -120,3 +120,11 @@ Some antivirus products and company networks inspect encrypted (HTTPS) traffic b
 - **uv / Spec Kit** (only needed to upgrade Spec Kit): add `--system-certs`, e.g. `uv tool upgrade --system-certs specify-cli`.
 
 The prerequisites check tests an HTTPS request through Node and prints a `warning` line if it hits a certificate error.
+
+## The app restarts by itself
+
+If, while `npm run dev` is running, the app window (and a console window behind it) closes a few seconds after it first opens and a new one appears, and the terminal shows no `File ... changed. Rebuilding application...` line, the restart doesn't come from `tauri dev`. Its file watcher always prints that line before it relaunches the app.
+
+The usual cause is antivirus. Some products run every new, unknown program in a sandbox first: the first window is the sandboxed copy, and when the scan finds nothing they close it and start the program again for real. Each build of the app is a new program to them, so it happens again after every code change. Their logs name the program, `target\debug\uni-app.exe`.
+
+To stop it, add an exception for the repository's `target` folder in your antivirus settings (look for "Exceptions" or "Exclusions"). That folder only holds what the build produces from this repository's code. Excluding a folder from scanning is a security trade-off, so decide whether it's right for your machine. Without an exception, the restart is harmless: the second window is the real app.
