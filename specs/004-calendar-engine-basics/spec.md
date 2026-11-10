@@ -116,6 +116,8 @@ The engine must stay exact across the whole range later features need, including
 - **Calendars with only a fundamental unit**: a calendar with no groupings or subdivisions is valid; its dates are just the fixed number in era terms.
 - **Single-member groupings**: a grouping with one member (a "year" of one 400-sol "month") is valid.
 - **Very long and very short units**: a fundamental unit as short as one nanosecond or as long as a million years must convert exactly, within the overall range.
+- **Engine limits** (added in planning; [research.md](research.md) R3): a definition is refused, naming the unit and the limit, if its smallest unit is shorter than one nanosecond (date-to-instant could otherwise round into the next date), if the fundamental unit's length in nanoseconds is a fraction whose denominator is over 10⁹, or if it is so long and so finely subdivided that exact arithmetic would overflow. Both examples above are well inside these limits.
+- **Grouping members**: a grouping with more than one member names the unit its members are (Aster's year has months); a grouping of one run, such as a decade of 10 years, needs none ([research.md](research.md) R1).
 
 ## Requirements *(mandatory)*
 
@@ -137,7 +139,7 @@ The engine must stay exact across the whole range later features need, including
 
 - **FR-008**: The calendar's single era MUST define the epoch: the start of the era's first date (the first instance of the era's unit and of every unit below it) is fixed number 0, and is placed at a chosen instant on the timeline.
 - **FR-008a**: Each unit above the era's unit MUST be numbered by its count from the epoch, using the same astronomical numbering as the era (FR-009): the one that starts at the epoch is 1, the one before it 0, then −1, and so on. In Aster, decade 1 holds years 1–10 and decade 0 holds years −9 to 0.
-- **FR-009**: Dates before the epoch MUST be valid, with the calendar's units running backwards unchanged. Top-level units use astronomical numbering: the era starts at 1, and the ones before it are 0, −1, −2, and so on, with no gap.
+- **FR-009**: Dates before the epoch MUST be valid, with the calendar's units running backwards unchanged. The era's unit uses astronomical numbering (and so do the units above it, FR-008a): the era starts at 1, and the ones before it are 0, −1, −2, and so on, with no gap.
 
 **Conversion**
 
@@ -159,7 +161,8 @@ The engine must stay exact across the whole range later features need, including
 
 - **Calendar**: name, clock, fundamental unit, unit chain, era.
 - **Fundamental unit**: the smallest unit counted whole (e.g. the sol); fixed exact length.
-- **Grouping**: a unit made of an ordered list of members, each a fixed count of the unit below, optionally named (e.g. year → months, month → sols).
+- **Grouping**: a unit made of an ordered list of members, each a fixed count of the unit below it in the chain, optionally named (e.g. a year of 12 months counted in sols; a decade of 10 years).
+- **Member unit**: the unit a grouping's members are instances of, when it has more than one (the year's months); its lengths come from the grouping's members.
 - **Subdivision**: a unit split into *n* equal children (e.g. sol → 20 hours).
 - **Era**: numbers a chosen unit (the era's unit, such as the year); the first (and here only) era defines the epoch. Units above the era's unit are numbered by their count from the epoch.
 - **First number**: per unit below the era's unit, the number of its first instance within its parent (defaults 1, or 0 for subdivisions).
