@@ -1,5 +1,9 @@
 # Bundle update log
 
+## 2026-11-10
+* **Creation**: Added [ADR 0008: Physical time and calendar time](/decisions/0008-physical-time-and-calendar-time.md) (draft), the ground rules agreed in the review of spec 004: physics works in physical time, calendars are conventions mapped onto it and don't have to be astronomically accurate.
+* **Update**: Spec 004 (calendar engine basics): [unit kinds](/calendar/unit-kinds.md) gains member units, the per-unit first number and the single-chain first engine; [conversion](/calendar/conversion.md) gains the next-whole-nanosecond rule, reported with the exact amount; [eras and epoch](/calendar/eras-and-epoch.md) says an era numbers a chosen unit, with units above it numbered by count from the epoch. The [glossary](/glossary.md) renames **Cycle** to **Physical cycle** and adds physical time, calendar time, member unit, first number, era's unit and astronomical year numbering. All back to draft until re-verified by human:origin-foundry.
+
 ## 2026-11-04
 * **Update**: The [feature workflow](/process/feature-workflow.md) gains the merge-method rule and "Keeping the record durable" (protecting against lost conversation context). Re-verified by human:origin-foundry in review of #28.
 * **Update**: Spec 003 (project file): [storage schema](/storage/schema.md) gains the application identifier value, versioning and migrations, the in-memory working copy, crash-safe saves and file locking, and notes what schema version 1 contains. Re-verified by human:origin-foundry in review of #25.
