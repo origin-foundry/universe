@@ -10,17 +10,11 @@ A desktop app for defining physically grounded, non-Earth calendars across multi
 
 ## How work flows
 
-1. A feature starts as a GitHub issue on the project board.
-2. Spec Kit skills (in `.claude/skills/`): `/speckit-specify` → `/speckit-clarify` → (owner reviews the spec) → `/speckit-plan` → `/speckit-tasks` → `/speckit-analyze`.
-3. **Design PR** (label `design`): `specs/NNN-name/` plus any `knowledge/` updates. The owner merges it.
-4. `/speckit-implement` on a new branch → **build PR** (label `build`), body contains `Design: #<design PR number>`.
-5. Changes with no behaviour change may go straight to a PR labelled `fast-lane`.
+The full path, roles and board moves are in the workflow playbook above. In short: issue → spec (`/speckit-specify`, `/speckit-clarify`, owner review) → **design PR** (`/speckit-plan`, `/speckit-tasks`, `/speckit-analyze`; label `design`) → `/speckit-implement` on a new branch → **build PR** (label `build`, body has `Design: #<design PR>`). Changes with no behaviour change go straight to a `fast-lane` PR.
 
-Tasks stay in `tasks.md`; they are not turned into GitHub issues (one issue per feature). Don't use `/speckit-constitution` to rewrite the constitution: amendments go through a design PR the owner approves.
-
-Ask the owner questions one at a time with options to choose from, never as a list.
-
-**Merging** (the owner merges, Claude never does): design and build PRs use **Create a merge commit**, which keeps each task, review fix and verification commit in history. Fast-lane PRs use **Squash and merge**: one commit per small change. When a design PR changes a knowledge concept, the owner re-verifies it in conversation; Claude pushes the verification commit and says "pushed" before the owner merges.
+- Tasks stay in `tasks.md`, not GitHub issues (one issue per feature). Constitution amendments go through a design PR, never `/speckit-constitution`.
+- Ask the owner questions one at a time with options to choose from, never as a list.
+- The owner merges: **Create a merge commit** for design and build PRs, **Squash and merge** for fast-lane. When a design PR changes a knowledge concept, the owner re-verifies it in conversation, and Claude pushes the verification commit and says "pushed" before the merge.
 
 ## Hard rules
 
@@ -68,15 +62,12 @@ Notes here are public: keep them general. Anything true only of a particular mac
   - Node and npm need `NODE_OPTIONS=--use-system-ca`; shells started by an app that was already running don't see a newly saved value, so set it per command;
   - `winget` needs `--source winget`, because the Microsoft Store source pins its certificate;
   - `pip` downloads can arrive corrupted; use `uv` instead.
-- If the app restarts by itself under `npm run dev` (its window and a console window close and a new window opens, with no "File ... changed. Rebuilding application..." line), it's antivirus, not `tauri dev`: `tauri dev` always logs that line before it relaunches the app. Some antivirus products run each new build of an executable in a sandbox first, then close it and start it for real a few seconds later; every rebuild of `uni-app.exe` triggers it again. The antivirus's own log names the executable. The fix is an antivirus exception for the repository's `target/` folder, which is the machine owner's call (`docs/development.md`, "The app restarts by itself").
+- If the app restarts by itself under `npm run dev` with no "File ... changed. Rebuilding application..." line, it's antivirus sandboxing each new build, not `tauri dev`. The fix is an antivirus exception for `target/`, the machine owner's call (`docs/development.md`, "The app restarts by itself").
 - Rust lives in `~/.cargo/bin`, which may not be on `PATH` in Claude's shell: `export PATH="$HOME/.cargo/bin:$PATH"`.
 - If incremental builds fail with "Access is denied" on their session directories, build with `CARGO_INCREMENTAL=0`.
 - Long paths (such as Claude's scratchpad) can exceed the Windows path limit for some tools. Put generated or temporary files under `target/` (gitignored) instead.
-- File locks (`File::try_lock`) are mandatory on Windows: while one handle holds the lock, no other handle can read the file, not even SQLite's or `fs::copy` in the same process. Renaming another file over it still works. `uni-store` therefore reads an open project through its locked handle and gives SQLite the bytes (`deserialize`), and locks the new file before renaming it into place on save.
-- Python's `open(..., "w")` writes Windows line endings: pass `newline="
-"`. When reading `gh` or Python output into shell variables, strip `
-` (`| tr -d '
-'`).
+- File locks (`File::try_lock`) are mandatory on Windows: while one handle holds the lock, no other handle can read the file, not even SQLite's in the same process (renaming a file over it still works). See the comments in `crates/uni-store/src/universe.rs`.
+- Python's `open(..., "w")` writes Windows line endings: pass `newline="\n"`. When reading `gh` or Python output into shell variables, strip carriage returns (`| tr -d '\r'`). Backslash escapes like these can get turned into real control characters when a file is edited through a shell heredoc, so write such lines with an editor tool and check them afterwards.
 - Don't chain checks through `| tail`: it hides the exit code. Check `$?` or `${PIPESTATUS[0]}`, which is how a failing test was once committed and pushed.
 
 **GitHub**
