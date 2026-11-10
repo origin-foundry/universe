@@ -3,9 +3,10 @@ type: Architecture Decision
 title: "ADR 0008: Physical time and calendar time"
 description: Physics works in physical time on GCT; calendars are human conventions mapped onto it and don't have to be astronomically accurate.
 tags: [decision, time, calendar, physics, terminology]
-status: draft
+status: stable
 decided: 2026-11-10
 generated: { by: claude-code/claude-opus-5-5, at: 2026-11-10T12:00:00Z }
+verified: { by: human:origin-foundry, at: 2026-11-10T22:41:49Z }
 ---
 
 # Context
