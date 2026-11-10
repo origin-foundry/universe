@@ -22,6 +22,12 @@ updates:
     groups:
       cargo:
         patterns: ["*"]
+    ignore:
+      # num-bigint must match the version num-rational uses (uni-time's test oracle), and
+      # num-rational 0.4 still uses num-bigint 0.4 (Dependabot PR #26). Remove this when
+      # num-rational moves on (issue #33).
+      - dependency-name: num-bigint
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: npm
     directory: /
