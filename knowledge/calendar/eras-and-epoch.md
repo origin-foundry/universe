@@ -3,23 +3,26 @@ type: Design
 title: Eras and epoch
 description: Multiple eras, the first era as epoch, and dates before the epoch.
 tags: [calendar, eras, epoch]
-status: stable
+status: draft
 generated: { by: claude-code/claude-opus-5-5, at: 2026-10-30T08:24:17Z }
-verified: { by: human:origin-foundry, at: 2026-10-30T22:11:22Z }
 ---
 
 # Eras
 
-A calendar has an ordered list of **one or more eras**. Eras map the top-level unit's index to displayed numbers and labels:
+A calendar has an ordered list of **one or more eras**. The eras number a **chosen unit**, the **era's unit** (usually the year), which can be any unit at or above the fundamental unit. Eras map the era's unit's index to displayed numbers and labels:
 
 - start (by fixed number, or by a timeline event, for regnal eras)
 - numbering direction (counting up, or counting down to the era boundary)
 - whether a year zero exists
 - label and abbreviation per locale
 
+# Units above the era's unit
+
+Fixed-count groupings can sit above the era's unit (decade = 10 years, century = 10 decades). Each is numbered by its **count from the epoch**, with the same astronomical numbering: the one that starts at the epoch is 1, the one before it 0, then −1. So century 1 holds years 1–100 and century 0 holds years −99 to 0. These numbers are worked out from the date, never entered; a date starts at the era's unit.
+
 # Epoch
 
-**The first era defines the calendar's epoch.** The user places it on the hidden timeline by equating one of its dates with:
+**The first era defines the calendar's epoch**: the start of its first date (the first instance of the era's unit and of every unit below it) is fixed number 0. The user places it on the hidden timeline by equating one of its dates with:
 
 - a date in another calendar,
 - a timeline event, or

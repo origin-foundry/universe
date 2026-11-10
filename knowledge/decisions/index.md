@@ -5,6 +5,7 @@
 * [ADR 0003: Per-body time zones](/decisions/0003-per-body-time-zones.md) - Each body picks its own time zone scheme, and schemes can be mixed.
 * [ADR 0004: Public GPL-3.0 repository](/decisions/0004-public-gpl-repo.md) - The source is published in a public GitHub repository under GPL-3.0; no binaries are distributed.
 * [ADR 0005: Calendar core first](/decisions/0005-calendar-core-first.md) - Build the calendar engine before any physics.
+* [ADR 0008: Physical time and calendar time](/decisions/0008-physical-time-and-calendar-time.md) - Physics works in physical time on GCT; calendars are human conventions mapped onto it and don't have to be astronomically accurate.
 
 # Process
 
