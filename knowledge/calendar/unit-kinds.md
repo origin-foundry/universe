@@ -3,8 +3,9 @@ type: Design
 title: Unit kinds
 description: Subdivisions, groupings, event-delimited groupings and intercalary members.
 tags: [calendar, units]
-status: draft
+status: stable
 generated: { by: claude-code/claude-opus-5-5, at: 2026-10-30T08:24:17Z }
+verified: { by: human:origin-foundry, at: 2026-11-10T22:41:49Z }
 ---
 
 # Kinds
