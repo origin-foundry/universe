@@ -138,9 +138,9 @@ description: "Task list for spec 004, calendar engine basics"
 
 ## Phase 7: Performance and polish
 
-- [ ] T018 [P] Write `crates/uni-calendar/tests/timing.rs`: a `#[test] #[ignore]` that runs 100,000 `instant_to_date` and 100,000 `date_to_instant` conversions on Aster, half near the epoch and half about 100,000 years away, timing each direction with `std::time::Instant` and asserting each takes under one second (under 10 µs per conversion). No floats (research R8).
-- [ ] T019 Run `cargo test -p uni-calendar --release -- --ignored` and record the timings in the build PR description (SC-004).
-- [ ] T020 Add doc comments with a short example to `Calendar::new`, `instant_to_date` and `date_to_instant` in `crates/uni-calendar/src/calendar.rs` and `crates/uni-calendar/src/convert.rs`, and update the crate doc in `crates/uni-calendar/src/lib.rs` to say what this feature covers and what comes later (leap rules, cycles, eras).
+- [x] T018 [P] Write `crates/uni-calendar/tests/timing.rs`: a `#[test] #[ignore]` that runs 100,000 `instant_to_date` and 100,000 `date_to_instant` conversions on Aster, half near the epoch and half about 100,000 years away, timing each direction with `std::time::Instant` and asserting each takes under one second (under 10 µs per conversion). No floats (research R8).
+- [x] T019 Run `cargo test -p uni-calendar --release -- --ignored` and record the timings in the build PR description (SC-004).
+- [x] T020 Add doc comments with a short example to `Calendar::new`, `instant_to_date` and `date_to_instant` in `crates/uni-calendar/src/calendar.rs` and `crates/uni-calendar/src/convert.rs`, and update the crate doc in `crates/uni-calendar/src/lib.rs` to say what this feature covers and what comes later (leap rules, cycles, eras).
 - [ ] T021 Run the full local verification and record the results in the build PR description:
   - `cargo fmt --all --check`
   - `cargo clippy --workspace --all-targets -- -D warnings`
