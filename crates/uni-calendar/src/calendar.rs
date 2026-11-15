@@ -1,47 +1,480 @@
-use uni_time::Instant;
+//! Checking a definition and the checked calendar it becomes.
 
-use crate::{CalendarDef, CalendarError, Clock, DefinitionError};
+use std::collections::HashSet;
+
+use uni_time::{Instant, Ratio};
+
+use crate::{CalendarDef, CalendarError, Clock, DefinitionError, Limit};
 
 type R<T> = Result<T, CalendarError>;
 
+const NANOS_PER_SEC: i128 = 1_000_000_000;
+/// The largest denominator a fundamental length in nanoseconds may have (research R3).
+const MAX_DENOMINATOR: i128 = 1_000_000_000;
+/// The fundamental unit's length in ticks must stay below this (research R3).
+const MAX_TICKS: i128 = 1 << 120;
+
+/// A checked calendar, ready to convert between instants and dates. Immutable; made only by
+/// [`Calendar::new`].
+///
+/// Inside, the definition is flattened into one chain of units, top to bottom (data-model.md,
+/// "The unit chain"), with each grouping's length in fundamental units, each member unit's
+/// prefix sums, and the fundamental length in nanoseconds as a reduced fraction `p/q`
+/// precomputed. A **tick** is `1/(q × P)` ns, where `P` is the product of the subdivisions'
+/// part counts; every unit boundary is a whole number of ticks.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Calendar {
-    def: CalendarDef,
+    pub(crate) name: String,
+    pub(crate) clock: Clock,
+    pub(crate) era_name: String,
+    pub(crate) epoch: Instant,
+    /// The chain, top to bottom.
+    pub(crate) units: Vec<Unit>,
+    /// Index of the era's unit in `units`.
+    pub(crate) era: usize,
+    /// Index of the fundamental unit in `units`.
+    pub(crate) fundamental: usize,
+    /// The fundamental length in nanoseconds is `p / q`, in lowest terms.
+    pub(crate) p: i128,
+    pub(crate) q: i128,
+    /// The product of the subdivisions' part counts.
+    pub(crate) parts: i128,
+}
+
+/// One unit of the chain.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct Unit {
+    pub(crate) name: String,
+    /// The number of its first instance within its parent; unused at or above the era's unit.
+    pub(crate) first: i64,
+    pub(crate) kind: Kind,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum Kind {
+    /// `length` fundamental units, holding `children` of the next unit in the chain (its one
+    /// member's count, or the number of members when it has a member unit).
+    Grouping {
+        length: i64,
+        children: i64,
+    },
+    /// A grouping's member unit. Member `j` holds `counts[j]` of the next unit in the chain
+    /// and starts `starts[j]` fundamental units into the grouping (`starts` has one more
+    /// entry, the grouping's length).
+    Member {
+        names: Vec<Option<String>>,
+        counts: Vec<i64>,
+        starts: Vec<i64>,
+    },
+    Fundamental,
+    Subdivision {
+        parts: i64,
+    },
+}
+
+impl Unit {
+    /// How a member of a member unit is named in errors: its name, or its number from 1.
+    pub(crate) fn member_label(names: &[Option<String>], j: usize) -> String {
+        names[j].clone().unwrap_or_else(|| (j + 1).to_string())
+    }
 }
 
 impl Calendar {
-    pub fn new(_def: CalendarDef) -> Result<Calendar, DefinitionError> {
-        todo!()
+    /// Checks a definition and builds the calendar, or says what's wrong with it (FR-006).
+    ///
+    /// The rules are checked in the order data-model.md lists them, so the first fault found
+    /// is the one reported.
+    ///
+    /// ```
+    /// use uni_calendar::{Calendar, CalendarDef, Clock, EraDef, FundamentalDef, GroupingDef,
+    ///     MemberDef, SubdivisionDef};
+    /// use uni_time::{Instant, Ratio};
+    ///
+    /// // A 400-sol year with 10 hours in each sol.
+    /// let def = CalendarDef {
+    ///     name: "Plain".to_string(),
+    ///     clock: Clock::Gct,
+    ///     groupings: vec![GroupingDef {
+    ///         name: "year".to_string(),
+    ///         member_unit: None,
+    ///         members: vec![MemberDef { name: None, count: 400 }],
+    ///         first_number: None,
+    ///     }],
+    ///     fundamental: FundamentalDef {
+    ///         name: "sol".to_string(),
+    ///         length: Ratio::from_int(90_000).unwrap(),
+    ///         first_number: None,
+    ///     },
+    ///     subdivisions: vec![SubdivisionDef { name: "hour".to_string(), parts: 10, first_number: None }],
+    ///     era: EraDef { name: "Plain Era".to_string(), unit: "year".to_string(), epoch: Instant::ZERO },
+    /// };
+    /// let cal = Calendar::new(def).unwrap();
+    /// assert_eq!(cal.units(), ["year", "sol", "hour"]);
+    /// assert_eq!(cal.units_per("year", "hour"), Ok(4_000));
+    /// ```
+    pub fn new(def: CalendarDef) -> Result<Calendar, DefinitionError> {
+        check_names(&def)?;
+        check_shape(&def)?;
+        let units = flatten(&def);
+        check_unique(&def, &units)?;
+        let era = era_index(&def, &units)?;
+        check_first_numbers(&def, era)?;
+        let (p, q, parts) = check_fundamental_limits(&def)?;
+        let units = with_lengths(&def, units)?;
+        Ok(Calendar {
+            name: def.name,
+            clock: def.clock,
+            era_name: def.era.name,
+            epoch: def.era.epoch,
+            fundamental: def.groupings.len()
+                + def
+                    .groupings
+                    .iter()
+                    .filter(|g| g.member_unit.is_some())
+                    .count(),
+            units,
+            era,
+            p,
+            q,
+            parts,
+        })
     }
 
     pub fn name(&self) -> &str {
-        todo!()
+        &self.name
     }
 
     pub fn clock(&self) -> Clock {
-        todo!()
+        self.clock
     }
 
     pub fn era_name(&self) -> &str {
-        todo!()
+        &self.era_name
     }
 
+    /// Where fixed number 0 starts on the hidden timeline.
     pub fn epoch(&self) -> Instant {
-        todo!()
+        self.epoch
     }
 
+    /// The chain of units, top to bottom, member units included.
     pub fn units(&self) -> Vec<&str> {
-        todo!()
+        self.units.iter().map(|u| u.name.as_str()).collect()
     }
 
     pub fn era_unit(&self) -> &str {
-        todo!()
+        &self.units[self.era].name
     }
 
-    pub fn units_per(&self, _outer: &str, _inner: &str) -> R<i64> {
-        let _ = &self.def;
-        todo!()
+    /// How many `inner` there are in one `outer`, when that's one fixed whole number: a year
+    /// in sols is 668, a sol in minutes 2,000, a year in months 12. A count that varies (a
+    /// month in sols), or isn't whole, is `NotFixed`.
+    pub fn units_per(&self, outer: &str, inner: &str) -> R<i64> {
+        let o = self.index_of(outer)?;
+        let i = self.index_of(inner)?;
+        self.count_between(o, i)
+            .ok_or_else(|| CalendarError::NotFixed {
+                unit: outer.to_string(),
+                of: inner.to_string(),
+            })?
     }
+
+    fn index_of(&self, name: &str) -> R<usize> {
+        self.units
+            .iter()
+            .position(|u| u.name == name)
+            .ok_or_else(|| CalendarError::UnknownUnit {
+                name: name.to_string(),
+            })
+    }
+
+    /// `None` when the count isn't fixed; `Some(Err)` when it is but doesn't fit in `i64`.
+    fn count_between(&self, o: usize, i: usize) -> Option<R<i64>> {
+        if o == i {
+            return Some(Ok(1));
+        }
+        if o > i {
+            return None;
+        }
+        if let Kind::Member { counts, .. } = &self.units[i].kind {
+            // A member unit's instances vary, but every instance of its grouping (just above
+            // it) holds all of them.
+            let members = i64::try_from(counts.len()).expect("a Vec's length fits");
+            return Some(match self.count_between(o, i - 1)? {
+                Ok(n) => n.checked_mul(members).ok_or(CalendarError::OutOfRange),
+                Err(e) => Err(e),
+            });
+        }
+        let ratio = self
+            .length_in_fundamentals(o)?
+            .checked_div(self.length_in_fundamentals(i)?)
+            .ok()?;
+        if !ratio.is_integer() {
+            return None;
+        }
+        Some(i64::try_from(ratio.numer()).map_err(|_| CalendarError::OutOfRange))
+    }
+
+    /// The unit's length in fundamental units, if it's always the same.
+    fn length_in_fundamentals(&self, index: usize) -> Option<Ratio> {
+        match &self.units[index].kind {
+            Kind::Grouping { length, .. } => Ratio::from_int((*length).into()).ok(),
+            Kind::Member { starts, .. } => {
+                let mut lengths = starts.windows(2).map(|w| w[1] - w[0]);
+                let first = lengths.next()?;
+                lengths
+                    .all(|l| l == first)
+                    .then(|| Ratio::from_int(first.into()).ok())?
+            }
+            Kind::Fundamental => Some(Ratio::ONE),
+            Kind::Subdivision { .. } => {
+                let mut parts: i128 = 1;
+                for unit in &self.units[self.fundamental + 1..=index] {
+                    if let Kind::Subdivision { parts: n } = unit.kind {
+                        parts *= i128::from(n); // ≤ the product checked in `new`
+                    }
+                }
+                Ratio::new(1, parts).ok()
+            }
+        }
+    }
+}
+
+fn check_names(def: &CalendarDef) -> Result<(), DefinitionError> {
+    let empty = |what| Err(DefinitionError::EmptyName { what });
+    if def.name.is_empty() {
+        return empty("calendar");
+    }
+    if def.era.name.is_empty() {
+        return empty("era");
+    }
+    for g in &def.groupings {
+        if g.name.is_empty() || g.member_unit.as_ref().is_some_and(|m| m.name.is_empty()) {
+            return empty("unit");
+        }
+        if g.members.iter().any(|m| m.name.as_deref() == Some("")) {
+            return empty("member");
+        }
+    }
+    if def.fundamental.name.is_empty() || def.subdivisions.iter().any(|s| s.name.is_empty()) {
+        return empty("unit");
+    }
+    Ok(())
+}
+
+fn check_shape(def: &CalendarDef) -> Result<(), DefinitionError> {
+    if def.fundamental.length <= Ratio::ZERO {
+        return Err(DefinitionError::NonPositiveLength {
+            unit: def.fundamental.name.clone(),
+        });
+    }
+    if let Some(g) = def.groupings.iter().find(|g| g.members.is_empty()) {
+        return Err(DefinitionError::NoMembers {
+            unit: g.name.clone(),
+        });
+    }
+    for g in &def.groupings {
+        if let Some((j, m)) = g.members.iter().enumerate().find(|(_, m)| m.count <= 0) {
+            return Err(DefinitionError::NonPositiveCount {
+                unit: g.name.clone(),
+                member: m.name.clone().unwrap_or_else(|| (j + 1).to_string()),
+            });
+        }
+    }
+    if let Some(g) = def
+        .groupings
+        .iter()
+        .find(|g| g.members.len() > 1 && g.member_unit.is_none())
+    {
+        return Err(DefinitionError::MembersNeedUnit {
+            unit: g.name.clone(),
+        });
+    }
+    if let Some(s) = def.subdivisions.iter().find(|s| s.parts < 1) {
+        return Err(DefinitionError::TooFewParts {
+            unit: s.name.clone(),
+        });
+    }
+    Ok(())
+}
+
+/// The chain, top to bottom, with first numbers defaulted ("Default 1" for groupings, member
+/// units and the fundamental unit; "Default 0" for subdivisions). Lengths come later.
+fn flatten(def: &CalendarDef) -> Vec<Unit> {
+    let mut units = Vec::new();
+    let placeholder = || Kind::Grouping {
+        length: 0,
+        children: 0,
+    };
+    for g in &def.groupings {
+        units.push(Unit {
+            name: g.name.clone(),
+            first: g.first_number.unwrap_or(1),
+            kind: placeholder(),
+        });
+        if let Some(m) = &g.member_unit {
+            units.push(Unit {
+                name: m.name.clone(),
+                first: m.first_number.unwrap_or(1),
+                kind: placeholder(),
+            });
+        }
+    }
+    units.push(Unit {
+        name: def.fundamental.name.clone(),
+        first: def.fundamental.first_number.unwrap_or(1),
+        kind: Kind::Fundamental,
+    });
+    for s in &def.subdivisions {
+        units.push(Unit {
+            name: s.name.clone(),
+            first: s.first_number.unwrap_or(0),
+            kind: Kind::Subdivision { parts: s.parts },
+        });
+    }
+    units
+}
+
+fn check_unique(def: &CalendarDef, units: &[Unit]) -> Result<(), DefinitionError> {
+    let mut seen = HashSet::new();
+    if let Some(u) = units.iter().find(|u| !seen.insert(u.name.as_str())) {
+        return Err(DefinitionError::DuplicateUnit {
+            name: u.name.clone(),
+        });
+    }
+    for g in &def.groupings {
+        let mut seen = HashSet::new();
+        if let Some(name) = g
+            .members
+            .iter()
+            .filter_map(|m| m.name.as_deref())
+            .find(|name| !seen.insert(*name))
+        {
+            return Err(DefinitionError::DuplicateMember {
+                unit: g.name.clone(),
+                name: name.to_string(),
+            });
+        }
+    }
+    Ok(())
+}
+
+fn era_index(def: &CalendarDef, units: &[Unit]) -> Result<usize, DefinitionError> {
+    let unit = &def.era.unit;
+    let index = units
+        .iter()
+        .position(|u| &u.name == unit)
+        .ok_or_else(|| DefinitionError::EraUnitUnknown { unit: unit.clone() })?;
+    if matches!(units[index].kind, Kind::Subdivision { .. }) {
+        return Err(DefinitionError::EraUnitBelowFundamental { unit: unit.clone() });
+    }
+    Ok(index)
+}
+
+/// A first number may only be given below the era's unit: the era numbers the rest.
+fn check_first_numbers(def: &CalendarDef, era: usize) -> Result<(), DefinitionError> {
+    let mut given = Vec::new(); // (name, given?) in chain order
+    for g in &def.groupings {
+        given.push((&g.name, g.first_number.is_some()));
+        if let Some(m) = &g.member_unit {
+            given.push((&m.name, m.first_number.is_some()));
+        }
+    }
+    given.push((
+        &def.fundamental.name,
+        def.fundamental.first_number.is_some(),
+    ));
+    match given.iter().take(era + 1).find(|(_, is_given)| *is_given) {
+        Some((name, _)) => Err(DefinitionError::FirstNumberNotAllowed {
+            unit: (*name).clone(),
+        }),
+        None => Ok(()),
+    }
+}
+
+/// The fundamental length in nanoseconds as `(p, q)`, and the product of the part counts,
+/// checked against the limits in research R3.
+fn check_fundamental_limits(def: &CalendarDef) -> Result<(i128, i128, i128), DefinitionError> {
+    let fundamental = &def.fundamental.name;
+    let beyond = |unit: &String, limit| DefinitionError::BeyondLimits {
+        unit: unit.clone(),
+        limit,
+    };
+    let in_ns = def
+        .fundamental
+        .length
+        .checked_mul(Ratio::from_int(NANOS_PER_SEC).expect("fits"))
+        .map_err(|_| beyond(fundamental, Limit::TooManyTicks))?;
+    let (p, q) = (in_ns.numer(), in_ns.denom());
+    if q > MAX_DENOMINATOR {
+        return Err(beyond(fundamental, Limit::LengthTooFine));
+    }
+    let parts = def
+        .subdivisions
+        .iter()
+        .try_fold(1i128, |acc, s| acc.checked_mul(i128::from(s.parts)));
+    // The smallest unit is p / (q × P) ns; it must be at least 1 ns.
+    let smallest = def.subdivisions.last().map_or(fundamental, |s| &s.name);
+    match parts.and_then(|n| n.checked_mul(q)) {
+        Some(q_parts) if p >= q_parts => {}
+        _ => return Err(beyond(smallest, Limit::ShorterThanNanosecond)),
+    }
+    let parts = parts.expect("checked just above");
+    match p.checked_mul(parts) {
+        Some(ticks) if ticks < MAX_TICKS => {}
+        _ => return Err(beyond(fundamental, Limit::TooManyTicks)),
+    }
+    Ok((p, q, parts))
+}
+
+/// Fills in each grouping's length in fundamental units and each member unit's prefix sums,
+/// bottom up, refusing any that don't fit in `i64`.
+fn with_lengths(def: &CalendarDef, mut units: Vec<Unit>) -> Result<Vec<Unit>, DefinitionError> {
+    let too_long = |g: &crate::GroupingDef| DefinitionError::BeyondLimits {
+        unit: g.name.clone(),
+        limit: Limit::GroupingTooLong,
+    };
+    // Walk the groupings bottom up; `index` is each grouping's place in the chain.
+    let mut index = def.groupings.len()
+        + def
+            .groupings
+            .iter()
+            .filter(|g| g.member_unit.is_some())
+            .count();
+    let mut below: i64 = 1; // length of the unit directly below, in fundamental units
+    for g in def.groupings.iter().rev() {
+        let mut starts = Vec::with_capacity(g.members.len() + 1);
+        let mut total: i64 = 0;
+        starts.push(0);
+        for m in &g.members {
+            total = m
+                .count
+                .checked_mul(below)
+                .and_then(|l| total.checked_add(l))
+                .ok_or_else(|| too_long(g))?;
+            starts.push(total);
+        }
+        if let Some(_member_unit) = &g.member_unit {
+            index -= 1;
+            units[index].kind = Kind::Member {
+                names: g.members.iter().map(|m| m.name.clone()).collect(),
+                counts: g.members.iter().map(|m| m.count).collect(),
+                starts,
+            };
+        }
+        index -= 1;
+        let children = if g.member_unit.is_some() {
+            i64::try_from(g.members.len()).map_err(|_| too_long(g))?
+        } else {
+            g.members[0].count
+        };
+        units[index].kind = Kind::Grouping {
+            length: total,
+            children,
+        };
+        below = total;
+    }
+    Ok(units)
 }
 
 #[cfg(test)]

@@ -56,7 +56,7 @@ description: "Task list for spec 004, calendar engine basics"
 
 ### Implementation
 
-- [ ] T008 [US1] Implement `Calendar::new` and the accessor methods (`name`, `clock`, `era_name`, `epoch`, `units`, `era_unit`, `units_per`) in `crates/uni-calendar/src/calendar.rs`: check every rule in data-model.md in the order the table lists them; flatten the chain (data-model.md "The unit chain"); apply the first-number defaults ("Default 1" for groupings, member units and the fundamental unit; "Default 0" for subdivisions); precompute each grouping's length in fundamental units (`i64`, checked), member prefix sums, the fundamental length in nanoseconds as reduced `p/q` (`Ratio` × 10⁹), and the subdivision part counts; check the limits in research R3. Work until T006 and T007 pass.
+- [x] T008 [US1] Implement `Calendar::new` and the accessor methods (`name`, `clock`, `era_name`, `epoch`, `units`, `era_unit`, `units_per`) in `crates/uni-calendar/src/calendar.rs`: check every rule in data-model.md in the order the table lists them; flatten the chain (data-model.md "The unit chain"); apply the first-number defaults ("Default 1" for groupings, member units and the fundamental unit; "Default 0" for subdivisions); precompute each grouping's length in fundamental units (`i64`, checked), member prefix sums, the fundamental length in nanoseconds as reduced `p/q` (`Ratio` × 10⁹), and the subdivision part counts; check the limits in research R3. Work until T006 and T007 pass.
 
 **Checkpoint**: Story 1 works on its own.
 
