@@ -43,7 +43,7 @@
 
 ## R4. Depth limit
 
-- **Decision**: an expression's tree may be at most **256** levels deep, counting every node. A deeper one is `TooDeep { limit: 256, at }`, pointing at the node where the limit was crossed. The parser also counts its own recursion against the same limit, so it can't overflow the stack before it gets there.
+- **Decision**: an expression's tree may be at most **256** levels deep, counting every node. A deeper one is `TooDeep { limit: 256, at }`, pointing at the node where the limit was crossed. The parser also counts its own recursion against the same limit (one level for each nested parenthesis, unary operator and part of an `if`), so it can't overflow the stack before it gets there; that is what refuses 257 nested parentheses, which build no nodes of their own.
 - **Rationale**: evaluation and period analysis walk the tree recursively. A chain like `1 + 1 + … + 1` is parsed by a loop but builds a tree as deep as it is long, so limiting only parser recursion wouldn't be enough. 256 is far beyond any real rule (the Gregorian rule is 6 deep) and far within the stack. The spec asks for at least 64.
 
 ## R5. Exact arithmetic
