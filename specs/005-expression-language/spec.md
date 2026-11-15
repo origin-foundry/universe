@@ -4,7 +4,7 @@
 
 **Created**: 2026-11-15
 
-**Status**: Draft
+**Status**: Approved by the owner, 2026-11-15
 
 **Input**: Split out of leap rules (issue #43) during planning, by the owner's choice on 2026-11-15, so each build PR stays reviewable in about 30 minutes (constitution principle VIII). This spec takes the expression-language half of the approved leap-rules spec (its Story 1, FR-001 to FR-005, and the "work out the rule period" part of FR-011) and its clarifications about the language; leap rules themselves become spec 006, built on this one.
 
