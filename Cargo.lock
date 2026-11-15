@@ -3940,6 +3940,12 @@ dependencies = [
 [[package]]
 name = "uni-calendar"
 version = "0.1.0"
+dependencies = [
+ "num-bigint",
+ "num-rational",
+ "proptest",
+ "uni-time",
+]
 
 [[package]]
 name = "uni-expr"
