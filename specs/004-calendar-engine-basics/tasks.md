@@ -70,7 +70,7 @@ description: "Task list for spec 004, calendar engine basics"
 
 ### Tests (write first; they must fail)
 
-- [ ] T009 [P] [US2] In `crates/uni-calendar/tests/aster.rs`, write a `to_date` module covering US2's acceptance scenarios, with `E = EPOCH`:
+- [x] T009 [P] [US2] In `crates/uni-calendar/tests/aster.rs`, write a `to_date` module covering US2's acceptance scenarios, with `E = EPOCH`:
   - `E` → `above [1, 1]`, date `[1, 1, 1, 0, 0]`, remainder 0; `fixed_from_instant(E)` = 0;
   - `E + 668 sols` → year 2, month 1, sol 1; `E + 56 sols` → month 2 (Second), sol 1 (a boundary belongs to the unit that starts there);
   - `E − 1 ns` → `above [0, 0]`, date `[0, 12, 55, 19, 99]`, remainder 44.387621999 s (`44387621999/1000000000`); `fixed_from_instant(E − 1 ns)` = −1;
@@ -78,7 +78,7 @@ description: "Task list for spec 004, calendar engine basics"
   - an instant 1,234.5 s into Aster's sol 1 → the right hour and minute, and minute start + remainder = the instant exactly;
   - with hours from 1 (scenario US1-6): `E` → hour 1;
   - `Instant::new(i64::MAX, 999_999_999)` and `Instant::new(i64::MIN, 0)` with a 1 ns fundamental unit → `OutOfRange` (fixed number beyond `i64`), never a wrapped value.
-- [ ] T010 [P] [US2] In `crates/uni-calendar/src/convert.rs`, write unit tests of the internal steps: floor division for negative offsets; the member-unit lookup in prefix sums at the first and last sol of each month; the subdivision remainder chain for a sol split into 7 (an exact fraction, not whole nanoseconds).
+- [x] T010 [P] [US2] In `crates/uni-calendar/src/convert.rs`, write unit tests of the internal steps: floor division for negative offsets; the member-unit lookup in prefix sums at the first and last sol of each month; the subdivision remainder chain for a sol split into 7 (an exact fraction, not whole nanoseconds).
 
 ### Implementation
 
