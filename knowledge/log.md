@@ -1,5 +1,8 @@
 # Bundle update log
 
+## 2026-11-15
+* **Update**: Spec 005 (expression language basics): the [expression language](/language/expression-language.md) gains floored `/` as well as `%`, positions as line and column, the first subset the engine builds (integers and booleans, operator precedence, unchained comparisons, declared variables, a depth limit of 256) and how it works out the period in which an expression repeats, which leap rules need for fast conversion. Back to draft until re-verified by human:origin-foundry.
+
 ## 2026-11-10
 * **Verification**: human:origin-foundry re-verified the spec 004 changes in conversation after #38 merged: [unit kinds](/calendar/unit-kinds.md), [conversion](/calendar/conversion.md), [eras and epoch](/calendar/eras-and-epoch.md), [ADR 0008](/decisions/0008-physical-time-and-calendar-time.md) and the [glossary](/glossary.md). All are now stable.
 * **Creation**: Added [ADR 0008: Physical time and calendar time](/decisions/0008-physical-time-and-calendar-time.md) (draft), the ground rules agreed in the review of spec 004: physics works in physical time, calendars are conventions mapped onto it and don't have to be astronomically accurate.

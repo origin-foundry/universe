@@ -82,7 +82,7 @@ Leap rules (spec 006) convert dates fast only if their conditions repeat on a fi
 4. **Given** `true` or `3 > 2`, which don't read `year` at all, **When** their period is worked out, **Then** it's 1.
 5. **Given** `year / 7 % 2 == 0`, `year * year % 3 == 0` or `year > 100`, **When** its period is worked out, **Then** it's refused, saying it doesn't repeat in a way the language can establish, and pointing at the part responsible (the `/`, the `*`, the `>`).
 6. **Given** an expression whose period would exceed a limit the caller gives (say `year % 7 == 0 && year % 11 == 0 && year % 13 == 0`, period 1,001, with a limit of 1,000), **When** its period is worked out, **Then** it's refused, saying the period is over the limit.
-7. **Given** any expression the language says has period *P* and any year *y*, **When** it's evaluated at *y* and at *y + P*, **Then** both give the same result (or both the same error).
+7. **Given** any expression the language says has period *P* and any year *y*, **When** it's evaluated at *y* and at *y + P*, **Then** both give the same result (or both a division by zero), unless one of them is out of range because its numbers are too large (Edge Cases, "Repetition and range").
 
 ---
 
@@ -108,7 +108,7 @@ The language must never use floating point, never wrap a number, and never crash
 - **Equality** compares two whole numbers or two true/false values; comparing a number with a true/false value is a type error.
 - **`if` branches** must have the same type; the result has that type.
 - **Range**: whole numbers are 64-bit signed, about ±9.2 × 10¹⁸. A literal or any result outside that range is an error (Story 1 scenario 8, Story 2 scenario 5). The smallest number divided by −1 is out of range too.
-- **Depth**: nesting deeper than a stated limit (set in planning, at least 64 levels) is refused with its position, so deeply nested text can't exhaust the stack.
+- **Depth**: nesting deeper than a stated limit (at least 64 levels; set in planning to 256, counting every part of the expression, [research.md](research.md) R4) is refused with its position, so deeply nested text can't exhaust the stack.
 - **Repetition is a safe answer, not always the smallest**: the period worked out always works (Story 3 scenario 7) but may be a multiple of the smallest one; `year % 4 == 0 || year % 2 == 0` may report 4 even though its smallest period is 2. Callers that care can search for a smaller one inside the period given.
 - **Repetition and errors**: an expression can repeat and still fail for some values (Story 2 scenario 4 has period 7 and fails for every multiple of 7). Working out the period doesn't evaluate; a caller that needs every value checks one period's worth.
 - **Repetition and range**: the period describes the expression's exact meaning. Evaluating with very large variable values can overflow even when the expression repeats (`year * 1000000000000 % 7`); the value at *y* is then still the value at *y* minus a multiple of *P*, which a caller like spec 006 can use instead.
@@ -135,7 +135,7 @@ The language must never use floating point, never wrap a number, and never crash
 
 **Repetition**
 
-- **FR-008**: The language MUST work out, for a checked expression and one of its whole-number variables, a **period** *P* ≥ 1 such that for every value *y* the expression's exact value (or error) at *y* and at *y + P* is the same, with the other variables unchanged. It MUST establish this from the expression itself; it is never supplied by the caller.
+- **FR-008**: The language MUST work out, for a checked expression and one of its whole-number variables, a **period** *P* ≥ 1 such that for every value *y* the expression's exact value (or division-by-zero error) at *y* and at *y + P* is the same, with the other variables unchanged. Out-of-range errors depend on the size of the numbers, not on the pattern, so they are not covered (Edge Cases). It MUST establish this from the expression itself; it is never supplied by the caller.
 - **FR-009**: When the language can't establish a period (because the variable is divided, multiplied by itself, compared, or otherwise used other than through a remainder by a fixed number), or the period would exceed a limit given by the caller, it MUST refuse with the reason and the position of the part responsible.
 
 **Quality**
