@@ -109,7 +109,7 @@ description: "Task list for spec 004, calendar engine basics"
 
 ### Implementation
 
-- [ ] T014 [US3] Implement `start_of_fixed` and `date_to_instant` in `crates/uni-calendar/src/convert.rs`: check each value against its unit's range (the member's count for units inside a member unit; `within` names the member, by name or number) before any arithmetic; fill missing smaller units with their first values; sum the exact start as a fraction of nanoseconds from the epoch; round up to the next whole nanosecond with `Rounding::Up`, setting `rounded_by` to the exact difference in seconds when it isn't zero (FR-014); every overflow is `OutOfRange`. Work until T012 and T013 pass.
+- [x] T014 [US3] Implement `start_of_fixed` and `date_to_instant` in `crates/uni-calendar/src/convert.rs`: check each value against its unit's range (the member's count for units inside a member unit; `within` names the member, by name or number) before any arithmetic; fill missing smaller units with their first values; sum the exact start as a fraction of nanoseconds from the epoch; round up to the next whole nanosecond with `Rounding::Up`, setting `rounded_by` to the exact difference in seconds when it isn't zero (FR-014); every overflow is `OutOfRange`. Work until T012 and T013 pass.
 
 **Checkpoint**: Stories 1 to 3 work; the engine is usable.
 

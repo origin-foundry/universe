@@ -5,7 +5,7 @@
 
 use uni_time::{Instant, Ratio};
 
-use crate::calendar::Kind;
+use crate::calendar::{Kind, Unit};
 use crate::{Calendar, CalendarError, Date, DateStart, InstantDate};
 
 type R<T> = Result<T, CalendarError>;
@@ -36,8 +36,42 @@ impl Calendar {
         Ok((i64::try_from(fixed).map_err(out_of_range)?, position))
     }
 
-    pub fn start_of_fixed(&self, _fixed: i64) -> R<DateStart> {
-        todo!()
+    /// The instant fundamental unit number `fixed` starts at (FR-012), rounded up to the next
+    /// whole nanosecond if it falls between two (FR-014).
+    pub fn start_of_fixed(&self, fixed: i64) -> R<DateStart> {
+        self.start_at(fixed, 0)
+    }
+
+    /// The start of fundamental unit `fixed`, plus `ticks` (units of `1/(q × P)` ns, fewer
+    /// than one fundamental unit's worth), as the first whole nanosecond at or after it.
+    fn start_at(&self, fixed: i64, ticks: i128) -> R<DateStart> {
+        // fixed × p / q ns, split into whole nanoseconds and a remainder in 1/q ns. If
+        // fixed × p overflows i128, the start is over 2⁹⁷ ns away: beyond any instant.
+        let scaled = i128::from(fixed)
+            .checked_mul(self.p)
+            .ok_or(CalendarError::OutOfRange)?;
+        let (whole, rest) = floor_div(scaled, self.q);
+        let q_parts = self.q * self.parts; // ≤ p < 2¹²⁰, checked in Calendar::new
+        let (extra, fraction) = floor_div(rest * self.parts + ticks, q_parts);
+        let mut nanos = self
+            .epoch
+            .as_nanos()
+            .checked_add(whole)
+            .and_then(|n| n.checked_add(extra))
+            .ok_or(CalendarError::OutOfRange)?;
+        let rounded_by = if fraction == 0 {
+            None
+        } else {
+            nanos = nanos.checked_add(1).ok_or(CalendarError::OutOfRange)?;
+            let denominator = q_parts
+                .checked_mul(NANOS_PER_SEC)
+                .ok_or(CalendarError::OutOfRange)?;
+            Some(Ratio::new(q_parts - fraction, denominator).map_err(out_of_range)?)
+        };
+        Ok(DateStart {
+            instant: Instant::from_nanos(nanos).map_err(out_of_range)?,
+            rounded_by,
+        })
     }
 
     /// The date `instant` falls on: the numbers of the units above the era's unit, every
@@ -135,8 +169,135 @@ impl Calendar {
             })
     }
 
-    pub fn date_to_instant(&self, _date: &Date) -> R<DateStart> {
-        todo!()
+    /// The instant a date starts at (FR-011): the first whole nanosecond at or after its
+    /// exact start, with `rounded_by` giving the exact amount added when that wasn't already
+    /// whole (FR-014). Missing smaller units take their first value. A value outside its
+    /// unit's range is refused, naming the unit, the value and the range (FR-013).
+    ///
+    /// ```
+    /// # use uni_calendar::{Calendar, CalendarDef, CalendarError, Clock, Date, EraDef, FundamentalDef, GroupingDef, MemberDef, SubdivisionDef};
+    /// # use uni_time::{Instant, Ratio, Span};
+    /// # let def = CalendarDef {
+    /// #     name: "Plain".to_string(),
+    /// #     clock: Clock::Gct,
+    /// #     groupings: vec![GroupingDef { name: "year".to_string(), member_unit: None,
+    /// #         members: vec![MemberDef { name: None, count: 400 }], first_number: None }],
+    /// #     fundamental: FundamentalDef { name: "sol".to_string(),
+    /// #         length: Ratio::from_int(90_000).unwrap(), first_number: None },
+    /// #     subdivisions: vec![SubdivisionDef { name: "hour".to_string(), parts: 10, first_number: None }],
+    /// #     era: EraDef { name: "Plain Era".to_string(), unit: "year".to_string(), epoch: Instant::ZERO },
+    /// # };
+    /// // A 400-sol year of 90,000 s sols, 10 hours in each, epoch at the timeline's zero.
+    /// let cal = Calendar::new(def).unwrap();
+    /// let start = cal.date_to_instant(&Date { values: vec![1, 2] }).unwrap(); // sol 2
+    /// assert_eq!(start.instant, Instant::ZERO.checked_add(Span::from_secs(90_000)).unwrap());
+    /// assert_eq!(start.rounded_by, None);
+    /// let hour_ten = cal.date_to_instant(&Date { values: vec![1, 1, 10] });
+    /// assert_eq!(hour_ten.unwrap_err().to_string(), "hour 10 is outside 0 to 9");
+    /// ```
+    pub fn date_to_instant(&self, date: &Date) -> R<DateStart> {
+        let values = &date.values;
+        let max = self.units.len() - self.era;
+        if values.is_empty() {
+            return Err(CalendarError::EmptyDate);
+        }
+        if values.len() > max {
+            return Err(CalendarError::TooManyValues {
+                given: values.len(),
+                max,
+            });
+        }
+        // The era's unit is numbered by count from the epoch: the one starting there is 1.
+        let count = values[0].checked_sub(1).ok_or(CalendarError::OutOfRange)?;
+        // Check every value against its range, before any other arithmetic. `indices[i]` is
+        // the position of unit `era + 1 + i` within its parent; missing ones are 0.
+        let mut member = match &self.units[self.era].kind {
+            Kind::Member { counts, .. } => {
+                let members = i64::try_from(counts.len()).map_err(out_of_range)?;
+                usize::try_from(count.rem_euclid(members)).map_err(out_of_range)?
+            }
+            _ => 0,
+        };
+        let mut indices = Vec::with_capacity(max - 1);
+        for k in self.era + 1..self.units.len() {
+            let value = values.get(k - self.era).copied();
+            let index = match value {
+                Some(value) => self.check_value(k, member, value)?,
+                None => 0,
+            };
+            if let Kind::Member { .. } = self.units[k].kind {
+                member = usize::try_from(index).map_err(out_of_range)?;
+            }
+            indices.push(index);
+        }
+        // Now the start: fundamental units first, then ticks within the last one.
+        let mut fixed = match &self.units[self.era].kind {
+            Kind::Grouping { length, .. } => count.checked_mul(*length),
+            Kind::Member { starts, .. } => {
+                let members = i64::try_from(starts.len() - 1).map_err(out_of_range)?;
+                let length = starts[starts.len() - 1];
+                let start =
+                    starts[usize::try_from(count.rem_euclid(members)).map_err(out_of_range)?];
+                count
+                    .div_euclid(members)
+                    .checked_mul(length)
+                    .and_then(|f| f.checked_add(start))
+            }
+            Kind::Fundamental | Kind::Subdivision { .. } => Some(count),
+        }
+        .ok_or(CalendarError::OutOfRange)?;
+        let mut ticks: i128 = 0;
+        let mut tick_length = self.p * self.parts; // one fundamental unit, < 2¹²⁰
+        for (k, &index) in (self.era + 1..).zip(&indices) {
+            let offset = match &self.units[k].kind {
+                Kind::Grouping { length, .. } => index.checked_mul(*length),
+                Kind::Member { starts, .. } => {
+                    Some(starts[usize::try_from(index).map_err(out_of_range)?])
+                }
+                Kind::Fundamental => Some(index),
+                Kind::Subdivision { parts } => {
+                    tick_length /= i128::from(*parts);
+                    ticks += i128::from(index) * tick_length; // < one fundamental unit
+                    Some(0)
+                }
+            };
+            fixed = offset
+                .and_then(|o| fixed.checked_add(o))
+                .ok_or(CalendarError::OutOfRange)?;
+        }
+        self.start_at(fixed, ticks)
+    }
+
+    /// Checks `value` for unit `k` (below the era's unit), where `member` is the member of
+    /// the member unit just above, if there is one. Returns its position within its parent.
+    fn check_value(&self, k: usize, member: usize, value: i64) -> R<i64> {
+        let unit = &self.units[k];
+        let (count, within) = match (&unit.kind, &self.units[k - 1].kind) {
+            (Kind::Subdivision { parts }, _) => (*parts, None),
+            (_, Kind::Grouping { children, .. }) => (*children, None),
+            (_, Kind::Member { names, counts, .. }) => {
+                (counts[member], Some(Unit::member_label(names, member)))
+            }
+            // The chain puts only subdivisions below the fundamental unit, so this can't
+            // happen; it's an error rather than a panic all the same.
+            (_, Kind::Fundamental | Kind::Subdivision { .. }) => {
+                return Err(CalendarError::OutOfRange);
+            }
+        };
+        let first = unit.first;
+        let last = first
+            .checked_add(count - 1)
+            .ok_or(CalendarError::OutOfRange)?;
+        if value < first || value > last {
+            return Err(CalendarError::InvalidValue {
+                unit: unit.name.clone(),
+                value,
+                first,
+                last,
+                within,
+            });
+        }
+        Ok(value - first)
     }
 }
 
