@@ -82,7 +82,7 @@ description: "Task list for spec 004, calendar engine basics"
 
 ### Implementation
 
-- [ ] T011 [US2] Implement `fixed_from_instant` and `instant_to_date` in `crates/uni-calendar/src/convert.rs` per research R4 and R5: offset in `i128` nanoseconds; `fixed = ⌊offset × q / p⌋` with checked arithmetic; walk the groupings top to bottom (top-level index by floor division, member units by prefix-sum search); number units above the era's unit and the era's unit by count from the epoch + 1, units below by position + first number; split the fundamental remainder through the subdivisions; return the remainder as an exact `Ratio` of seconds. Every overflow is `CalendarError::OutOfRange`; nothing panics. Work until T009 and T010 pass.
+- [x] T011 [US2] Implement `fixed_from_instant` and `instant_to_date` in `crates/uni-calendar/src/convert.rs` per research R4 and R5: offset in `i128` nanoseconds; `fixed = ⌊offset × q / p⌋` with checked arithmetic; walk the groupings top to bottom (top-level index by floor division, member units by prefix-sum search); number units above the era's unit and the era's unit by count from the epoch + 1, units below by position + first number; split the fundamental remainder through the subdivisions; return the remainder as an exact `Ratio` of seconds. Every overflow is `CalendarError::OutOfRange`; nothing panics. Work until T009 and T010 pass.
 
 **Checkpoint**: Stories 1 and 2 work together.
 
