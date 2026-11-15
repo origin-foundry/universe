@@ -4,7 +4,7 @@
 
 **Created**: 2026-11-15
 
-**Status**: Draft (re-approval needed after the split; the first version was approved by the owner on 2026-11-15)
+**Status**: Approved by the owner, 2026-11-15 (re-approved after the split)
 
 **Input**: User description: "Leap rules (issue #43). The calendar engine (uni-calendar) supports leap rules: a rule attached to a grouping (such as the year) whose predicate, written in a first, minimal subset of the expression language (uni-expr: whole numbers and booleans, + - * floored % and division, comparisons, && || !, if/then/else, the unit's own number as a context variable), lengthens or shortens a named member by a whole number of children. Calendars with leap rules (Julian- and Gregorian-shaped) convert exactly in both directions, before and after the epoch, in constant time using the supercycle strategy, and dates that don't exist in a given year (a leap day in a common year) are refused with the reason. Out of scope: length and start expressions, inserting or removing members, intercalary members, user-defined functions, rational and other expression types, sky functions, the rule builder UI, parallel cycles, multiple eras, formats, presets, editing UI. Also carry spec 004's correction: research R5 and US4-1 wrongly claim ±100,000 years with a 1 ns fundamental unit; i64 fixed numbers cover about ±292 years at 1 ns (±100,000 years needs a fundamental unit of at least ~343 ns)." In planning, the owner split the expression language out into spec 005 (issue #44); this spec builds on it.
 
