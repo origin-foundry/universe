@@ -123,16 +123,16 @@ description: "Task list for spec 004, calendar engine basics"
 
 ### Tests
 
-- [ ] T015 [US4] Write `crates/uni-calendar/tests/properties.rs` with `proptest` at 10,000 cases per property (`ProptestConfig::with_cases(10_000)`). A strategy builds random valid calendars per research R7 (one to four groupings, up to 20 members with counts 1 to 100, zero to three subdivisions of 1 to 100 parts, fundamental lengths with nanosecond denominators up to 10⁹, a random era unit at or above the fundamental unit, random first numbers from −5 to 5) and random instants within ±100,000 years (±3,155,760,000,000 s) of the epoch. Properties:
+- [x] T015 [US4] Write `crates/uni-calendar/tests/properties.rs` with `proptest` at 10,000 cases per property (`ProptestConfig::with_cases(10_000)`). A strategy builds random valid calendars per research R7 (one to four groupings, up to 20 members with counts 1 to 100, zero to three subdivisions of 1 to 100 parts, fundamental lengths with nanosecond denominators up to 10⁹, a random era unit at or above the fundamental unit, random first numbers from −5 to 5) and random instants within ±100,000 years (±3,155,760,000,000 s) of the epoch. Properties:
   - instant → date → `date_to_instant(date)` + remainder = the instant exactly (US4-1), with remainder in `[0, smallest unit length)`;
   - date (random valid values) → instant → date gives the same date (US4-2), and when `rounded_by` is set the instant is less than 1 ns after the exact start and still converts back to the same date (US4-3);
   - `fixed_from_instant(start_of_fixed(n).instant) = n`;
   - ordering: a later instant never gives an earlier date.
-- [ ] T016 [US4] In the same file, write the independent oracle (research R7): a reference `instant_to_date` using `num_rational::BigRational` that steps through units one at a time from the epoch, sharing no code with the engine. A property (10,000 cases) compares it with the engine for random calendars and instants within ±50 top-level units of the epoch.
+- [x] T016 [US4] In the same file, write the independent oracle (research R7): a reference `instant_to_date` using `num_rational::BigRational` that steps through units one at a time from the epoch, sharing no code with the engine. A property (10,000 cases) compares it with the engine for random calendars and instants within ±50 top-level units of the epoch.
 
 ### Implementation
 
-- [ ] T017 [US4] Fix anything T015 and T016 find in `crates/uni-calendar/src/convert.rs` or `crates/uni-calendar/src/calendar.rs`, adding each failing case as a regression test in the matching unit-test module (constitution VI). If nothing fails, record that in the build PR description.
+- [x] T017 [US4] Fix anything T015 and T016 find in `crates/uni-calendar/src/convert.rs` or `crates/uni-calendar/src/calendar.rs`, adding each failing case as a regression test in the matching unit-test module (constitution VI). If nothing fails, record that in the build PR description.
 
 ---
 
