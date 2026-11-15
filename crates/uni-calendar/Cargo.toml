@@ -4,6 +4,15 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
+publish = false
 
 [lints]
 workspace = true
+
+[dependencies]
+uni-time = { path = "../uni-time" }
+
+[dev-dependencies]
+num-bigint = "0.4.8"  # must match num-rational's version
+num-rational = { version = "0.4.2", features = ["num-bigint"] }
+proptest = "1.12.0"

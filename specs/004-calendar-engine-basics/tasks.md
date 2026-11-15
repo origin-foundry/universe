@@ -16,8 +16,8 @@ description: "Task list for spec 004, calendar engine basics"
 
 ## Phase 1: Setup
 
-- [ ] T001 In `crates/uni-calendar/Cargo.toml`, add `publish = false`, the dependency `uni-time = { path = "../uni-time" }`, and `[dev-dependencies]` `proptest`, `num-rational` (with the `num-bigint` feature) and `num-bigint`, at exactly the versions in `crates/uni-time/Cargo.toml`. Add no other runtime dependencies (research R9).
-- [ ] T002 Replace `crates/uni-calendar/src/lib.rs` with: a crate doc comment (fixed-length calendars, exact conversion between instants and dates, no floating point, constitution III); keep `#![deny(clippy::float_arithmetic)]`; `mod error; mod def; mod date; mod calendar; mod convert;`; and `pub use` of every public type in the contract. Create the five module files with the contract's types and method signatures, each method body `todo!()`, so the crate builds and tests can be written against it (and fail). Every `todo!()` is gone by T014; the finished engine never panics.
+- [x] T001 In `crates/uni-calendar/Cargo.toml`, add `publish = false`, the dependency `uni-time = { path = "../uni-time" }`, and `[dev-dependencies]` `proptest`, `num-rational` (with the `num-bigint` feature) and `num-bigint`, at exactly the versions in `crates/uni-time/Cargo.toml`. Add no other runtime dependencies (research R9).
+- [x] T002 Replace `crates/uni-calendar/src/lib.rs` with: a crate doc comment (fixed-length calendars, exact conversion between instants and dates, no floating point, constitution III); keep `#![deny(clippy::float_arithmetic)]`; `mod error; mod def; mod date; mod calendar; mod convert;`; and `pub use` of every public type in the contract. Create the five module files with the contract's types and method signatures, each method body `todo!()`, so the crate builds and tests can be written against it (and fail). Every `todo!()` is gone by T014; the finished engine never panics.
 
 ---
 
