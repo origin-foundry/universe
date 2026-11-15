@@ -152,7 +152,7 @@ description: "Task list for spec 004, calendar engine basics"
   - `python scripts/check_privacy.py`
   
   Also confirm the architecture check catches floating point in `uni-calendar`: temporarily add `let x: f64 = 1.0;` to `crates/uni-calendar/src/lib.rs`, see the check fail, and revert (SC-005).
-- [ ] T022 Open the build PR as the bot from `build/004-calendar-engine-basics`: label `build`, body with `Design: #<design PR>` and `Closes #37`. Move card #37 to **PR review** with `python scripts/board.py move 37 "PR review"`.
+- [x] T022 Open the build PR as the bot from `build/004-calendar-engine-basics`: label `build`, body with `Design: #<design PR>` and `Closes #37`. Move card #37 to **PR review** with `python scripts/board.py move 37 "PR review"`.
 
 ---
 
