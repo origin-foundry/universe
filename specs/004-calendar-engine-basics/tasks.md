@@ -44,10 +44,10 @@ description: "Task list for spec 004, calendar engine basics"
 
 ### Tests (write first; they must fail)
 
-- [ ] T006 [US1] In `crates/uni-calendar/tests/aster.rs`, write a `define` module covering US1's acceptance scenarios:
+- [x] T006 [US1] In `crates/uni-calendar/tests/aster.rs`, write a `define` module covering US1's acceptance scenarios:
   - Aster is accepted; `units()` is `[age, decade, year, month, sol, hour, minute]`; `era_unit()` is "year"; `units_per("year", "sol")` = 668, `units_per("decade", "sol")` = 6,680, `units_per("sol", "minute")` = 2,000, `units_per("year", "month")` = 12; `units_per("month", "sol")` → `NotFixed`; `units_per("week", "sol")` → `UnknownUnit`;
   - Aster with its sol set to exactly 100,000 s is accepted, with no warning of any kind (FR-002a; scenario 7).
-- [ ] T007 [US1] In `crates/uni-calendar/src/calendar.rs`, write unit tests for every refusal in data-model.md's `DefinitionError` table, each asserting the exact variant and the unit (and member) it names:
+- [x] T007 [US1] In `crates/uni-calendar/src/calendar.rs`, write unit tests for every refusal in data-model.md's `DefinitionError` table, each asserting the exact variant and the unit (and member) it names:
   - fundamental length 0 and −1 s → `NonPositiveLength`; a grouping with no members → `NoMembers`; a member count of 0 or −3 → `NonPositiveCount` naming the member by name, or by number when unnamed; a subdivision into 0 parts → `TooFewParts`; two members and no member unit → `MembersNeedUnit`;
   - a unit name used twice (including a member unit sharing a grouping's name) → `DuplicateUnit`; two members named "Prime" → `DuplicateMember`;
   - era unit "week" → `EraUnitUnknown`; era unit "hour" → `EraUnitBelowFundamental`; a first number on the year or the decade → `FirstNumberNotAllowed`; empty calendar or era name → `EmptyName`;
