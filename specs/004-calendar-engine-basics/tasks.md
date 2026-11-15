@@ -96,7 +96,7 @@ description: "Task list for spec 004, calendar engine basics"
 
 ### Tests (write first; they must fail)
 
-- [ ] T012 [P] [US3] In `crates/uni-calendar/tests/aster.rs`, write a `to_instant` module covering US3's acceptance scenarios:
+- [x] T012 [P] [US3] In `crates/uni-calendar/tests/aster.rs`, write a `to_instant` module covering US3's acceptance scenarios:
   - `[1, 1, 1]` → `E`, `rounded_by: None`; `start_of_fixed(0)` → `E`; `start_of_fixed(-1)` → `E − 1 sol`;
   - `[1, 3, 56]` → `InvalidValue { unit: "sol", value: 56, first: 1, last: 55, within: Some("Third") }`;
   - `[1, 13]` (month 1 to 12), `[1, 1, 0]` (sol 1 to 56, within Prime), `[1, 1, 1, 20]` (hour 0 to 19), `[1, 1, 1, 0, -1]` (minute 0 to 99) → `InvalidValue` naming each unit and range; nothing is wrapped;
@@ -105,7 +105,7 @@ description: "Task list for spec 004, calendar engine basics"
   - `[]` → `EmptyDate`; six values → `TooManyValues { given: 6, max: 5 }`;
   - `[0, 12, 55]` → `E − 1 sol`; years far outside `i64` sols (`[i64::MAX]`) → `OutOfRange`;
   - every date in the `to_date` module converts back to its instant minus its remainder.
-- [ ] T013 [P] [US3] Write `crates/uni-calendar/tests/tessel.rs`: Tessel is accepted; `[1, 1, 0, 1]` → `instant` `T + 14,285.714285715 s` and `rounded_by` `Some(5/7_000_000_000)` (quickstart.md); converting that instant back gives `[1, 1, 0, 1]` with remainder 5/7 ns; `[1, 1, 0, 0]` → `rounded_by: None`; `[1, 2, 0]` → start of turn 13; `[1, 1, 13]` → `InvalidValue` (turn 0 to 12); `[0, 3, 13, 6]` → the last watch before the epoch.
+- [x] T013 [P] [US3] Write `crates/uni-calendar/tests/tessel.rs`: Tessel is accepted; `[1, 1, 0, 1]` → `instant` `T + 14,285.714285715 s` and `rounded_by` `Some(5/7_000_000_000)` (quickstart.md); converting that instant back gives `[1, 1, 0, 1]` with remainder 5/7 ns; `[1, 1, 0, 0]` → `rounded_by: None`; `[1, 2, 0]` → start of turn 13; `[1, 1, 13]` → `InvalidValue` (turn 0 to 12); `[0, 3, 13, 6]` → the last watch before the epoch.
 
 ### Implementation
 

@@ -208,3 +208,135 @@ mod to_date {
         assert_eq!(cal.instant_to_date(at(ns(5))).unwrap().date, date(&[6]));
     }
 }
+
+mod to_instant {
+    use super::*;
+    use uni_calendar::DateStart;
+
+    fn exact(instant: uni_time::Instant) -> Result<DateStart, CalendarError> {
+        Ok(DateStart {
+            instant,
+            rounded_by: None,
+        })
+    }
+
+    fn invalid(
+        unit: &str,
+        value: i64,
+        first: i64,
+        last: i64,
+        within: Option<&str>,
+    ) -> CalendarError {
+        CalendarError::InvalidValue {
+            unit: unit.to_string(),
+            value,
+            first,
+            last,
+            within: within.map(str::to_string),
+        }
+    }
+
+    #[test]
+    fn the_first_sol_starts_at_the_epoch() {
+        let cal = calendar();
+        assert_eq!(cal.date_to_instant(&date(&[1, 1, 1])), exact(*EPOCH));
+        assert_eq!(cal.start_of_fixed(0), exact(*EPOCH));
+        assert_eq!(cal.start_of_fixed(-1), exact(at(sols(-1))));
+        assert_eq!(cal.start_of_fixed(668), exact(at(sols(668))));
+    }
+
+    #[test]
+    fn a_sol_past_the_end_of_its_month() {
+        assert_eq!(
+            calendar().date_to_instant(&date(&[1, 3, 56])),
+            Err(invalid("sol", 56, 1, 55, Some("Third")))
+        );
+    }
+
+    #[test]
+    fn values_outside_their_range_are_never_wrapped() {
+        let cal = calendar();
+        let cases = [
+            (vec![1, 13], invalid("month", 13, 1, 12, None)),
+            (vec![1, 1, 0], invalid("sol", 0, 1, 56, Some("Prime"))),
+            (vec![1, 1, 1, 20], invalid("hour", 20, 0, 19, None)),
+            (vec![1, 1, 1, 0, -1], invalid("minute", -1, 0, 99, None)),
+        ];
+        for (values, error) in cases {
+            assert_eq!(
+                cal.date_to_instant(&date(&values)),
+                Err(error),
+                "{values:?}"
+            );
+        }
+        assert_eq!(
+            hours_from_one().date_to_instant(&date(&[1, 1, 1, 0])),
+            Err(invalid("hour", 0, 1, 20, None))
+        );
+    }
+
+    #[test]
+    fn missing_smaller_units_take_their_first_value() {
+        let cal = calendar();
+        assert_eq!(cal.date_to_instant(&date(&[1, 2])), exact(at(sols(56))));
+        assert_eq!(cal.date_to_instant(&date(&[1])), exact(*EPOCH));
+        assert_eq!(cal.date_to_instant(&date(&[2])), exact(at(sols(668))));
+    }
+
+    #[test]
+    fn empty_and_overlong_dates() {
+        let cal = calendar();
+        assert_eq!(
+            cal.date_to_instant(&date(&[])),
+            Err(CalendarError::EmptyDate)
+        );
+        assert_eq!(
+            cal.date_to_instant(&date(&[1, 1, 1, 0, 0, 0])),
+            Err(CalendarError::TooManyValues { given: 6, max: 5 })
+        );
+    }
+
+    #[test]
+    fn before_the_epoch_and_out_of_range() {
+        let cal = calendar();
+        assert_eq!(
+            cal.date_to_instant(&date(&[0, 12, 55])),
+            exact(at(sols(-1)))
+        );
+        assert_eq!(
+            cal.date_to_instant(&date(&[i64::MAX])),
+            Err(CalendarError::OutOfRange)
+        );
+        assert_eq!(
+            cal.date_to_instant(&date(&[i64::MIN])),
+            Err(CalendarError::OutOfRange)
+        );
+        assert_eq!(cal.start_of_fixed(i64::MAX), Err(CalendarError::OutOfRange));
+        let tiny = one_nanosecond();
+        assert_eq!(tiny.date_to_instant(&date(&[1])), exact(*EPOCH));
+        assert_eq!(tiny.start_of_fixed(-7), exact(at(ns(-7))));
+    }
+
+    #[test]
+    fn every_hand_worked_date_converts_back() {
+        let cal = calendar();
+        let instants = [
+            *EPOCH,
+            at(sols(668)),
+            at(sols(56)),
+            at(ns(-1)),
+            at(sols(100 * 668)),
+            at(sols(-101 * 668)),
+            at(sols(-10 * 668)),
+            at(sols(-11 * 668)),
+            at(ns(1_234_500_000_000)),
+        ];
+        for t in instants {
+            let got = cal.instant_to_date(t).unwrap();
+            let start = cal.date_to_instant(&got.date).unwrap();
+            assert_eq!(start.rounded_by, None);
+            let back = uni_time::Span::from_secs_ratio(got.remainder, uni_time::Rounding::Down);
+            assert_eq!(start.instant.checked_add(back.unwrap()), Ok(t), "{t:?}");
+        }
+    }
+}
