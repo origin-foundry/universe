@@ -21,6 +21,17 @@ pub struct InstantDate {
     pub remainder: Ratio,
 }
 
+/// One instance of the era's unit after its leap rules (FR-010).
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct EraInstance {
+    /// Each member's count after the rules, in the unit the members count.
+    pub members: Vec<i64>,
+    /// The instance's length in fundamental units.
+    pub length: i64,
+    /// The numbers (from 1) of the rules that hold, in order.
+    pub holding: Vec<usize>,
+}
+
 /// Where a date starts.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct DateStart {

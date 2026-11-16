@@ -4,7 +4,8 @@ use std::collections::HashSet;
 
 use uni_time::{Instant, Ratio};
 
-use crate::{CalendarDef, CalendarError, Clock, DefinitionError, Limit};
+use crate::rules::Cycle;
+use crate::{CalendarDef, CalendarError, Clock, DefinitionError, EraInstance, Limit};
 
 type R<T> = Result<T, CalendarError>;
 
@@ -13,6 +14,10 @@ const NANOS_PER_SEC: i128 = 1_000_000_000;
 const MAX_DENOMINATOR: i128 = 1_000_000_000;
 /// The fundamental unit's length in ticks must stay below this (research R3).
 const MAX_TICKS: i128 = 1 << 120;
+
+/// The most instances of the era's unit its leap rules may take to repeat (spec 006,
+/// research R3).
+pub const RULE_PERIOD_LIMIT: i64 = 100_000;
 
 /// A checked calendar, ready to convert between instants and dates. Immutable; made only by
 /// [`Calendar::new`].
@@ -39,6 +44,9 @@ pub struct Calendar {
     pub(crate) q: i128,
     /// The product of the subdivisions' part counts.
     pub(crate) parts: i128,
+    /// The era's unit's cycle when it is a grouping (spec 006, research R4); `None` keeps the
+    /// spec 004 path for an era that numbers a member unit or the fundamental unit.
+    pub(crate) cycle: Option<Cycle>,
 }
 
 /// One unit of the chain.
@@ -99,6 +107,7 @@ impl Calendar {
     ///         member_unit: None,
     ///         members: vec![MemberDef { name: None, count: 400 }],
     ///         first_number: None,
+    ///         rules: vec![],
     ///     }],
     ///     fundamental: FundamentalDef {
     ///         name: "sol".to_string(),
@@ -121,6 +130,7 @@ impl Calendar {
         check_first_numbers(&def, era)?;
         let (p, q, parts) = check_fundamental_limits(&def)?;
         let units = with_lengths(&def, units)?;
+        let cycle = Cycle::build(&def, &units, era)?;
         Ok(Calendar {
             name: def.name,
             clock: def.clock,
@@ -137,6 +147,7 @@ impl Calendar {
             p,
             q,
             parts,
+            cycle,
         })
     }
 
@@ -166,6 +177,83 @@ impl Calendar {
         &self.units[self.era].name
     }
 
+    /// The number of instances of the era's unit after which its rules repeat (1 without
+    /// rules), worked out from the rules themselves (FR-007).
+    ///
+    /// ```
+    /// # use uni_calendar::{Calendar, CalendarDef, Clock, EraDef, FundamentalDef, GroupingDef, LeapRuleDef, MemberDef, MemberUnitDef};
+    /// # use uni_time::{Instant, Ratio};
+    /// # let def = CalendarDef {
+    /// #     name: "Leap".to_string(),
+    /// #     clock: Clock::Gct,
+    /// #     groupings: vec![GroupingDef {
+    /// #         name: "year".to_string(),
+    /// #         member_unit: Some(MemberUnitDef { name: "month".to_string(), first_number: None }),
+    /// #         members: vec![MemberDef { name: Some("Long".to_string()), count: 200 },
+    /// #             MemberDef { name: Some("Short".to_string()), count: 165 }],
+    /// #         first_number: None,
+    /// #         rules: vec![LeapRuleDef { condition: "year % 4 == 0".to_string(),
+    /// #             member: "Short".to_string(), change: 1 }],
+    /// #     }],
+    /// #     fundamental: FundamentalDef { name: "day".to_string(),
+    /// #         length: Ratio::from_int(86_400).unwrap(), first_number: None },
+    /// #     subdivisions: vec![],
+    /// #     era: EraDef { name: "Era".to_string(), unit: "year".to_string(), epoch: Instant::ZERO },
+    /// # };
+    /// // A 365-day year of two months; Short is a day longer when `year % 4 == 0`.
+    /// let cal = Calendar::new(def).unwrap();
+    /// assert_eq!(cal.rule_period(), 4);
+    /// ```
+    pub fn rule_period(&self) -> i64 {
+        self.cycle.as_ref().map_or(1, |c| c.period)
+    }
+
+    /// One instance of the era's unit after its rules (FR-010): each member's count, the
+    /// instance's length in fundamental units and which rules hold. An era's unit that isn't
+    /// a grouping is `NotAGrouping`.
+    ///
+    /// ```
+    /// # use uni_calendar::{Calendar, CalendarDef, Clock, EraDef, FundamentalDef, GroupingDef, LeapRuleDef, MemberDef, MemberUnitDef};
+    /// # use uni_time::{Instant, Ratio};
+    /// # let def = CalendarDef {
+    /// #     name: "Leap".to_string(),
+    /// #     clock: Clock::Gct,
+    /// #     groupings: vec![GroupingDef {
+    /// #         name: "year".to_string(),
+    /// #         member_unit: Some(MemberUnitDef { name: "month".to_string(), first_number: None }),
+    /// #         members: vec![MemberDef { name: Some("Long".to_string()), count: 200 },
+    /// #             MemberDef { name: Some("Short".to_string()), count: 165 }],
+    /// #         first_number: None,
+    /// #         rules: vec![LeapRuleDef { condition: "year % 4 == 0".to_string(),
+    /// #             member: "Short".to_string(), change: 1 }],
+    /// #     }],
+    /// #     fundamental: FundamentalDef { name: "day".to_string(),
+    /// #         length: Ratio::from_int(86_400).unwrap(), first_number: None },
+    /// #     subdivisions: vec![],
+    /// #     era: EraDef { name: "Era".to_string(), unit: "year".to_string(), epoch: Instant::ZERO },
+    /// # };
+    /// // A 365-day year of two months; Short is a day longer when `year % 4 == 0`.
+    /// let cal = Calendar::new(def).unwrap();
+    /// let leap = cal.era_instance(4).unwrap();
+    /// assert_eq!((leap.members, leap.length, leap.holding), (vec![200, 166], 366, vec![1]));
+    /// assert_eq!(cal.era_instance(5).unwrap().length, 365);
+    /// ```
+    pub fn era_instance(&self, number: i64) -> R<EraInstance> {
+        let cycle = self
+            .cycle
+            .as_ref()
+            .ok_or_else(|| CalendarError::NotAGrouping {
+                unit: self.era_unit().to_string(),
+            })?;
+        let count = number.checked_sub(1).ok_or(CalendarError::OutOfRange)?;
+        let variant = cycle.variant(count);
+        Ok(EraInstance {
+            members: variant.counts.clone(),
+            length: variant.length(),
+            holding: variant.holding.clone(),
+        })
+    }
+
     /// How many `inner` there are in one `outer`, when that's one fixed whole number: a year
     /// in sols is 668, a sol in minutes 2,000, a year in months 12. A count that varies (a
     /// month in sols), or isn't whole, is `NotFixed`.
@@ -177,6 +265,11 @@ impl Calendar {
                 unit: outer.to_string(),
                 of: inner.to_string(),
             })?
+    }
+
+    /// Whether the era's unit has leap rules.
+    pub(crate) fn has_rules(&self) -> bool {
+        self.cycle.as_ref().is_some_and(|c| c.rules > 0)
     }
 
     fn index_of(&self, name: &str) -> R<usize> {
@@ -195,6 +288,16 @@ impl Calendar {
         }
         if o > i {
             return None;
+        }
+        // With leap rules, anything counted across the era's unit varies with the year's
+        // variant (sols in a year or a decade), except the era's unit's own members: every
+        // year still has all its months (research R6).
+        if self.has_rules() && o <= self.era && i > self.era {
+            let own_members =
+                i == self.era + 1 && matches!(self.units[i].kind, Kind::Member { .. });
+            if !own_members {
+                return None;
+            }
         }
         if let Kind::Member { counts, .. } = &self.units[i].kind {
             // A member unit's instances vary, but every instance of its grouping (just above
@@ -220,7 +323,16 @@ impl Calendar {
         match &self.units[index].kind {
             Kind::Grouping { length, .. } => Ratio::from_int((*length).into()).ok(),
             Kind::Member { starts, .. } => {
-                let mut lengths = starts.windows(2).map(|w| w[1] - w[0]);
+                // The era's unit's own members take their lengths from every variant.
+                let all: Vec<&[i64]> = match &self.cycle {
+                    Some(cycle) if cycle.rules > 0 && index == self.era + 1 => {
+                        cycle.variants.iter().map(|v| v.starts.as_slice()).collect()
+                    }
+                    _ => vec![starts.as_slice()],
+                };
+                let mut lengths = all
+                    .into_iter()
+                    .flat_map(|starts| starts.windows(2).map(|w| w[1] - w[0]));
                 let first = lengths.next()?;
                 lengths
                     .all(|l| l == first)
@@ -478,7 +590,7 @@ fn with_lengths(def: &CalendarDef, mut units: Vec<Unit>) -> Result<Vec<Unit>, De
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use uni_time::{Instant, Ratio};
 
     use super::*;
@@ -496,6 +608,7 @@ mod tests {
             member_unit: None,
             members: vec![MemberDef { name: None, count }],
             first_number: None,
+            rules: vec![],
         }
     }
 
@@ -508,7 +621,7 @@ mod tests {
     }
 
     /// Aster, as in the spec, built here because unit tests can't see `tests/common`.
-    fn aster() -> CalendarDef {
+    pub(crate) fn aster() -> CalendarDef {
         let counts = [56, 56, 55, 56, 56, 55, 56, 56, 55, 56, 56, 55];
         let names = [
             "Prime", "Second", "Third", "Fourth", "Fifth", "Sixth", "Seventh", "Eighth", "Ninth",
@@ -535,6 +648,7 @@ mod tests {
                         })
                         .collect(),
                     first_number: None,
+                    rules: vec![],
                 },
             ],
             fundamental: FundamentalDef {
@@ -805,6 +919,7 @@ mod tests {
                 },
             ],
             first_number: None,
+            rules: vec![],
         }];
         def.era.unit = s("wide");
         assert_eq!(refused(def), beyond("wide", Limit::GroupingTooLong));
@@ -829,6 +944,7 @@ mod tests {
                 count: 400,
             }],
             first_number: None,
+            rules: vec![],
         }];
         def.era.unit = s("year");
         let cal = Calendar::new(def).unwrap();

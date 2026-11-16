@@ -6,7 +6,8 @@
 use uni_time::{Instant, Ratio};
 
 use crate::calendar::{Kind, Unit};
-use crate::{Calendar, CalendarError, Date, DateStart, InstantDate};
+use crate::rules::Variant;
+use crate::{Calendar, CalendarError, Date, DateStart, EraNumber, InstantDate};
 
 type R<T> = Result<T, CalendarError>;
 
@@ -85,7 +86,7 @@ impl Calendar {
     /// #     name: "Plain".to_string(),
     /// #     clock: Clock::Gct,
     /// #     groupings: vec![GroupingDef { name: "year".to_string(), member_unit: None,
-    /// #         members: vec![MemberDef { name: None, count: 400 }], first_number: None }],
+    /// #         members: vec![MemberDef { name: None, count: 400 }], first_number: None, rules: vec![] }],
     /// #     fundamental: FundamentalDef { name: "sol".to_string(),
     /// #         length: Ratio::from_int(90_000).unwrap(), first_number: None },
     /// #     subdivisions: vec![SubdivisionDef { name: "hour".to_string(), parts: 10, first_number: None }],
@@ -101,9 +102,24 @@ impl Calendar {
     pub fn instant_to_date(&self, instant: Instant) -> R<InstantDate> {
         let (fixed, position) = self.locate(instant)?;
         let mut numbers = Vec::with_capacity(self.units.len());
-        let mut pos = fixed; // position within the current parent, in fundamental units
+        // When the era's unit is a grouping, its cycle gives the instance and the position in
+        // it (research R4); the units above are numbered from its count, the units below
+        // follow its variant. Otherwise the chain is walked from the top (spec 004).
+        let (first, mut pos, variant) = match &self.cycle {
+            Some(cycle) => {
+                let (count, pos, variant) = cycle.locate(fixed)?;
+                self.number_above(count, &mut numbers)?;
+                numbers.push(count.checked_add(1).ok_or(CalendarError::OutOfRange)?);
+                (self.era + 1, pos, Some(variant))
+            }
+            None => (0, fixed, None),
+        };
         let mut parent_count: i64 = 0; // the parent's count from the epoch
-        for (k, unit) in self.units[..=self.fundamental].iter().enumerate() {
+        for (k, unit) in self.units[..=self.fundamental]
+            .iter()
+            .enumerate()
+            .skip(first)
+        {
             let (index, count) = match &unit.kind {
                 Kind::Grouping { length, .. } => {
                     let index = pos.div_euclid(*length);
@@ -111,6 +127,10 @@ impl Calendar {
                     (index, fixed.div_euclid(*length))
                 }
                 Kind::Member { starts, .. } => {
+                    let starts = match variant {
+                        Some(v) if k == self.era + 1 => &v.starts,
+                        _ => starts,
+                    };
                     let j = member_at(starts, pos);
                     pos -= starts[j];
                     let j = i64::try_from(j).map_err(out_of_range)?;
@@ -149,6 +169,48 @@ impl Calendar {
         })
     }
 
+    /// Pushes the numbers of the units above the era's unit, which is a grouping here, given
+    /// its count from the epoch. Their lengths are counted in instances of the era's unit,
+    /// which don't vary even when the instances' lengths do (a decade is always 10 years).
+    fn number_above(&self, count: i64, numbers: &mut Vec<i64>) -> R<()> {
+        let Kind::Grouping {
+            length: era_length, ..
+        } = self.units[self.era].kind
+        else {
+            return Err(CalendarError::OutOfRange); // only called when the era's is a grouping
+        };
+        // Above the era's unit every length is a whole number of its (listed) length.
+        let pos_in = |fundamentals: i64| fundamentals / era_length;
+        let mut pos = count; // position within the current parent, in era-unit instances
+        let mut parent_count: i64 = 0;
+        for unit in &self.units[..self.era] {
+            let unit_count = match &unit.kind {
+                Kind::Grouping { length, .. } => {
+                    let n = pos_in(*length);
+                    pos = pos.rem_euclid(n);
+                    count.div_euclid(n)
+                }
+                Kind::Member { starts, .. } => {
+                    let j = starts.partition_point(|&s| pos_in(s) <= pos) - 1;
+                    pos -= pos_in(starts[j]);
+                    let j = i64::try_from(j).map_err(out_of_range)?;
+                    let members = i64::try_from(starts.len() - 1).map_err(out_of_range)?;
+                    parent_count
+                        .checked_mul(members)
+                        .and_then(|c| c.checked_add(j))
+                        .ok_or(CalendarError::OutOfRange)?
+                }
+                // Only groupings and member units are above a grouping.
+                Kind::Fundamental | Kind::Subdivision { .. } => {
+                    return Err(CalendarError::OutOfRange);
+                }
+            };
+            parent_count = unit_count;
+            numbers.push(unit_count.checked_add(1).ok_or(CalendarError::OutOfRange)?);
+        }
+        Ok(())
+    }
+
     /// A unit's number: by count from the epoch at or above the era's unit (astronomical,
     /// so the one starting at the epoch is 1), by position plus first number below it.
     fn number(&self, k: usize, index: i64, count: i64) -> R<i64> {
@@ -181,7 +243,7 @@ impl Calendar {
     /// #     name: "Plain".to_string(),
     /// #     clock: Clock::Gct,
     /// #     groupings: vec![GroupingDef { name: "year".to_string(), member_unit: None,
-    /// #         members: vec![MemberDef { name: None, count: 400 }], first_number: None }],
+    /// #         members: vec![MemberDef { name: None, count: 400 }], first_number: None, rules: vec![] }],
     /// #     fundamental: FundamentalDef { name: "sol".to_string(),
     /// #         length: Ratio::from_int(90_000).unwrap(), first_number: None },
     /// #     subdivisions: vec![SubdivisionDef { name: "hour".to_string(), parts: 10, first_number: None }],
@@ -209,6 +271,8 @@ impl Calendar {
         }
         // The era's unit is numbered by count from the epoch: the one starting there is 1.
         let count = values[0].checked_sub(1).ok_or(CalendarError::OutOfRange)?;
+        // With a cycle, the instance's variant gives the lengths below it.
+        let variant = self.cycle.as_ref().map(|c| c.variant(count));
         // Check every value against its range, before any other arithmetic. `indices[i]` is
         // the position of unit `era + 1 + i` within its parent; missing ones are 0.
         let mut member = match &self.units[self.era].kind {
@@ -222,7 +286,7 @@ impl Calendar {
         for k in self.era + 1..self.units.len() {
             let value = values.get(k - self.era).copied();
             let index = match value {
-                Some(value) => self.check_value(k, member, value)?,
+                Some(value) => self.check_value(k, member, value, variant, values[0])?,
                 None => 0,
             };
             if let Kind::Member { .. } = self.units[k].kind {
@@ -231,9 +295,10 @@ impl Calendar {
             indices.push(index);
         }
         // Now the start: fundamental units first, then ticks within the last one.
-        let mut fixed = match &self.units[self.era].kind {
-            Kind::Grouping { length, .. } => count.checked_mul(*length),
-            Kind::Member { starts, .. } => {
+        let mut fixed = match (&self.units[self.era].kind, &self.cycle) {
+            (_, Some(cycle)) => Some(cycle.start(count)?),
+            (Kind::Grouping { length, .. }, None) => count.checked_mul(*length),
+            (Kind::Member { starts, .. }, None) => {
                 let members = i64::try_from(starts.len() - 1).map_err(out_of_range)?;
                 let length = starts[starts.len() - 1];
                 let start =
@@ -243,7 +308,7 @@ impl Calendar {
                     .checked_mul(length)
                     .and_then(|f| f.checked_add(start))
             }
-            Kind::Fundamental | Kind::Subdivision { .. } => Some(count),
+            (Kind::Fundamental | Kind::Subdivision { .. }, None) => Some(count),
         }
         .ok_or(CalendarError::OutOfRange)?;
         let mut ticks: i128 = 0;
@@ -252,6 +317,10 @@ impl Calendar {
             let offset = match &self.units[k].kind {
                 Kind::Grouping { length, .. } => index.checked_mul(*length),
                 Kind::Member { starts, .. } => {
+                    let starts = match variant {
+                        Some(v) if k == self.era + 1 => &v.starts,
+                        _ => starts,
+                    };
                     Some(starts[usize::try_from(index).map_err(out_of_range)?])
                 }
                 Kind::Fundamental => Some(index),
@@ -269,14 +338,33 @@ impl Calendar {
     }
 
     /// Checks `value` for unit `k` (below the era's unit), where `member` is the member of
-    /// the member unit just above, if there is one. Returns its position within its parent.
-    fn check_value(&self, k: usize, member: usize, value: i64) -> R<i64> {
+    /// the member unit just above, if there is one, and `variant` is the era's unit's
+    /// instance, numbered `number`, when it has a cycle. Returns its position within its
+    /// parent.
+    fn check_value(
+        &self,
+        k: usize,
+        member: usize,
+        value: i64,
+        variant: Option<&Variant>,
+        number: i64,
+    ) -> R<i64> {
         let unit = &self.units[k];
+        // The era's unit's own children take their counts from its variant: its members
+        // (through its member unit), or its one member's count when it has no member unit.
         let (count, within) = match (&unit.kind, &self.units[k - 1].kind) {
             (Kind::Subdivision { parts }, _) => (*parts, None),
+            (Kind::Member { .. }, Kind::Grouping { children, .. }) => (*children, None),
+            (_, Kind::Grouping { children, .. }) if k - 1 == self.era => {
+                (variant.map_or(*children, |v| v.counts[0]), None)
+            }
             (_, Kind::Grouping { children, .. }) => (*children, None),
             (_, Kind::Member { names, counts, .. }) => {
-                (counts[member], Some(Unit::member_label(names, member)))
+                let count = match variant {
+                    Some(v) if k - 1 == self.era + 1 => v.counts[member],
+                    _ => counts[member],
+                };
+                (count, Some(Unit::member_label(names, member)))
             }
             // The chain puts only subdivisions below the fundamental unit, so this can't
             // happen; it's an error rather than a panic all the same.
@@ -295,6 +383,10 @@ impl Calendar {
                 first,
                 last,
                 within,
+                year: self.has_rules().then(|| EraNumber {
+                    unit: self.units[self.era].name.clone(),
+                    number,
+                }),
             });
         }
         Ok(value - first)
@@ -334,6 +426,78 @@ fn split(r: i128, p: i128, parts: &[i64]) -> (Vec<i128>, i128) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{
+        CalendarDef, Clock, EraDef, FundamentalDef, GroupingDef, LeapRuleDef, MemberDef,
+        MemberUnitDef,
+    };
+
+    /// A grouping with a member unit, named `name`, whose members have `counts`.
+    fn grouping(name: &str, member_unit: &str, counts: &[i64]) -> GroupingDef {
+        GroupingDef {
+            name: name.to_string(),
+            member_unit: Some(MemberUnitDef {
+                name: member_unit.to_string(),
+                first_number: None,
+            }),
+            members: counts
+                .iter()
+                .map(|&count| MemberDef { name: None, count })
+                .collect(),
+            first_number: None,
+            rules: vec![],
+        }
+    }
+
+    /// Regression (found by spec 004's property tests while building spec 006): the year's
+    /// variant was looked up for a member unit further down, here the day of a 7-day week
+    /// inside a year of 3 parts, and day 5 indexed past the year's 3 members.
+    #[test]
+    fn member_units_below_the_years_own_use_their_own_counts() {
+        let mut year = grouping("year", "part", &[2, 2, 3]);
+        year.rules = vec![LeapRuleDef {
+            condition: "year % 2 == 0".to_string(),
+            member: "3".to_string(),
+            change: 1,
+        }];
+        let def = CalendarDef {
+            name: "Weeks".to_string(),
+            clock: Clock::Gct,
+            groupings: vec![year, grouping("week", "day", &[1, 1, 1, 1, 1, 1, 1])],
+            fundamental: FundamentalDef {
+                name: "sol".to_string(),
+                length: Ratio::from_int(1).unwrap(),
+                first_number: None,
+            },
+            subdivisions: vec![],
+            era: EraDef {
+                name: "Era".to_string(),
+                unit: "year".to_string(),
+                epoch: Instant::ZERO,
+            },
+        };
+        let cal = Calendar::new(def).unwrap();
+        // Year 2 is 8 weeks (the third part lengthened to 4); its last day is day 7 of week 4
+        // of part 3: 7 weeks of 7 sols plus 6.
+        let start = cal
+            .date_to_instant(&Date {
+                values: vec![2, 3, 4, 7, 1],
+            })
+            .unwrap();
+        assert_eq!(cal.fixed_from_instant(start.instant), Ok(49 + 49 + 6));
+        // Day 5 of part 1's first week is fine in any year; week 4 of part 3 only in even ones.
+        assert!(
+            cal.date_to_instant(&Date {
+                values: vec![1, 1, 1, 5]
+            })
+            .is_ok()
+        );
+        assert!(matches!(
+            cal.date_to_instant(&Date {
+                values: vec![1, 3, 4]
+            }),
+            Err(CalendarError::InvalidValue { .. })
+        ));
+    }
 
     #[test]
     fn floor_division_rounds_towards_minus_infinity() {

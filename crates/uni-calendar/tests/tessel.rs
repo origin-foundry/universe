@@ -95,6 +95,7 @@ fn turns_run_from_zero_within_their_phase() {
             first: 0,
             last: 12,
             within: Some("1".to_string()),
+            year: None,
         })
     );
     // The third phase has 14 turns.
