@@ -1,5 +1,8 @@
 # Bundle update log
 
+## 2026-11-16
+* **Verification**: human:origin-foundry re-verified the spec 005 changes to the [expression language](/language/expression-language.md) in conversation during review of #45. It is stable again.
+
 ## 2026-11-15
 * **Update**: Spec 005 (expression language basics): the [expression language](/language/expression-language.md) gains floored `/` as well as `%`, positions as line and column, the first subset the engine builds (integers and booleans, operator precedence, unchained comparisons, declared variables, a depth limit of 256) and how it works out the period in which an expression repeats, which leap rules need for fast conversion. Back to draft until re-verified by human:origin-foundry.
 
