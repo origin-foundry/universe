@@ -3,9 +3,8 @@ type: Example
 title: Gregorian example
 description: The Gregorian calendar expressed in the calendar model.
 tags: [calendar, example, gregorian, earth]
-status: stable
+status: draft
 generated: { by: claude-code/claude-opus-5-5, at: 2026-10-30T08:24:17Z }
-verified: { by: human:origin-foundry, at: 2026-10-30T22:11:22Z }
 ---
 
 # Examples
@@ -38,7 +37,7 @@ cycles:
 eras:
   - AD: { from: year 1, direction: up }          # first era → defines the epoch
 pre_epoch:
-  - BC: { direction: down, year_zero: false }
+  - BC: { direction: down, has_zero: false }
 ```
 
-Concepts used: [calendar model](/calendar/calendar-model.md), [unit kinds](/calendar/unit-kinds.md), [leap rules](/calendar/leap-rules.md), [parallel cycles](/calendar/parallel-cycles.md), [eras and epoch](/calendar/eras-and-epoch.md), [time zones](/calendar/time-zones.md).
+Concepts used: [calendar model](/calendar/calendar-model.md), [unit kinds](/calendar/unit-kinds.md), [adjustment rules](/calendar/adjustment-rules.md), [parallel cycles](/calendar/parallel-cycles.md), [eras and epoch](/calendar/eras-and-epoch.md), [time zones](/calendar/time-zones.md).

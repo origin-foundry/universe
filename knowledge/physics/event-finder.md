@@ -3,9 +3,8 @@ type: Design
 title: Event finder
 description: Root-finding on the ephemeris to detect sky events and fit mean periods.
 tags: [physics, events, cycles]
-status: stable
+status: draft
 generated: { by: claude-code/claude-opus-5-5, at: 2026-10-30T08:24:17Z }
-verified: { by: human:origin-foundry, at: 2026-10-30T22:11:02Z }
 ---
 
 # Method
@@ -26,6 +25,6 @@ Derived cycles come from root-finding on the [ephemeris](/physics/integration.md
 
 # Mean periods
 
-**Mean periods** are fitted over a user-chosen window (e.g. "mean tropical year over ±1,000 years"), because N-body periods aren't constant. Both the event list and the mean value are available to calendars: mean values feed [rule suggestion](/calendar/rule-suggestion.md); event lists feed [observational calendars](/calendar/observational-calendars.md).
+**Mean periods** are fitted over a user-chosen window (e.g. "mean tropical orbit over ±1,000 orbits"; on Earth, the tropical year), because N-body periods aren't constant. Both the event list and the mean value are available to calendars: mean values feed [rule suggestion](/calendar/rule-suggestion.md); event lists feed [observational calendars](/calendar/observational-calendars.md).
 
 Results are cached in `event_cache`; see the [storage schema](/storage/schema.md).

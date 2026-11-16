@@ -3,9 +3,8 @@ type: Test Strategy
 title: Presets and validation
 description: Real-world presets that double as the correctness test oracle.
 tags: [testing, presets, validation, earth]
-status: stable
+status: draft
 generated: { by: claude-code/claude-opus-5-5, at: 2026-10-30T08:24:17Z }
-verified: { by: human:origin-foundry, at: 2026-10-30T22:14:13Z }
 ---
 
 # Presets
@@ -16,7 +15,7 @@ verified: { by: human:origin-foundry, at: 2026-10-30T22:14:13Z }
 | **Gregorian & Julian** | Arithmetic grouping rules, supercycle detection, eras without year zero, weeks. See the [Gregorian example](/calendar/gregorian-example.md). |
 | **Islamic (tabular)** | Rules on a position within a 30-year cycle. |
 | **Islamic (observational)** | [Observational months](/calendar/observational-calendars.md) from crescent visibility, compared against published visibility predictions (approximate). |
-| **Hebrew** | Length/start expressions, molad arithmetic, postponement rules, leap months. See [leap rules](/calendar/leap-rules.md). |
+| **Hebrew** | Length/start expressions, molad arithmetic, postponement rules, leap months. See [adjustment rules](/calendar/adjustment-rules.md). |
 | **Proper time** | GPS-orbit clock rate offset (~+38 µs/day); twin-paradox voyages against closed-form answers. See [proper time](/time/proper-time.md). |
 
 # Automated tests

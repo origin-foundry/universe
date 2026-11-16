@@ -3,15 +3,14 @@ type: Architecture Decision
 title: "ADR 0001: Bind REBOUND"
 description: Use the REBOUND C library via FFI for N-body integration.
 tags: [decision, physics, rebound]
-status: stable
+status: draft
 decided: 2026-10-29
 generated: { by: claude-code/claude-opus-5-5, at: 2026-10-30T08:24:17Z }
-verified: { by: human:origin-foundry, at: 2026-10-30T22:14:45Z }
 ---
 
 # Context
 
-The app needs accurate N-body integration over ±100k years. Options were writing IAS15/WHFast natively in Rust, or binding the mature REBOUND C library.
+The app needs accurate N-body integration over ±100k Earth years. Options were writing IAS15/WHFast natively in Rust, or binding the mature REBOUND C library.
 
 # Decision
 

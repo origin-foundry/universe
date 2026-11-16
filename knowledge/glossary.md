@@ -3,9 +3,8 @@ type: Glossary
 title: Glossary
 description: Defined terms used across the Universe design.
 tags: [glossary]
-status: stable
+status: draft
 generated: { by: claude-code/claude-opus-5-5, at: 2026-10-30T08:24:17Z }
-verified: { by: human:origin-foundry, at: 2026-11-10T22:41:49Z }
 ---
 
 # Terms
@@ -23,15 +22,16 @@ verified: { by: human:origin-foundry, at: 2026-11-10T22:41:49Z }
 | **Physical time** | GCT and the clocks derived from it (SBT, an observer's proper time). The only time physics works in. See [ADR 0008](/decisions/0008-physical-time-and-calendar-time.md). |
 | **Physical cycle** | A recurring physical phenomenon detected from the simulation (e.g. "local noon at site X", a rotation, a lunation). A fact, not a calendar unit; never called just a "cycle". See [event finder](/physics/event-finder.md). |
 | **Calendar** | A naming scheme for instants, bound to one clock, made of units, parallel cycles, rules and eras. Its epoch is the start of its first era. A human convention: it doesn't have to match the sky. See [calendar model](/calendar/calendar-model.md). |
-| **Calendar time** | Time named by a calendar's units (its "day", "year"). Mapped onto physical time by the calendar's clock and epoch. See [ADR 0008](/decisions/0008-physical-time-and-calendar-time.md). |
+| **Calendar time** | Time named by a calendar's units (its "sol", "orbit"; on Earth, its "day", "year"). Mapped onto physical time by the calendar's clock and epoch. See [ADR 0008](/decisions/0008-physical-time-and-calendar-time.md). |
 | **Fundamental unit** | The smallest whole-number-counted unit of a calendar (Earth's day). |
 | **Fixed number** | The integer index of a fundamental unit, counted from the calendar epoch (0 = first unit of the first era). |
 | **Unit** | A named division of time inside a calendar. See [unit kinds](/calendar/unit-kinds.md). |
-| **Member unit** | The unit a grouping's members are instances of (a year's months). See [unit kinds](/calendar/unit-kinds.md). |
-| **First number** | The number of a unit's first instance within its parent (1 for months and days, 0 for hours by default). See [unit kinds](/calendar/unit-kinds.md). |
-| **Era's unit** | The unit an era numbers, usually the year; units above it are numbered by count from the epoch. See [eras and epoch](/calendar/eras-and-epoch.md). |
-| **Astronomical year numbering** | Numbering that runs 1, 0, −1, −2 … across the epoch with no gap. A numbering convention, not physics. See [eras and epoch](/calendar/eras-and-epoch.md). |
-| **Parallel cycle** | A modular counter running alongside the unit tree without nesting (e.g. a week). See [parallel cycles](/calendar/parallel-cycles.md). |
+| **Member unit** | The unit a grouping's members are instances of (the spans an orbit is made of; on Earth, a year's months). See [unit kinds](/calendar/unit-kinds.md). |
+| **First number** | The number of a unit's first instance within its parent (by default 1 for units at or above the fundamental unit, 0 for subdivisions). See [unit kinds](/calendar/unit-kinds.md). |
+| **Era's unit** | The unit an era numbers (on Earth, the year); units above it are numbered by count from the epoch. See [eras and epoch](/calendar/eras-and-epoch.md). |
+| **Astronomical numbering** | Numbering that runs 1, 0, −1, −2 … across the epoch with no gap (on Earth, astronomical year numbering). A numbering convention, not physics. See [eras and epoch](/calendar/eras-and-epoch.md). |
+| **Parallel cycle** | A modular counter running alongside the unit tree without nesting (on Earth, the week). See [parallel cycles](/calendar/parallel-cycles.md). |
+| **Adjustment rule** | A rule that changes a unit's members in the instances where its predicate holds (on Earth, a leap rule). See [adjustment rules](/calendar/adjustment-rules.md). |
 | **Time zone scheme** | How local time is reckoned on a body. See [time zones](/calendar/time-zones.md). |
 | **Format** | A template that renders a date as text and parses text back. See [format templates](/formats/templates.md). |
 | **Event** | A named instant or interval on the absolute timeline, shown in every calendar. |
@@ -41,6 +41,6 @@ verified: { by: human:origin-foundry, at: 2026-11-10T22:41:49Z }
 1. **Where is this on the absolute timeline?** A GCT instant, used for "what was happening elsewhere at the same moment".
 2. **How much time did this observer live through?** A proper-time value on that observer's clock.
 
-A traveller's calendar and the home planet's calendar can name the same GCT instant as dates years apart, and both are correct. The converter shows both.
+A traveller's calendar and the home planet's calendar can name the same GCT instant as dates far apart, and both are correct. The converter shows both.
 
 Simultaneity is a convention: "the same moment on two planets" means "the same GCT". [Light-delay queries](/time/light-delay.md) answer the separate question "when could B have learned about A?"
