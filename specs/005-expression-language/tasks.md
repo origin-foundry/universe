@@ -124,19 +124,19 @@ description: "Task list for spec 005, expression language basics"
 
 ### Tests
 
-- [ ] T016 [US4] Write `crates/uni-expr/tests/properties.rs` with `proptest` at 10,000 cases per property (`ProptestConfig::with_cases(10_000)`), per research R8. A strategy builds random well-typed expression trees (depth up to 8; literals from −1,000 to 1,000 plus a few near `i64::MAX`; variables `year: Int` and `n: Int`; every operator; `if`), rendered as text both fully parenthesised and with the fewest parentheses precedence allows. Properties:
+- [x] T016 [US4] Write `crates/uni-expr/tests/properties.rs` with `proptest` at 10,000 cases per property (`ProptestConfig::with_cases(10_000)`), per research R8. A strategy builds random well-typed expression trees (depth up to 8; literals from −1,000 to 1,000 plus a few near `i64::MAX`; variables `year: Int` and `n: Int`; every operator; `if`), rendered as text both fully parenthesised and with the fewest parentheses precedence allows. Properties:
   - both renderings check, and evaluating them for random `year` and `n` gives the same result as a reference evaluator in the test file that walks the generated tree with `num_bigint::BigInt`, implements floored `/` and `%` by its own definition, honours short-circuiting, and reports out of range if any value it computes doesn't fit `i64` and division by zero where it meets one (Story 4 scenario 1);
   - for trees whose period in `year` is worked out (limit 10,000), the reference gives the same value or the same division by zero at `y` and `y + P` for random `y` from −10⁶ to 10⁶ wherever it reports no out of range (Story 4 scenario 2);
   - random strings (any characters, up to 2,000 long) and generated deep nestings (`(` × k, `- ` × k, `1 + ` × k, for k up to 5,000) are checked without panicking, and every error position lies within the text or one past its end (Story 4 scenario 3).
-- [ ] T017 [US4] Fix anything T016 finds in `crates/uni-expr/src/`, adding each failing case as a regression test in the matching unit-test module (constitution VI). If nothing fails, record that in the build PR description.
+- [x] T017 [US4] Fix anything T016 finds in `crates/uni-expr/src/`, adding each failing case as a regression test in the matching unit-test module (constitution VI). If nothing fails, record that in the build PR description.
 
 ---
 
 ## Phase 7: Performance and polish
 
-- [ ] T018 [P] Write `crates/uni-expr/tests/timing.rs`: a `#[test] #[ignore]` that checks the Gregorian rule once and evaluates it 1,000,000 times for years from −500,000 to 499,999, timing with `std::time::Instant` and asserting under one second (under 1 µs each). No floats.
-- [ ] T019 Run `cargo test -p uni-expr --release -- --ignored` and record the timing in the build PR description (SC-004).
-- [ ] T020 Add doc comments with a short example (the contract's example) to `Expr::check`, `Expr::eval` and `Expr::period`, and finish the crate doc in `crates/uni-expr/src/lib.rs`: what this subset covers, and what comes later (`let`, functions, other types, sky functions, storing the AST).
+- [x] T018 [P] Write `crates/uni-expr/tests/timing.rs`: a `#[test] #[ignore]` that checks the Gregorian rule once and evaluates it 1,000,000 times for years from −500,000 to 499,999, timing with `std::time::Instant` and asserting under one second (under 1 µs each). No floats.
+- [x] T019 Run `cargo test -p uni-expr --release -- --ignored` and record the timing in the build PR description (SC-004).
+- [x] T020 Add doc comments with a short example (the contract's example) to `Expr::check`, `Expr::eval` and `Expr::period`, and finish the crate doc in `crates/uni-expr/src/lib.rs`: what this subset covers, and what comes later (`let`, functions, other types, sky functions, storing the AST).
 - [ ] T021 Run the full local verification and record the results in the build PR description:
   - `cargo fmt --all --check`
   - `cargo clippy --workspace --all-targets -- -D warnings`
