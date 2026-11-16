@@ -3950,6 +3950,10 @@ dependencies = [
 [[package]]
 name = "uni-expr"
 version = "0.1.0"
+dependencies = [
+ "num-bigint",
+ "proptest",
+]
 
 [[package]]
 name = "uni-format"
