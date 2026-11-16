@@ -54,6 +54,15 @@ What one instance of the era's unit looks like after its rules (FR-010).
 
 Aster, year 5: Twelfth is 56, `length` 669, `holding` `[1]`. Year 1: Twelfth is 55, `length` 668, `holding` `[]`.
 
+### EraNumber (new)
+
+An instance of the era's unit, named so an error message can say which one (FR-011, FR-015). The name and number travel together, so they can't disagree.
+
+| Field | Type | Meaning |
+|---|---|---|
+| `unit` | `String` | The era's unit's name ("year", "cycle") |
+| `number` | `i64` | The instance's astronomical number, as the date shows it |
+
 ## Errors
 
 ### DefinitionError (new variants; FR-005, FR-015)
@@ -77,7 +86,7 @@ Rules are numbered from 1 in the order listed. "Year" in messages is the era's u
 
 | Variant | Change |
 |---|---|
-| `InvalidValue { unit, value, first, last, within, year }` | New field `year: Option<i64>`: the number of the era's unit the value was checked against, set whenever the calendar has rules and the unit is below the era's unit; `None` otherwise, so calendars without rules report as in spec 004. Message adds " in year 1" (era unit's name) when set: "sol 56 is outside 1 to 55 in Twelfth in year 1" |
+| `InvalidValue { unit, value, first, last, within, year }` | New field `year: Option<EraNumber>`: the instance of the era's unit the value was checked against, set whenever the calendar has rules and the unit is below the era's unit; `None` otherwise, so calendars without rules report as in spec 004. Message adds " in " and the era unit's name and number when set: "sol 56 is outside 1 to 55 in Twelfth in year 1"; Tessel: "turn 13 is outside 0 to 12 in 3 in cycle 3" |
 | `NotAGrouping { unit }` (new) | `era_instance` on a calendar whose era's unit isn't a grouping: "year isn't a grouping, so it has no members" |
 
 ## Relationships
