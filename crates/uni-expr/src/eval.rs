@@ -55,7 +55,9 @@ fn eval(ast: &Ast, values: &[Value]) -> Result<Value, EvalError> {
                 _ => binary(*op, left, eval(rhs, values)?, *at),
             }
         }
-        Kind::If { cond, then, els } => match eval(cond, values)? {
+        Kind::If {
+            cond, then, els, ..
+        } => match eval(cond, values)? {
             Value::Bool(true) => eval(then, values),
             _ => eval(els, values),
         },

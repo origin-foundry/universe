@@ -103,6 +103,8 @@ pub(crate) enum Kind {
         rhs: Box<Ast>,
     },
     If {
+        /// Where the `if` is.
+        at: Pos,
         cond: Box<Ast>,
         then: Box<Ast>,
         els: Box<Ast>,
@@ -286,6 +288,7 @@ impl Parser {
                     Ok((
                         Ast {
                             kind: Kind::If {
+                                at,
                                 cond: Box::new(cond),
                                 then: Box::new(then),
                                 els: Box::new(els),
@@ -360,7 +363,9 @@ mod tests {
             Kind::Binary { op, lhs, rhs, .. } => {
                 format!("({} {} {})", op.symbol(), sexp(lhs), sexp(rhs))
             }
-            Kind::If { cond, then, els } => {
+            Kind::If {
+                cond, then, els, ..
+            } => {
                 format!("(if {} {} {})", sexp(cond), sexp(then), sexp(els))
             }
         }
@@ -445,10 +450,7 @@ mod tests {
     fn depth_counts_parentheses_unary_operators_and_nodes() {
         let parens = |k: usize| format!("{}1{}", "(".repeat(k), ")".repeat(k));
         assert!(parsed(&parens(MAX_DEPTH)).is_ok());
-        assert_eq!(
-            parsed(&parens(MAX_DEPTH + 1)),
-            Err(too_deep(pos(1, 257)))
-        );
+        assert_eq!(parsed(&parens(MAX_DEPTH + 1)), Err(too_deep(pos(1, 257))));
         let nots = |k: usize| format!("{}a", "!".repeat(k));
         assert!(parsed(&nots(MAX_DEPTH - 1)).is_ok());
         assert!(matches!(

@@ -110,7 +110,10 @@ impl fmt::Display for CheckError {
                 write!(f, "comparisons can't be chained at {at}; use `&&`")
             }
             E::TooDeep { limit, at } => {
-                write!(f, "expression is nested more than {limit} levels deep at {at}")
+                write!(
+                    f,
+                    "expression is nested more than {limit} levels deep at {at}"
+                )
             }
             E::UnknownVariable { name, at } => write!(f, "unknown variable `{name}` at {at}"),
             E::TypeMismatch {
@@ -178,7 +181,10 @@ impl fmt::Display for PeriodError {
                 grouped(*limit)
             ),
             PeriodError::NotAWholeNumber { name } => {
-                write!(f, "`{name}` isn't a whole-number variable of this expression")
+                write!(
+                    f,
+                    "`{name}` isn't a whole-number variable of this expression"
+                )
             }
             PeriodError::BadLimit { .. } => f.write_str("the period limit must be at least 1"),
         }

@@ -259,7 +259,10 @@ fn nesting_is_limited() {
     assert!(Expr::check(&parens(200), &year(), Type::Int).is_ok());
     assert!(matches!(
         Expr::check(&parens(257), &year(), Type::Int),
-        Err(CheckError::TooDeep { limit: MAX_DEPTH, .. })
+        Err(CheckError::TooDeep {
+            limit: MAX_DEPTH,
+            ..
+        })
     ));
     let chain = format!("year{}", " + 1".repeat(300));
     assert!(matches!(

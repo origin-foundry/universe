@@ -99,18 +99,18 @@ description: "Task list for spec 005, expression language basics"
 
 ### Tests (write first; they must fail)
 
-- [ ] T013 [P] [US3] Write `crates/uni-expr/tests/period.rs` covering Story 3's acceptance scenarios (limit 100,000 unless stated):
+- [x] T013 [P] [US3] Write `crates/uni-expr/tests/period.rs` covering Story 3's acceptance scenarios (limit 100,000 unless stated):
   - the Aster rule → 500; the Gregorian rule → 400; `(11 * year + 14) % 30 < 11` → 30; `true` and `3 > 2` → 1; `year % 4 == 0 || year % 6 == 0` → 12; `(year + 3) % 4 == 0` → 4; `(-2 * year) % 6 == 0` → 6; `year % -4 == 0` → 4;
   - `year / 7 % 2 == 0`, `year * year % 3 == 0`, `year > 100` → `NotRepeating { at: 1:6 }`; `year % (year % 3 + 2) == 0` → `NotRepeating` at the outer `%`; `(if year % 2 == 0 then year else 0) % 4 == 0` → `NotRepeating` at the `if`;
   - `year % 7 == 0 && year % 11 == 0 && year % 13 == 0` with limit 1,000 → `OverLimit { limit: 1000 }`, and with limit 1,001 → 1,001;
   - a second variable `n` (Int) is constant: `year % 4 == n` → 4, while `year % n == 0` → `NotRepeating`;
   - `period("month", …)` and `period` of a `Bool` variable → `NotAWholeNumber`; limit 0 → `BadLimit`;
   - for each accepted expression above, `eval` at y and y + P agree for every y from −2P to 2P (Story 3 scenario 7).
-- [ ] T014 [P] [US3] Write unit tests in `crates/uni-expr/src/period.rs` for each form rule in research R6: `Const` folding (including a failing fold such as `1 / 0` becoming `Periodic(1)`), `Affine` combination and its coefficient overflow (`year * 4611686018427387904 * 4` → `NotRepeating`), `Affine % m` → `Periodic(|m|)`, `Affine % 0` → `Periodic(1)`, lcm of periodic parts, and the early `OverLimit`.
+- [x] T014 [P] [US3] Write unit tests in `crates/uni-expr/src/period.rs` for each form rule in research R6: `Const` folding (including a failing fold such as `1 / 0` becoming `Periodic(1)`), `Affine` combination and its coefficient overflow (`year * 4611686018427387904 * 4` → `NotRepeating`), `Affine % m` → `Periodic(|m|)`, `Affine % 0` → `Periodic(1)`, lcm of periodic parts, and the early `OverLimit`.
 
 ### Implementation
 
-- [ ] T015 [US3] Implement `Expr::period` in `crates/uni-expr/src/period.rs` per research R6: validate the variable and limit; one bottom-up pass assigning `Const(c)`, `Affine(a, b)`, `Periodic(P)` or `NotRepeating(at)` by the rules in R6, with `lcm` computed by checked arithmetic and refused as soon as it passes the limit; return the root's period (`Const` → 1). Work until T013 and T014 pass.
+- [x] T015 [US3] Implement `Expr::period` in `crates/uni-expr/src/period.rs` per research R6: validate the variable and limit; one bottom-up pass assigning `Const(c)`, `Affine(a, b)`, `Periodic(P)` or `NotRepeating(at)` by the rules in R6, with `lcm` computed by checked arithmetic and refused as soon as it passes the limit; return the root's period (`Const` → 1). Work until T013 and T014 pass.
 
 **Checkpoint**: Stories 1 to 3 work; leap rules (spec 006) can build on this.
 

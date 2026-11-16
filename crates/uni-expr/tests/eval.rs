@@ -57,8 +57,17 @@ fn leap_rules() {
 
 #[test]
 fn division_is_floored() {
-    for (source, value) in [("-7 % 4", 1), ("-7 / 4", -2), ("7 % -4", -1), ("7 / -4", -2)] {
-        assert_eq!(eval(source, Type::Int, 0), Ok(Value::Int(value)), "{source}");
+    for (source, value) in [
+        ("-7 % 4", 1),
+        ("-7 / 4", -2),
+        ("7 % -4", -1),
+        ("7 / -4", -2),
+    ] {
+        assert_eq!(
+            eval(source, Type::Int, 0),
+            Ok(Value::Int(value)),
+            "{source}"
+        );
     }
 }
 
@@ -123,10 +132,7 @@ fn results_outside_64_bits_are_refused() {
         eval("year / -1", Type::Int, i64::MIN),
         Err(EvalError::OutOfRange { at: at(6) })
     );
-    assert_eq!(
-        eval("year % -1", Type::Int, i64::MIN),
-        Ok(Value::Int(0))
-    );
+    assert_eq!(eval("year % -1", Type::Int, i64::MIN), Ok(Value::Int(0)));
     assert_eq!(
         eval("year + 1", Type::Int, i64::MAX),
         Err(EvalError::OutOfRange { at: at(6) })

@@ -154,7 +154,9 @@ fn resolve(ast: &mut Ast, vars: &[VarDecl]) -> Result<Type, CheckError> {
             require(context, operands.unwrap_or(left), right, rhs.start)?;
             Ok(result)
         }
-        Kind::If { cond, then, els } => {
+        Kind::If {
+            cond, then, els, ..
+        } => {
             let condition = resolve(cond, vars)?;
             require("if", Type::Bool, condition, cond.start)?;
             let ty = resolve(then, vars)?;
@@ -228,10 +230,7 @@ mod tests {
                 at: at(column),
             })
         };
-        assert_eq!(
-            type_of("leap * 2"),
-            mismatch("*", Type::Int, Type::Bool, 1)
-        );
+        assert_eq!(type_of("leap * 2"), mismatch("*", Type::Int, Type::Bool, 1));
         assert_eq!(
             type_of("leap == 2"),
             mismatch("==", Type::Bool, Type::Int, 9)
@@ -271,7 +270,10 @@ mod tests {
             other => panic!("{other:?}"),
         };
         assert_eq!(reason(&[int("")]), "a name can't be empty");
-        assert_eq!(reason(&[int("2x")]), "a name must start with a letter or `_`");
+        assert_eq!(
+            reason(&[int("2x")]),
+            "a name must start with a letter or `_`"
+        );
         assert_eq!(
             reason(&[int("a b")]),
             "a name may contain only letters, digits and `_`"

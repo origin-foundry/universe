@@ -79,7 +79,14 @@ mod tests {
 
     #[test]
     fn positions_display_as_line_and_column() {
-        assert_eq!(Pos { line: 2, column: 10 }.to_string(), "2:10");
+        assert_eq!(
+            Pos {
+                line: 2,
+                column: 10
+            }
+            .to_string(),
+            "2:10"
+        );
         assert_eq!(Pos::START.to_string(), "1:1");
     }
 }
