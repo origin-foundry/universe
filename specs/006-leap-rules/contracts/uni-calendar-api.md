@@ -1,5 +1,7 @@
 # Contract: `uni-calendar` public API, changes for leap rules
 
+> **Renamed by ADR 0009** (`/decisions/0009-earth-neutral-names.md`): leap rules are now **adjustment rules** (`AdjustmentRuleDef`), the error fields that held the era's unit's number are `era_number`, and the Aster test calendar's units are age, cohort, orbit, span, sol, bell and pulse. This contract shows the current names; the rest of spec 006 keeps the wording it was written in.
+
 Changes to spec 004's [contract](../../004-calendar-engine-basics/contracts/uni-calendar-api.md); everything not listed stays as it is. `R<T>` means `Result<T, CalendarError>`. Field rules and messages are in [data-model.md](../data-model.md).
 
 ## Dependency
@@ -14,10 +16,10 @@ pub struct GroupingDef {
     pub member_unit: Option<MemberUnitDef>,
     pub members: Vec<MemberDef>,
     pub first_number: Option<i64>,
-    pub rules: Vec<LeapRuleDef>,                         // new; only on the era's unit
+    pub rules: Vec<AdjustmentRuleDef>,                   // new; only on the era's unit
 }
-pub struct LeapRuleDef {                                 // new
-    pub condition: String,                               // e.g. "year % 4 == 0"
+pub struct AdjustmentRuleDef {                           // new
+    pub condition: String,                               // e.g. "orbit % 4 == 0"
     pub member: String,                                  // name, or number from 1
     pub change: i64,                                     // ≠ 0; + lengthens, − shortens
 }
@@ -58,13 +60,13 @@ pub enum DefinitionError {
     RuleZeroChange { unit: String, rule: usize },
     RulePeriod { unit: String, rule: usize, error: uni_expr::PeriodError },
     RulesPeriodOverLimit { unit: String, limit: i64 },
-    RuleFails { unit: String, rule: usize, year: i64, error: uni_expr::EvalError },
-    MemberTooShort { unit: String, member: String, year: i64, length: i64 },
+    RuleFails { unit: String, rule: usize, era_number: i64, error: uni_expr::EvalError },
+    MemberTooShort { unit: String, member: String, era_number: i64, length: i64 },
 }
 pub enum Limit { LengthTooFine, ShorterThanNanosecond, TooManyTicks, GroupingTooLong, CycleTooLong }
 
 pub enum CalendarError {
-    InvalidValue { unit: String, value: i64, first: i64, last: i64, within: Option<String>, year: Option<EraNumber> },
+    InvalidValue { unit: String, value: i64, first: i64, last: i64, within: Option<String>, era_number: Option<EraNumber> },
     // … OutOfRange, EmptyDate, TooManyValues, UnknownUnit, NotFixed as before, plus:
     NotAGrouping { unit: String },
 }
@@ -79,18 +81,18 @@ pub struct EraNumber {                                  // new; re-exported from
 ## Example
 
 ```rust
-// Aster (spec 004) with its leap rule on the year.
+// Aster (spec 004) with its adjustment rule on the orbit.
 let mut def = aster();
-def.groupings[2].rules = vec![LeapRuleDef {
-    condition: "year % 5 == 0 && (year % 100 != 0 || year % 500 == 0)".into(),
+def.groupings[2].rules = vec![AdjustmentRuleDef {
+    condition: "orbit % 5 == 0 && (orbit % 100 != 0 || orbit % 500 == 0)".into(),
     member: "Twelfth".into(),
     change: 1,
 }];
 let cal = Calendar::new(def)?;
 assert_eq!(cal.rule_period(), 500);
 assert_eq!(cal.era_instance(5)?.length, 669);
-assert_eq!(cal.units_per("year", "month"), Ok(12));
-assert!(matches!(cal.units_per("year", "sol"), Err(CalendarError::NotFixed { .. })));
+assert_eq!(cal.units_per("orbit", "span"), Ok(12));
+assert!(matches!(cal.units_per("orbit", "sol"), Err(CalendarError::NotFixed { .. })));
 let start = cal.date_to_instant(&Date { values: vec![6] })?;    // 3,341 sols after the epoch
 assert_eq!(cal.fixed_from_instant(start.instant)?, 3_341);
 ```

@@ -5,7 +5,7 @@ description: The SQLite project file - definition tables and disposable cache ta
 tags: [storage, sqlite, schema]
 status: stable
 generated: { by: claude-code/claude-opus-5-5, at: 2026-10-30T08:24:17Z }
-verified: { by: human:origin-foundry, at: 2026-11-04T11:11:15Z }
+verified: { by: human:origin-foundry, at: 2026-11-16T18:19:49Z }
 ---
 
 # File
@@ -42,7 +42,7 @@ cycle(id, calendar_id, over_unit_id, period, anchor, skip_expr)
 cycle_member(cycle_id, seq, name)
 rule(id, unit_id, seq, predicate_src, predicate_ast, modification_json)
 function_def(id, calendar_id, name, params, body_src, body_ast)
-era(id, calendar_id, seq, name, abbr, start, direction, year_zero)
+era(id, calendar_id, seq, name, abbr, start, direction, has_zero)
 locale(id, calendar_id, code, name)
 name_set(locale_id, target_kind, target_id, full, abbr)
 format(id, calendar_id, name, kind, template, inverse_overrides_json)

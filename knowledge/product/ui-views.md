@@ -5,7 +5,7 @@ description: The app's editors and views and what each is for.
 tags: [ui, product]
 status: stable
 generated: { by: claude-code/claude-opus-5-5, at: 2026-10-30T08:24:17Z }
-verified: { by: human:origin-foundry, at: 2026-10-30T22:14:13Z }
+verified: { by: human:origin-foundry, at: 2026-11-16T18:19:49Z }
 ---
 
 # Views
@@ -19,6 +19,6 @@ verified: { by: human:origin-foundry, at: 2026-10-30T22:14:13Z }
 | **Rule suggester** | Pick a target cycle; view candidate rules on an accuracy-vs-simplicity chart; apply one. See [rule suggestion](/calendar/rule-suggestion.md). |
 | **Format editor** | Template with syntax highlighting, live render, parse test box and round-trip report. See [format parsing](/formats/parsing.md). |
 | **Converter** | Enter a date in any calendar/format. See it in every calendar and every observer's clock side by side, with proper-time differences called out. Never shows raw GCT (see [display units](/time/display-units.md)). |
-| **Calendar grid** | Page-style view of any unit (e.g. a "month" equivalent) with festivals, moon phases, seasons and eclipses marked. |
+| **Calendar grid** | Page-style view of any unit (e.g. the unit that plays the part of Earth's month) with festivals, moon phases, seasons and eclipses marked. |
 | **Orrery** | 2D and 3D views of a system, scrubbable through time, with body trails and ship trajectories. Clicking a moment shows it in the converter. |
 | **Timeline** | Events across time in parallel lanes per calendar. Includes **drift charts**: how far a calendar's units wander from the sky events they track. |

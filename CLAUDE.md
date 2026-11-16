@@ -48,6 +48,7 @@ It refuses to move a card out of a review column, because those moves are the ow
 
 - Bundle concepts: one file per concept, frontmatter with `type`, `title`, `description`, `status`, `generated`; absolute links (`/area/concept.md`); list every concept in its folder's `index.md` with its description; add a `log.md` entry for every change.
 - Commit messages: imperative subject line, body explaining why.
+- Names: code uses the calendar model's terms (era's unit, member, fundamental unit, subdivision, adjustment rule), never Earth's (year, month, day, hour, leap), except in Gregorian-specific code or as an "on Earth, …" aside (`knowledge/decisions/0009-earth-neutral-names.md`). Non-Earth test calendars use invented unit names (orbit, span, sol).
 
 ## Working notes
 

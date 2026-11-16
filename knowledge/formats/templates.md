@@ -5,14 +5,16 @@ description: Template syntax, locales, built-in formats and duration formats.
 tags: [formats, templates, locales]
 status: stable
 generated: { by: claude-code/claude-opus-5-5, at: 2026-10-30T08:24:17Z }
-verified: { by: human:origin-foundry, at: 2026-10-30T22:11:54Z }
+verified: { by: human:origin-foundry, at: 2026-11-16T18:19:49Z }
 ---
 
 # Syntax
 
 ```
-{weekday:name}, {day:ord} {month:name} {year:era}{?era.before} {era:abbr}{/}
+{rota:name}, {sol:ord} {span:name} {orbit:era}{?era.before} {era:abbr}{/}
 ```
+
+On Earth the same template reads `{weekday:name}, {day:ord} {month:name} {year:era}…`.
 
 - **Field tokens:** any unit, cycle member or era field, with modifiers: `:name`, `:abbr`, `:ord` (ordinal), `:04` (zero-padded), `:roman`, `:words`
 - **Zone tokens:** `{zone:name}`, `{zone:abbr}`, `{zone:offset}`; see [time zones](/calendar/time-zones.md)

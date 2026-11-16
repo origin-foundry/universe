@@ -5,7 +5,7 @@ description: Compiling templates into parsers, invertibility and ambiguity.
 tags: [formats, parsing]
 status: stable
 generated: { by: claude-code/claude-opus-5-5, at: 2026-10-30T08:24:17Z }
-verified: { by: human:origin-foundry, at: 2026-10-30T22:11:54Z }
+verified: { by: human:origin-foundry, at: 2026-11-16T18:19:49Z }
 ---
 
 # Rules
@@ -14,8 +14,8 @@ Each [format template](/formats/templates.md) compiles into a parser as well as 
 
 - Field tokens and named members parse naturally. Names match case-insensitively, by full name or abbreviation.
 - Conditional branches become alternatives.
-- **Computed values must be invertible.** Linear expressions (`year - 1200`) are inverted automatically. Others need either a user-supplied inverse, or the format is marked **render-only**, with an explanation.
-- Parsing can be **ambiguous** (e.g. a two-digit year). The parser returns every valid candidate, and the UI asks the user to choose.
+- **Computed values must be invertible.** Linear expressions (`orbit - 1200`) are inverted automatically. Others need either a user-supplied inverse, or the format is marked **render-only**, with an explanation.
+- Parsing can be **ambiguous** (e.g. the era's unit written with two digits). The parser returns every valid candidate, and the UI asks the user to choose.
 
 # Round-trip test
 
