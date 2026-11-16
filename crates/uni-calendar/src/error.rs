@@ -30,7 +30,7 @@ pub enum DefinitionError {
     FirstNumberNotAllowed { unit: String },
     /// One of the engine's limits (research R3) is exceeded.
     BeyondLimits { unit: String, limit: Limit },
-    /// A grouping other than the era's unit has leap rules, or the era's unit has them but
+    /// A grouping other than the era's unit has adjustment rules, or the era's unit has them but
     /// isn't a grouping (spec 006, research R5).
     RulesNotOnEraUnit { unit: String },
     /// Rule `rule` (from 1) of `unit` has a condition the expression language refuses,
@@ -56,18 +56,18 @@ pub enum DefinitionError {
     },
     /// The rules together repeat only after more than `limit` instances.
     RulesPeriodOverLimit { unit: String, limit: i64 },
-    /// Rule `rule`'s condition fails to evaluate for instance `year` of `unit`.
+    /// Rule `rule`'s condition fails to evaluate for instance `era_number` of `unit`.
     RuleFails {
         unit: String,
         rule: usize,
-        year: i64,
+        era_number: i64,
         error: uni_expr::EvalError,
     },
-    /// `member` of `unit` would be `length` long (below 1) in instance `year`.
+    /// `member` of `unit` would be `length` long (below 1) in instance `era_number`.
     MemberTooShort {
         unit: String,
         member: String,
-        year: i64,
+        era_number: i64,
         length: i64,
     },
 }
@@ -88,7 +88,7 @@ pub enum Limit {
     CycleTooLong,
 }
 
-/// An instance of the era's unit, named so a message can say which one: "year 1",
+/// An instance of the era's unit, named so a message can say which one: "orbit 1",
 /// "cycle 3".
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct EraNumber {
@@ -110,8 +110,8 @@ pub enum CalendarError {
         last: i64,
         within: Option<String>,
         /// The instance of the era's unit the value was checked against: set whenever the
-        /// calendar has leap rules and the unit is below the era's unit, `None` otherwise.
-        year: Option<EraNumber>,
+        /// calendar has adjustment rules and the unit is below the era's unit, `None` otherwise.
+        era_number: Option<EraNumber>,
     },
     /// The result needs a number outside 64 bits, or an instant outside the `Instant` range.
     OutOfRange,
@@ -167,7 +167,7 @@ impl fmt::Display for DefinitionError {
             }
             E::RulesNotOnEraUnit { unit } => write!(
                 f,
-                "{unit} can't have leap rules: rules go on the era's unit for now"
+                "{unit} can't have adjustment rules: rules go on the era's unit for now"
             ),
             E::RuleCondition { unit, rule, error } => write!(f, "rule {rule} of {unit}: {error}"),
             E::RuleUnknownMember { unit, rule, member } => write!(
@@ -186,17 +186,20 @@ impl fmt::Display for DefinitionError {
             E::RuleFails {
                 unit,
                 rule,
-                year,
+                era_number,
                 error,
-            } => write!(f, "rule {rule} of {unit} fails in {unit} {year}: {error}"),
+            } => write!(
+                f,
+                "rule {rule} of {unit} fails in {unit} {era_number}: {error}"
+            ),
             E::MemberTooShort {
                 unit,
                 member,
-                year,
+                era_number,
                 length,
             } => write!(
                 f,
-                "{member} of {unit} would be {length} long in {unit} {year}"
+                "{member} of {unit} would be {length} long in {unit} {era_number}"
             ),
         }
     }
@@ -228,13 +231,13 @@ impl fmt::Display for CalendarError {
                 first,
                 last,
                 within,
-                year,
+                era_number,
             } => {
                 write!(f, "{unit} {value} is outside {first} to {last}")?;
                 if let Some(member) = within {
                     write!(f, " in {member}")?;
                 }
-                match year {
+                match era_number {
                     Some(EraNumber { unit, number }) => write!(f, " in {unit} {number}"),
                     None => Ok(()),
                 }
@@ -286,21 +289,21 @@ mod tests {
                 E::NonPositiveLength { unit: s("sol") },
                 "sol must have a positive length",
             ),
-            (E::NoMembers { unit: s("year") }, "year has no members"),
+            (E::NoMembers { unit: s("orbit") }, "orbit has no members"),
             (
                 E::NonPositiveCount {
-                    unit: s("year"),
+                    unit: s("orbit"),
                     member: s("Third"),
                 },
-                "member Third of year must have a positive count",
+                "member Third of orbit must have a positive count",
             ),
             (
-                E::MembersNeedUnit { unit: s("year") },
-                "year has more than one member, so it needs a member unit",
+                E::MembersNeedUnit { unit: s("orbit") },
+                "orbit has more than one member, so it needs a member unit",
             ),
             (
-                E::TooFewParts { unit: s("hour") },
-                "hour must have at least one part",
+                E::TooFewParts { unit: s("bell") },
+                "bell must have at least one part",
             ),
             (
                 E::DuplicateUnit { name: s("sol") },
@@ -308,29 +311,29 @@ mod tests {
             ),
             (
                 E::DuplicateMember {
-                    unit: s("year"),
+                    unit: s("orbit"),
                     name: s("Prime"),
                 },
-                "year has two members named Prime",
+                "orbit has two members named Prime",
             ),
             (
-                E::EraUnitUnknown { unit: s("week") },
-                "the era numbers week, which isn't a unit of this calendar",
+                E::EraUnitUnknown { unit: s("rota") },
+                "the era numbers rota, which isn't a unit of this calendar",
             ),
             (
-                E::EraUnitBelowFundamental { unit: s("hour") },
-                "the era can't number hour, a subdivision of the fundamental unit",
+                E::EraUnitBelowFundamental { unit: s("bell") },
+                "the era can't number bell, a subdivision of the fundamental unit",
             ),
             (
-                E::FirstNumberNotAllowed { unit: s("decade") },
-                "decade can't have a first number: the era numbers it",
+                E::FirstNumberNotAllowed { unit: s("cohort") },
+                "cohort can't have a first number: the era numbers it",
             ),
             (
                 E::BeyondLimits {
-                    unit: s("minute"),
+                    unit: s("pulse"),
                     limit: Limit::ShorterThanNanosecond,
                 },
-                "minute is beyond the engine's limits: it is shorter than a nanosecond",
+                "pulse is beyond the engine's limits: it is shorter than a nanosecond",
             ),
         ];
         for (error, message) in cases {
@@ -339,81 +342,81 @@ mod tests {
     }
 
     #[test]
-    fn rule_messages_name_the_rule_and_year() {
+    fn rule_messages_name_the_rule_and_orbit() {
         use DefinitionError as E;
         use uni_expr::{CheckError, EvalError, PeriodError, Pos};
         let at = |column| Pos { line: 1, column };
         let cases = [
             (
-                E::RulesNotOnEraUnit { unit: s("decade") },
-                "decade can't have leap rules: rules go on the era's unit for now",
+                E::RulesNotOnEraUnit { unit: s("cohort") },
+                "cohort can't have adjustment rules: rules go on the era's unit for now",
             ),
             (
                 E::RuleCondition {
-                    unit: s("year"),
+                    unit: s("orbit"),
                     rule: 1,
                     error: CheckError::UnknownVariable {
-                        name: s("month"),
+                        name: s("span"),
                         at: at(1),
                     },
                 },
-                "rule 1 of year: unknown variable `month` at 1:1",
+                "rule 1 of orbit: unknown variable `span` at 1:1",
             ),
             (
                 E::RuleUnknownMember {
-                    unit: s("year"),
+                    unit: s("orbit"),
                     rule: 1,
                     member: s("Thirteenth"),
                 },
-                "rule 1 of year changes Thirteenth, which year doesn't have",
+                "rule 1 of orbit changes Thirteenth, which orbit doesn't have",
             ),
             (
                 E::RuleZeroChange {
-                    unit: s("year"),
+                    unit: s("orbit"),
                     rule: 2,
                 },
-                "rule 2 of year changes its member by 0",
+                "rule 2 of orbit changes its member by 0",
             ),
             (
                 E::RulePeriod {
-                    unit: s("year"),
+                    unit: s("orbit"),
                     rule: 1,
                     error: PeriodError::NotRepeating { at: at(6) },
                 },
-                "rule 1 of year: the part at 1:6 stops the expression repeating as the variable \
+                "rule 1 of orbit: the part at 1:6 stops the expression repeating as the variable \
                  counts up",
             ),
             (
                 E::RulesPeriodOverLimit {
-                    unit: s("year"),
+                    unit: s("orbit"),
                     limit: 100_000,
                 },
-                "the rules of year repeat only after more than 100,000 years",
+                "the rules of orbit repeat only after more than 100,000 orbits",
             ),
             (
                 E::RuleFails {
-                    unit: s("year"),
+                    unit: s("orbit"),
                     rule: 1,
-                    year: 7,
+                    era_number: 7,
                     error: EvalError::DivisionByZero { at: at(5) },
                 },
-                "rule 1 of year fails in year 7: division by zero at 1:5",
+                "rule 1 of orbit fails in orbit 7: division by zero at 1:5",
             ),
             (
                 E::MemberTooShort {
-                    unit: s("year"),
+                    unit: s("orbit"),
                     member: s("Third"),
-                    year: 2,
+                    era_number: 2,
                     length: 0,
                 },
-                "Third of year would be 0 long in year 2",
+                "Third of orbit would be 0 long in orbit 2",
             ),
             (
                 E::BeyondLimits {
-                    unit: s("year"),
+                    unit: s("orbit"),
                     limit: Limit::CycleTooLong,
                 },
-                "year is beyond the engine's limits: one repetition of its rules is too long to \
+                "orbit is beyond the engine's limits: one repetition of its rules is too long to \
                  count in fundamental units",
             ),
         ];
@@ -449,20 +452,20 @@ mod tests {
                     first: 1,
                     last: 55,
                     within: Some(s("Third")),
-                    year: None,
+                    era_number: None,
                 },
                 "sol 56 is outside 1 to 55 in Third",
             ),
             (
                 E::InvalidValue {
-                    unit: s("hour"),
+                    unit: s("bell"),
                     value: 20,
                     first: 0,
                     last: 19,
                     within: None,
-                    year: None,
+                    era_number: None,
                 },
-                "hour 20 is outside 0 to 19",
+                "bell 20 is outside 0 to 19",
             ),
             (
                 E::InvalidValue {
@@ -471,12 +474,12 @@ mod tests {
                     first: 1,
                     last: 55,
                     within: Some(s("Twelfth")),
-                    year: Some(EraNumber {
-                        unit: s("year"),
+                    era_number: Some(EraNumber {
+                        unit: s("orbit"),
                         number: 1,
                     }),
                 },
-                "sol 56 is outside 1 to 55 in Twelfth in year 1",
+                "sol 56 is outside 1 to 55 in Twelfth in orbit 1",
             ),
             (
                 E::InvalidValue {
@@ -485,7 +488,7 @@ mod tests {
                     first: 0,
                     last: 12,
                     within: Some(s("3")),
-                    year: Some(EraNumber {
+                    era_number: Some(EraNumber {
                         unit: s("cycle"),
                         number: 3,
                     }),
@@ -502,13 +505,13 @@ mod tests {
                 E::TooManyValues { given: 6, max: 5 },
                 "a date has at most 5 values here",
             ),
-            (E::UnknownUnit { name: s("week") }, "no unit named week"),
+            (E::UnknownUnit { name: s("rota") }, "no unit named rota"),
             (
                 E::NotFixed {
-                    unit: s("month"),
+                    unit: s("span"),
                     of: s("sol"),
                 },
-                "the number of sols in a month varies",
+                "the number of sols in a span varies",
             ),
         ];
         for (error, message) in cases {
@@ -528,6 +531,6 @@ mod tests {
     fn errors_are_std_errors() {
         fn takes(_: &dyn std::error::Error) {}
         takes(&CalendarError::OutOfRange);
-        takes(&DefinitionError::NoMembers { unit: s("year") });
+        takes(&DefinitionError::NoMembers { unit: s("orbit") });
     }
 }

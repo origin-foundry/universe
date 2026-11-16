@@ -21,21 +21,21 @@ mod define {
         assert_eq!(cal.clock(), uni_calendar::Clock::Gct);
         assert_eq!(
             cal.units(),
-            ["age", "decade", "year", "month", "sol", "hour", "minute"]
+            ["age", "cohort", "orbit", "span", "sol", "bell", "pulse"]
         );
-        assert_eq!(cal.era_unit(), "year");
+        assert_eq!(cal.era_unit(), "orbit");
     }
 
     #[test]
     fn fixed_counts_between_units() {
         let cal = calendar();
-        assert_eq!(cal.units_per("year", "sol"), Ok(668));
-        assert_eq!(cal.units_per("decade", "sol"), Ok(6_680));
-        assert_eq!(cal.units_per("age", "year"), Ok(100));
-        assert_eq!(cal.units_per("sol", "minute"), Ok(2_000));
-        assert_eq!(cal.units_per("year", "month"), Ok(12));
-        assert_eq!(cal.units_per("decade", "month"), Ok(120));
-        assert_eq!(cal.units_per("year", "minute"), Ok(668 * 2_000));
+        assert_eq!(cal.units_per("orbit", "sol"), Ok(668));
+        assert_eq!(cal.units_per("cohort", "sol"), Ok(6_680));
+        assert_eq!(cal.units_per("age", "orbit"), Ok(100));
+        assert_eq!(cal.units_per("sol", "pulse"), Ok(2_000));
+        assert_eq!(cal.units_per("orbit", "span"), Ok(12));
+        assert_eq!(cal.units_per("cohort", "span"), Ok(120));
+        assert_eq!(cal.units_per("orbit", "pulse"), Ok(668 * 2_000));
         assert_eq!(cal.units_per("sol", "sol"), Ok(1));
     }
 
@@ -43,22 +43,22 @@ mod define {
     fn counts_that_vary_or_name_no_unit_are_errors() {
         let cal = calendar();
         assert_eq!(
-            cal.units_per("month", "sol"),
+            cal.units_per("span", "sol"),
             Err(CalendarError::NotFixed {
-                unit: "month".to_string(),
+                unit: "span".to_string(),
                 of: "sol".to_string()
             })
         );
         assert_eq!(
-            cal.units_per("week", "sol"),
+            cal.units_per("rota", "sol"),
             Err(CalendarError::UnknownUnit {
-                name: "week".to_string()
+                name: "rota".to_string()
             })
         );
         assert_eq!(
-            cal.units_per("sol", "week"),
+            cal.units_per("sol", "rota"),
             Err(CalendarError::UnknownUnit {
-                name: "week".to_string()
+                name: "rota".to_string()
             })
         );
     }
@@ -69,7 +69,7 @@ mod define {
         let mut def = aster(*EPOCH);
         def.fundamental.length = secs(100_000, 1);
         let cal = Calendar::new(def).expect("accepted");
-        assert_eq!(cal.units_per("year", "sol"), Ok(668));
+        assert_eq!(cal.units_per("orbit", "sol"), Ok(668));
     }
 }
 
@@ -84,8 +84,8 @@ fn date(values: &[i64]) -> uni_calendar::Date {
     }
 }
 
-/// Aster with hours numbered from 1 (US1 scenario 6).
-fn hours_from_one() -> Calendar {
+/// Aster with bells numbered from 1 (US1 scenario 6).
+fn bells_from_one() -> Calendar {
     let mut def = aster(*EPOCH);
     def.subdivisions[0].first_number = Some(1);
     Calendar::new(def).unwrap()
@@ -154,10 +154,10 @@ mod to_date {
     }
 
     #[test]
-    fn decades_and_ages_count_from_the_epoch() {
+    fn cohorts_and_ages_count_from_the_epoch() {
         let cal = calendar();
-        let year_start = |year: i64| at(sols((year - 1) * 668));
-        let above = |year| cal.instant_to_date(year_start(year)).unwrap().above;
+        let orbit_start = |orbit: i64| at(sols((orbit - 1) * 668));
+        let above = |orbit| cal.instant_to_date(orbit_start(orbit)).unwrap().above;
         assert_eq!(above(101), [2, 11]);
         assert_eq!(above(-100), [-1, -10]);
         assert_eq!(above(-9), [0, 0]);
@@ -165,14 +165,14 @@ mod to_date {
         assert_eq!(above(10), [1, 1]);
         assert_eq!(above(11), [1, 2]);
         assert_eq!(
-            cal.instant_to_date(year_start(-100)).unwrap().date,
+            cal.instant_to_date(orbit_start(-100)).unwrap().date,
             date(&[-100, 1, 1, 0, 0])
         );
     }
 
     #[test]
-    fn part_way_through_a_minute() {
-        // 1,234.5 s into the first sol: minute 27 starts at 27 × 44.387622 = 1,198.465794 s.
+    fn part_way_through_a_pulse() {
+        // 1,234.5 s into the first sol: pulse 27 starts at 27 × 44.387622 = 1,198.465794 s.
         let cal = calendar();
         let t = at(ns(1_234_500_000_000));
         let got = cal.instant_to_date(t).unwrap();
@@ -180,15 +180,15 @@ mod to_date {
             got,
             expect(&[1, 1], &[1, 1, 1, 0, 27], secs(36_034_206, 1_000_000))
         );
-        let minute_start = at(ns(1_198_465_794_000));
+        let pulse_start = at(ns(1_198_465_794_000));
         let back = uni_time::Span::from_secs_ratio(got.remainder, uni_time::Rounding::Down);
-        assert_eq!(minute_start.checked_add(back.unwrap()), Ok(t));
+        assert_eq!(pulse_start.checked_add(back.unwrap()), Ok(t));
     }
 
     #[test]
-    fn hours_counted_from_one() {
+    fn bells_counted_from_one() {
         assert_eq!(
-            hours_from_one().instant_to_date(*EPOCH).unwrap().date,
+            bells_from_one().instant_to_date(*EPOCH).unwrap().date,
             date(&[1, 1, 1, 1, 0])
         );
     }
@@ -233,7 +233,7 @@ mod to_instant {
             first,
             last,
             within: within.map(str::to_string),
-            year: None,
+            era_number: None,
         }
     }
 
@@ -247,7 +247,7 @@ mod to_instant {
     }
 
     #[test]
-    fn a_sol_past_the_end_of_its_month() {
+    fn a_sol_past_the_end_of_its_span() {
         assert_eq!(
             calendar().date_to_instant(&date(&[1, 3, 56])),
             Err(invalid("sol", 56, 1, 55, Some("Third")))
@@ -258,10 +258,10 @@ mod to_instant {
     fn values_outside_their_range_are_never_wrapped() {
         let cal = calendar();
         let cases = [
-            (vec![1, 13], invalid("month", 13, 1, 12, None)),
+            (vec![1, 13], invalid("span", 13, 1, 12, None)),
             (vec![1, 1, 0], invalid("sol", 0, 1, 56, Some("Prime"))),
-            (vec![1, 1, 1, 20], invalid("hour", 20, 0, 19, None)),
-            (vec![1, 1, 1, 0, -1], invalid("minute", -1, 0, 99, None)),
+            (vec![1, 1, 1, 20], invalid("bell", 20, 0, 19, None)),
+            (vec![1, 1, 1, 0, -1], invalid("pulse", -1, 0, 99, None)),
         ];
         for (values, error) in cases {
             assert_eq!(
@@ -271,8 +271,8 @@ mod to_instant {
             );
         }
         assert_eq!(
-            hours_from_one().date_to_instant(&date(&[1, 1, 1, 0])),
-            Err(invalid("hour", 0, 1, 20, None))
+            bells_from_one().date_to_instant(&date(&[1, 1, 1, 0])),
+            Err(invalid("bell", 0, 1, 20, None))
         );
     }
 

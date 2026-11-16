@@ -1,12 +1,12 @@
-//! Hand-worked tests for leap rules (spec 006): defining calendars with rules (`define_`,
+//! Hand-worked tests for adjustment rules (spec 006): defining calendars with rules (`define_`,
 //! Story 1) and converting dates in them (`convert_`, Story 2), on Aster and Tessel.
 
 mod common;
 
 use common::*;
 use uni_calendar::{
-    Calendar, CalendarDef, CalendarError, Date, DefinitionError, EraInstance, EraNumber,
-    LeapRuleDef,
+    AdjustmentRuleDef, Calendar, CalendarDef, CalendarError, Date, DefinitionError, EraInstance,
+    EraNumber,
 };
 use uni_expr::{CheckError, EvalError, PeriodError, Pos};
 
@@ -18,8 +18,8 @@ fn at(column: u32) -> Pos {
     Pos { line: 1, column }
 }
 
-/// Aster with `rules` on its year.
-fn aster_rules(rules: Vec<LeapRuleDef>) -> CalendarDef {
+/// Aster with `rules` on its orbit.
+fn aster_rules(rules: Vec<AdjustmentRuleDef>) -> CalendarDef {
     let mut def = aster(*EPOCH);
     def.groupings[2].rules = rules;
     def
@@ -37,46 +37,46 @@ fn not_fixed(unit: &str, of: &str) -> Result<i64, CalendarError> {
 }
 
 // -------------------------------------------------------------------------------------------
-// Story 1: define a calendar with leap rules
+// Story 1: define a calendar with adjustment rules
 
 /// Scenario 1.
 #[test]
 fn define_aster_with_its_rule_is_accepted() {
     let cal = Calendar::new(aster_with_rule(*EPOCH)).unwrap();
     assert_eq!(cal.rule_period(), 500);
-    assert_eq!(cal.units_per("year", "sol"), not_fixed("year", "sol"));
-    assert_eq!(cal.units_per("decade", "sol"), not_fixed("decade", "sol"));
-    assert_eq!(cal.units_per("year", "month"), Ok(12));
-    assert_eq!(cal.units_per("decade", "year"), Ok(10));
-    assert_eq!(cal.units_per("age", "month"), Ok(1_200));
+    assert_eq!(cal.units_per("orbit", "sol"), not_fixed("orbit", "sol"));
+    assert_eq!(cal.units_per("cohort", "sol"), not_fixed("cohort", "sol"));
+    assert_eq!(cal.units_per("orbit", "span"), Ok(12));
+    assert_eq!(cal.units_per("cohort", "orbit"), Ok(10));
+    assert_eq!(cal.units_per("age", "span"), Ok(1_200));
     // Inside a sol nothing changes.
-    assert_eq!(cal.units_per("sol", "minute"), Ok(2_000));
+    assert_eq!(cal.units_per("sol", "pulse"), Ok(2_000));
 
     let plain = Calendar::new(aster(*EPOCH)).unwrap();
     assert_eq!(plain.rule_period(), 1);
-    assert_eq!(plain.units_per("year", "sol"), Ok(668));
+    assert_eq!(plain.units_per("orbit", "sol"), Ok(668));
 }
 
 /// Scenario 2.
 #[test]
 fn define_conditions_the_expression_language_refuses() {
-    match refused(aster_rules(vec![rule("year % 4", "Twelfth", 1)])) {
+    match refused(aster_rules(vec![rule("orbit % 4", "Twelfth", 1)])) {
         DefinitionError::RuleCondition {
             unit,
             rule: 1,
             error: CheckError::TypeMismatch {
                 context: "result", ..
             },
-        } => assert_eq!(unit, "year"),
+        } => assert_eq!(unit, "orbit"),
         other => panic!("unexpected {other:?}"),
     }
     assert_eq!(
-        refused(aster_rules(vec![rule("month == 2", "Twelfth", 1)])),
+        refused(aster_rules(vec![rule("span == 2", "Twelfth", 1)])),
         DefinitionError::RuleCondition {
-            unit: s("year"),
+            unit: s("orbit"),
             rule: 1,
             error: CheckError::UnknownVariable {
-                name: s("month"),
+                name: s("span"),
                 at: at(1)
             },
         }
@@ -87,28 +87,28 @@ fn define_conditions_the_expression_language_refuses() {
 #[test]
 fn define_unknown_members_and_zero_changes() {
     assert_eq!(
-        refused(aster_rules(vec![rule("year % 4 == 0", "Thirteenth", 1)])),
+        refused(aster_rules(vec![rule("orbit % 4 == 0", "Thirteenth", 1)])),
         DefinitionError::RuleUnknownMember {
-            unit: s("year"),
+            unit: s("orbit"),
             rule: 1,
             member: s("Thirteenth"),
         }
     );
     assert_eq!(
-        refused(aster_rules(vec![rule("year % 4 == 0", "Twelfth", 0)])),
+        refused(aster_rules(vec![rule("orbit % 4 == 0", "Twelfth", 0)])),
         DefinitionError::RuleZeroChange {
-            unit: s("year"),
+            unit: s("orbit"),
             rule: 1
         }
     );
     // A second rule's fault names rule 2.
     assert_eq!(
         refused(aster_rules(vec![
-            rule("year % 4 == 0", "Twelfth", 1),
-            rule("year % 7 == 0", "Third", 0),
+            rule("orbit % 4 == 0", "Twelfth", 1),
+            rule("orbit % 7 == 0", "Third", 0),
         ])),
         DefinitionError::RuleZeroChange {
-            unit: s("year"),
+            unit: s("orbit"),
             rule: 2
         }
     );
@@ -118,24 +118,24 @@ fn define_unknown_members_and_zero_changes() {
 #[test]
 fn define_members_shortened_to_nothing() {
     assert_eq!(
-        refused(aster_rules(vec![rule("year % 2 == 0", "Third", -55)])),
+        refused(aster_rules(vec![rule("orbit % 2 == 0", "Third", -55)])),
         DefinitionError::MemberTooShort {
-            unit: s("year"),
+            unit: s("orbit"),
             member: s("Third"),
-            year: 2,
+            era_number: 2,
             length: 0,
         }
     );
     // Changes add up: 55 − 30 − 30.
     assert_eq!(
         refused(aster_rules(vec![
-            rule("year % 2 == 0", "Third", -30),
-            rule("year % 2 == 0", "Third", -30),
+            rule("orbit % 2 == 0", "Third", -30),
+            rule("orbit % 2 == 0", "Third", -30),
         ])),
         DefinitionError::MemberTooShort {
-            unit: s("year"),
+            unit: s("orbit"),
             member: s("Third"),
-            year: 2,
+            era_number: 2,
             length: -5,
         }
     );
@@ -143,33 +143,33 @@ fn define_members_shortened_to_nothing() {
 
 /// Scenario 5.
 #[test]
-fn define_conditions_that_fail_for_some_year() {
-    // Year 7 is the first where `year % 7` is 0; `/` is at column 5.
+fn define_conditions_that_fail_for_some_orbit() {
+    // Orbit 7 is the first where `orbit % 7` is 0; `/` is at column 5.
     assert_eq!(
         refused(aster_rules(vec![rule(
-            "100 / (year % 7) == 3",
+            "100 / (orbit % 7) == 3",
             "Twelfth",
             1
         )])),
         DefinitionError::RuleFails {
-            unit: s("year"),
+            unit: s("orbit"),
             rule: 1,
-            year: 7,
+            era_number: 7,
             error: EvalError::DivisionByZero { at: at(5) },
         }
     );
-    // 2 × 2⁶² overflows: year 2.
+    // 2 × 2⁶² overflows: orbit 2.
     match refused(aster_rules(vec![rule(
-        "year * 4611686018427387904 % 3 == 0",
+        "orbit * 4611686018427387904 % 3 == 0",
         "Twelfth",
         1,
     )])) {
         DefinitionError::RuleFails {
             unit,
             rule: 1,
-            year: 2,
+            era_number: 2,
             error: EvalError::OutOfRange { .. },
-        } => assert_eq!(unit, "year"),
+        } => assert_eq!(unit, "orbit"),
         other => panic!("unexpected {other:?}"),
     }
 }
@@ -178,17 +178,17 @@ fn define_conditions_that_fail_for_some_year() {
 #[test]
 fn define_rules_only_on_the_era_unit() {
     let mut def = aster(*EPOCH);
-    def.groupings[1].rules = vec![rule("decade % 2 == 0", "1", 1)];
+    def.groupings[1].rules = vec![rule("cohort % 2 == 0", "1", 1)];
     assert_eq!(
         refused(def),
-        DefinitionError::RulesNotOnEraUnit { unit: s("decade") }
+        DefinitionError::RulesNotOnEraUnit { unit: s("cohort") }
     );
-    // An era that numbers sols: the year isn't the era's unit.
+    // An era that numbers sols: the orbit isn't the era's unit.
     let mut def = aster_with_rule(*EPOCH);
     def.era.unit = s("sol");
     assert_eq!(
         refused(def),
-        DefinitionError::RulesNotOnEraUnit { unit: s("year") }
+        DefinitionError::RulesNotOnEraUnit { unit: s("orbit") }
     );
 }
 
@@ -196,30 +196,30 @@ fn define_rules_only_on_the_era_unit() {
 #[test]
 fn define_rules_that_dont_repeat_within_the_limit() {
     assert_eq!(
-        refused(aster_rules(vec![rule("year > 100", "Twelfth", 1)])),
+        refused(aster_rules(vec![rule("orbit > 100", "Twelfth", 1)])),
         DefinitionError::RulePeriod {
-            unit: s("year"),
+            unit: s("orbit"),
             rule: 1,
-            error: PeriodError::NotRepeating { at: at(6) },
+            error: PeriodError::NotRepeating { at: at(7) },
         }
     );
     assert_eq!(
-        refused(aster_rules(vec![rule("year % 100003 == 0", "Twelfth", 1)])),
+        refused(aster_rules(vec![rule("orbit % 100003 == 0", "Twelfth", 1)])),
         DefinitionError::RulePeriod {
-            unit: s("year"),
+            unit: s("orbit"),
             rule: 1,
             error: PeriodError::OverLimit { limit: 100_000 },
         }
     );
-    // Each is fine, but together they repeat every 97 × 89 × 83 = 716,539 years.
+    // Each is fine, but together they repeat every 97 × 89 × 83 = 716,539 orbits.
     assert_eq!(
         refused(aster_rules(vec![
-            rule("year % 97 == 0", "Twelfth", 1),
-            rule("year % 89 == 0", "Twelfth", 1),
-            rule("year % 83 == 0", "Twelfth", 1),
+            rule("orbit % 97 == 0", "Twelfth", 1),
+            rule("orbit % 89 == 0", "Twelfth", 1),
+            rule("orbit % 83 == 0", "Twelfth", 1),
         ])),
         DefinitionError::RulesPeriodOverLimit {
-            unit: s("year"),
+            unit: s("orbit"),
             limit: 100_000
         }
     );
@@ -267,7 +267,7 @@ fn define_tessel_with_its_rule_is_accepted() {
 }
 
 // -------------------------------------------------------------------------------------------
-// Story 2: convert dates in a calendar with leap rules
+// Story 2: convert dates in a calendar with adjustment rules
 
 fn aster_cal() -> Calendar {
     Calendar::new(aster_with_rule(*EPOCH)).unwrap()
@@ -292,10 +292,10 @@ fn era(unit: &str, number: i64) -> Option<EraNumber> {
     })
 }
 
-/// Scenario 1: years 1 to 4 are common (4 × 668); Twelfth starts 613 sols into year 5 and sol
+/// Scenario 1: orbits 1 to 4 are common (4 × 668); Twelfth starts 613 sols into orbit 5 and sol
 /// 56 is 55 sols further: 2,672 + 613 + 55 = 3,340.
 #[test]
-fn convert_the_leap_day_of_year_five() {
+fn convert_the_extra_sol_of_orbit_five() {
     let cal = aster_cal();
     let start = cal.date_to_instant(&date(&[5, 12, 56])).unwrap();
     assert_eq!(start.instant, EPOCH.checked_add(sols(3_340)).unwrap());
@@ -307,7 +307,7 @@ fn convert_the_leap_day_of_year_five() {
 
 /// Scenario 2.
 #[test]
-fn convert_refuses_the_leap_day_in_a_common_year() {
+fn convert_refuses_the_extra_sol_in_a_common_orbit() {
     assert_eq!(
         aster_cal().date_to_instant(&date(&[1, 12, 56])),
         Err(CalendarError::InvalidValue {
@@ -316,28 +316,28 @@ fn convert_refuses_the_leap_day_in_a_common_year() {
             first: 1,
             last: 55,
             within: Some(s("Twelfth")),
-            year: era("year", 1),
+            era_number: era("orbit", 1),
         })
     );
 }
 
-/// Scenarios 3 and 4, and years before the epoch.
+/// Scenarios 3 and 4, and orbits before the epoch.
 #[test]
-fn convert_year_starts() {
+fn convert_orbit_starts() {
     let cal = aster_cal();
-    // Five years, one of them (5) a leap year: 5 × 668 + 1.
+    // Five orbits, one of them (5) a long orbit: 5 × 668 + 1.
     assert_eq!(fixed(&cal, &[6]), 3_341);
-    // One full repetition: 500 × 668 + 96 leap years.
+    // One full repetition: 500 × 668 + 96 long orbits.
     assert_eq!(fixed(&cal, &[501]), 334_096);
-    // Year 0 is a leap year (0 is a multiple of 500): it starts 669 sols before the epoch.
+    // Orbit 0 is a long orbit (0 is a multiple of 500): it starts 669 sols before the epoch.
     assert_eq!(fixed(&cal, &[0]), -669);
-    // Years −4 to −1 are common (−4 % 5 = 1, …), year 0 leap: 4 × 668 + 669 = 3,341.
+    // Orbits −4 to −1 are common (−4 % 5 = 1, …), orbit 0 long: 4 × 668 + 669 = 3,341.
     assert_eq!(fixed(&cal, &[-4]), -3_341);
-    // Year −5 is leap (−5 % 100 = 95): it starts another 669 sols earlier.
+    // Orbit −5 is long (−5 % 100 = 95): it starts another 669 sols earlier.
     assert_eq!(fixed(&cal, &[-5]), -4_010);
 }
 
-/// Scenario 5: the last minute of year 0, a leap year, so Twelfth sol 56.
+/// Scenario 5: the last pulse of orbit 0, a long orbit, so Twelfth sol 56.
 #[test]
 fn convert_one_nanosecond_before_the_epoch() {
     let got = aster_cal()
@@ -345,13 +345,13 @@ fn convert_one_nanosecond_before_the_epoch() {
         .unwrap();
     assert_eq!(got.above, [0, 0]);
     assert_eq!(got.date, date(&[0, 12, 56, 19, 99]));
-    // A minute is 88,775.244 s / 2,000 = 44.387622 s.
+    // A pulse is 88,775.244 s / 2,000 = 44.387622 s.
     assert_eq!(got.remainder, secs(44_387_621_999, 1_000_000_000));
 }
 
 /// Scenario 6.
 #[test]
-fn convert_century_years() {
+fn convert_age_orbits() {
     let cal = aster_cal();
     assert_eq!(
         cal.date_to_instant(&date(&[100, 12, 56])),
@@ -361,7 +361,7 @@ fn convert_century_years() {
             first: 1,
             last: 55,
             within: Some(s("Twelfth")),
-            year: era("year", 100),
+            era_number: era("orbit", 100),
         })
     );
     let start = cal.date_to_instant(&date(&[500, 12, 56])).unwrap();
@@ -375,13 +375,13 @@ fn convert_century_years() {
 #[test]
 fn convert_era_instances() {
     let cal = aster_cal();
-    let mut leap: Vec<i64> = MONTHS.iter().map(|&(_, count)| count).collect();
-    let common = leap.clone();
-    leap[11] = 56;
+    let mut adjusted: Vec<i64> = SPANS.iter().map(|&(_, count)| count).collect();
+    let common = adjusted.clone();
+    adjusted[11] = 56;
     assert_eq!(
         cal.era_instance(5),
         Ok(EraInstance {
-            members: leap,
+            members: adjusted,
             length: 669,
             holding: vec![1],
         })
@@ -404,18 +404,18 @@ fn convert_era_instances() {
     );
 }
 
-/// Units above the year are numbered by their count of years.
+/// Units above the orbit are numbered by their count of orbits.
 #[test]
-fn convert_decades_and_ages_count_years() {
+fn convert_cohorts_and_ages_count_orbits() {
     let cal = aster_cal();
-    let year_11 = cal.date_to_instant(&date(&[11])).unwrap().instant;
-    assert_eq!(cal.instant_to_date(year_11).unwrap().above, [1, 2]);
-    let last_of_10 = year_11.checked_add(ns(-1)).unwrap();
+    let orbit_11 = cal.date_to_instant(&date(&[11])).unwrap().instant;
+    assert_eq!(cal.instant_to_date(orbit_11).unwrap().above, [1, 2]);
+    let last_of_10 = orbit_11.checked_add(ns(-1)).unwrap();
     let got = cal.instant_to_date(last_of_10).unwrap();
     assert_eq!(got.above, [1, 1]);
     assert_eq!(got.date.values[0], 10);
-    let year_101 = cal.date_to_instant(&date(&[101])).unwrap().instant;
-    assert_eq!(cal.instant_to_date(year_101).unwrap().above, [2, 11]);
+    let orbit_101 = cal.date_to_instant(&date(&[101])).unwrap().instant;
+    assert_eq!(cal.instant_to_date(orbit_101).unwrap().above, [2, 11]);
 }
 
 /// Tessel with its rule: phase 3 has 13 turns in cycles divisible by 3, else 14. Cycles are 39
@@ -436,7 +436,7 @@ fn convert_tessel_with_its_rule() {
             first: 0,
             last: 12,
             within: Some(s("3")),
-            year: era("cycle", 3),
+            era_number: era("cycle", 3),
         })
     );
     assert!(cal.date_to_instant(&date(&[1, 3, 13])).is_ok());
@@ -465,12 +465,12 @@ fn convert_two_rules_that_both_hold() {
     let mut def = aster_with_rule(*EPOCH);
     def.groupings[2]
         .rules
-        .push(rule("year % 25 == 0", "Twelfth", 2));
+        .push(rule("orbit % 25 == 0", "Twelfth", 2));
     let cal = Calendar::new(def).unwrap();
-    let year_25 = cal.era_instance(25).unwrap();
-    assert_eq!(year_25.members[11], 58);
-    assert_eq!(year_25.length, 671);
-    assert_eq!(year_25.holding, [1, 2]);
+    let orbit_25 = cal.era_instance(25).unwrap();
+    assert_eq!(orbit_25.members[11], 58);
+    assert_eq!(orbit_25.length, 671);
+    assert_eq!(orbit_25.holding, [1, 2]);
     let start = cal.date_to_instant(&date(&[25, 12, 58])).unwrap();
     assert_eq!(
         cal.instant_to_date(start.instant).unwrap().date,
@@ -479,15 +479,15 @@ fn convert_two_rules_that_both_hold() {
     assert!(cal.date_to_instant(&date(&[25, 12, 59])).is_err());
 }
 
-/// FR-012: a year whose start doesn't fit is out of range, never wrapped.
+/// FR-012: an orbit whose start doesn't fit is out of range, never wrapped.
 #[test]
-fn convert_years_beyond_the_range() {
+fn convert_orbits_beyond_the_range() {
     let cal = aster_cal();
-    for year in [i64::MAX / 2, i64::MIN / 2, i64::MAX, i64::MIN] {
+    for orbit in [i64::MAX / 2, i64::MIN / 2, i64::MAX, i64::MIN] {
         assert_eq!(
-            cal.date_to_instant(&date(&[year])),
+            cal.date_to_instant(&date(&[orbit])),
             Err(CalendarError::OutOfRange),
-            "year {year}"
+            "orbit {orbit}"
         );
     }
 }

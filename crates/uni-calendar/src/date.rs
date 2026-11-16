@@ -13,7 +13,7 @@ pub struct Date {
 /// What an instant converts to.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct InstantDate {
-    /// Numbers of the units above the era's unit, top to bottom (Aster: age, decade).
+    /// Numbers of the units above the era's unit, top to bottom (Aster: age, cohort).
     pub above: Vec<i64>,
     /// Every value from the era's unit to the smallest unit.
     pub date: Date,
@@ -21,7 +21,7 @@ pub struct InstantDate {
     pub remainder: Ratio,
 }
 
-/// One instance of the era's unit after its leap rules (FR-010).
+/// One instance of the era's unit after its adjustment rules (FR-010).
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct EraInstance {
     /// Each member's count after the rules, in the unit the members count.

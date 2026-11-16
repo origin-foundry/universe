@@ -15,7 +15,7 @@ const MAX_DENOMINATOR: i128 = 1_000_000_000;
 /// The fundamental unit's length in ticks must stay below this (research R3).
 const MAX_TICKS: i128 = 1 << 120;
 
-/// The most instances of the era's unit its leap rules may take to repeat (spec 006,
+/// The most instances of the era's unit its adjustment rules may take to repeat (spec 006,
 /// research R3).
 pub const RULE_PERIOD_LIMIT: i64 = 100_000;
 
@@ -98,12 +98,12 @@ impl Calendar {
     ///     MemberDef, SubdivisionDef};
     /// use uni_time::{Instant, Ratio};
     ///
-    /// // A 400-sol year with 10 hours in each sol.
+    /// // A 400-sol orbit with 10 bells in each sol.
     /// let def = CalendarDef {
     ///     name: "Plain".to_string(),
     ///     clock: Clock::Gct,
     ///     groupings: vec![GroupingDef {
-    ///         name: "year".to_string(),
+    ///         name: "orbit".to_string(),
     ///         member_unit: None,
     ///         members: vec![MemberDef { name: None, count: 400 }],
     ///         first_number: None,
@@ -114,12 +114,12 @@ impl Calendar {
     ///         length: Ratio::from_int(90_000).unwrap(),
     ///         first_number: None,
     ///     },
-    ///     subdivisions: vec![SubdivisionDef { name: "hour".to_string(), parts: 10, first_number: None }],
-    ///     era: EraDef { name: "Plain Era".to_string(), unit: "year".to_string(), epoch: Instant::ZERO },
+    ///     subdivisions: vec![SubdivisionDef { name: "bell".to_string(), parts: 10, first_number: None }],
+    ///     era: EraDef { name: "Plain Era".to_string(), unit: "orbit".to_string(), epoch: Instant::ZERO },
     /// };
     /// let cal = Calendar::new(def).unwrap();
-    /// assert_eq!(cal.units(), ["year", "sol", "hour"]);
-    /// assert_eq!(cal.units_per("year", "hour"), Ok(4_000));
+    /// assert_eq!(cal.units(), ["orbit", "sol", "bell"]);
+    /// assert_eq!(cal.units_per("orbit", "bell"), Ok(4_000));
     /// ```
     pub fn new(def: CalendarDef) -> Result<Calendar, DefinitionError> {
         check_names(&def)?;
@@ -181,26 +181,26 @@ impl Calendar {
     /// rules), worked out from the rules themselves (FR-007).
     ///
     /// ```
-    /// # use uni_calendar::{Calendar, CalendarDef, Clock, EraDef, FundamentalDef, GroupingDef, LeapRuleDef, MemberDef, MemberUnitDef};
+    /// # use uni_calendar::{Calendar, CalendarDef, Clock, EraDef, FundamentalDef, GroupingDef, AdjustmentRuleDef, MemberDef, MemberUnitDef};
     /// # use uni_time::{Instant, Ratio};
     /// # let def = CalendarDef {
-    /// #     name: "Leap".to_string(),
+    /// #     name: "Adjustment".to_string(),
     /// #     clock: Clock::Gct,
     /// #     groupings: vec![GroupingDef {
-    /// #         name: "year".to_string(),
-    /// #         member_unit: Some(MemberUnitDef { name: "month".to_string(), first_number: None }),
+    /// #         name: "orbit".to_string(),
+    /// #         member_unit: Some(MemberUnitDef { name: "span".to_string(), first_number: None }),
     /// #         members: vec![MemberDef { name: Some("Long".to_string()), count: 200 },
     /// #             MemberDef { name: Some("Short".to_string()), count: 165 }],
     /// #         first_number: None,
-    /// #         rules: vec![LeapRuleDef { condition: "year % 4 == 0".to_string(),
+    /// #         rules: vec![AdjustmentRuleDef { condition: "orbit % 4 == 0".to_string(),
     /// #             member: "Short".to_string(), change: 1 }],
     /// #     }],
-    /// #     fundamental: FundamentalDef { name: "day".to_string(),
+    /// #     fundamental: FundamentalDef { name: "sol".to_string(),
     /// #         length: Ratio::from_int(86_400).unwrap(), first_number: None },
     /// #     subdivisions: vec![],
-    /// #     era: EraDef { name: "Era".to_string(), unit: "year".to_string(), epoch: Instant::ZERO },
+    /// #     era: EraDef { name: "Era".to_string(), unit: "orbit".to_string(), epoch: Instant::ZERO },
     /// # };
-    /// // A 365-day year of two months; Short is a day longer when `year % 4 == 0`.
+    /// // A 365-sol orbit of two spans; Short is a sol longer when `orbit % 4 == 0`.
     /// let cal = Calendar::new(def).unwrap();
     /// assert_eq!(cal.rule_period(), 4);
     /// ```
@@ -213,29 +213,29 @@ impl Calendar {
     /// a grouping is `NotAGrouping`.
     ///
     /// ```
-    /// # use uni_calendar::{Calendar, CalendarDef, Clock, EraDef, FundamentalDef, GroupingDef, LeapRuleDef, MemberDef, MemberUnitDef};
+    /// # use uni_calendar::{Calendar, CalendarDef, Clock, EraDef, FundamentalDef, GroupingDef, AdjustmentRuleDef, MemberDef, MemberUnitDef};
     /// # use uni_time::{Instant, Ratio};
     /// # let def = CalendarDef {
-    /// #     name: "Leap".to_string(),
+    /// #     name: "Adjustment".to_string(),
     /// #     clock: Clock::Gct,
     /// #     groupings: vec![GroupingDef {
-    /// #         name: "year".to_string(),
-    /// #         member_unit: Some(MemberUnitDef { name: "month".to_string(), first_number: None }),
+    /// #         name: "orbit".to_string(),
+    /// #         member_unit: Some(MemberUnitDef { name: "span".to_string(), first_number: None }),
     /// #         members: vec![MemberDef { name: Some("Long".to_string()), count: 200 },
     /// #             MemberDef { name: Some("Short".to_string()), count: 165 }],
     /// #         first_number: None,
-    /// #         rules: vec![LeapRuleDef { condition: "year % 4 == 0".to_string(),
+    /// #         rules: vec![AdjustmentRuleDef { condition: "orbit % 4 == 0".to_string(),
     /// #             member: "Short".to_string(), change: 1 }],
     /// #     }],
-    /// #     fundamental: FundamentalDef { name: "day".to_string(),
+    /// #     fundamental: FundamentalDef { name: "sol".to_string(),
     /// #         length: Ratio::from_int(86_400).unwrap(), first_number: None },
     /// #     subdivisions: vec![],
-    /// #     era: EraDef { name: "Era".to_string(), unit: "year".to_string(), epoch: Instant::ZERO },
+    /// #     era: EraDef { name: "Era".to_string(), unit: "orbit".to_string(), epoch: Instant::ZERO },
     /// # };
-    /// // A 365-day year of two months; Short is a day longer when `year % 4 == 0`.
+    /// // A 365-sol orbit of two spans; Short is a sol longer when `orbit % 4 == 0`.
     /// let cal = Calendar::new(def).unwrap();
-    /// let leap = cal.era_instance(4).unwrap();
-    /// assert_eq!((leap.members, leap.length, leap.holding), (vec![200, 166], 366, vec![1]));
+    /// let long = cal.era_instance(4).unwrap();
+    /// assert_eq!((long.members, long.length, long.holding), (vec![200, 166], 366, vec![1]));
     /// assert_eq!(cal.era_instance(5).unwrap().length, 365);
     /// ```
     pub fn era_instance(&self, number: i64) -> R<EraInstance> {
@@ -254,9 +254,9 @@ impl Calendar {
         })
     }
 
-    /// How many `inner` there are in one `outer`, when that's one fixed whole number: a year
-    /// in sols is 668, a sol in minutes 2,000, a year in months 12. A count that varies (a
-    /// month in sols), or isn't whole, is `NotFixed`.
+    /// How many `inner` there are in one `outer`, when that's one fixed whole number: in
+    /// Aster, an orbit in sols is 668, a sol in pulses 2,000, an orbit in spans 12. A count
+    /// that varies (a span in sols), or isn't whole, is `NotFixed`.
     pub fn units_per(&self, outer: &str, inner: &str) -> R<i64> {
         let o = self.index_of(outer)?;
         let i = self.index_of(inner)?;
@@ -267,7 +267,7 @@ impl Calendar {
             })?
     }
 
-    /// Whether the era's unit has leap rules.
+    /// Whether the era's unit has adjustment rules.
     pub(crate) fn has_rules(&self) -> bool {
         self.cycle.as_ref().is_some_and(|c| c.rules > 0)
     }
@@ -289,9 +289,9 @@ impl Calendar {
         if o > i {
             return None;
         }
-        // With leap rules, anything counted across the era's unit varies with the year's
-        // variant (sols in a year or a decade), except the era's unit's own members: every
-        // year still has all its months (research R6).
+        // With adjustment rules, anything counted across the era's unit varies with the
+        // instance's variant (fundamental units in it, or in a unit above it), except the era's
+        // unit's own members: every instance still has all its members (research R6).
         if self.has_rules() && o <= self.era && i > self.era {
             let own_members =
                 i == self.era + 1 && matches!(self.units[i].kind, Kind::Member { .. });
@@ -632,11 +632,11 @@ pub(crate) mod tests {
             clock: Clock::Gct,
             groupings: vec![
                 one("age", 10),
-                one("decade", 10),
+                one("cohort", 10),
                 GroupingDef {
-                    name: s("year"),
+                    name: s("orbit"),
                     member_unit: Some(MemberUnitDef {
-                        name: s("month"),
+                        name: s("span"),
                         first_number: None,
                     }),
                     members: names
@@ -656,10 +656,10 @@ pub(crate) mod tests {
                 length: Ratio::new(88_775_244, 1000).unwrap(),
                 first_number: None,
             },
-            subdivisions: vec![sub("hour", 20), sub("minute", 100)],
+            subdivisions: vec![sub("bell", 20), sub("pulse", 100)],
             era: EraDef {
                 name: s("After Landing"),
-                unit: s("year"),
+                unit: s("orbit"),
                 epoch: Instant::ZERO,
             },
         }
@@ -718,7 +718,7 @@ pub(crate) mod tests {
         def.groupings[1].members.clear();
         assert_eq!(
             refused(def),
-            DefinitionError::NoMembers { unit: s("decade") }
+            DefinitionError::NoMembers { unit: s("cohort") }
         );
     }
 
@@ -730,7 +730,7 @@ pub(crate) mod tests {
             assert_eq!(
                 refused(def),
                 DefinitionError::NonPositiveCount {
-                    unit: s("year"),
+                    unit: s("orbit"),
                     member: s("Third")
                 }
             );
@@ -755,7 +755,7 @@ pub(crate) mod tests {
         });
         assert_eq!(
             refused(def),
-            DefinitionError::MembersNeedUnit { unit: s("decade") }
+            DefinitionError::MembersNeedUnit { unit: s("cohort") }
         );
     }
 
@@ -765,23 +765,23 @@ pub(crate) mod tests {
         def.subdivisions[1].parts = 0;
         assert_eq!(
             refused(def),
-            DefinitionError::TooFewParts { unit: s("minute") }
+            DefinitionError::TooFewParts { unit: s("pulse") }
         );
     }
 
     #[test]
     fn duplicate_unit_names() {
         let mut def = aster();
-        def.subdivisions[1].name = s("hour");
+        def.subdivisions[1].name = s("bell");
         assert_eq!(
             refused(def),
-            DefinitionError::DuplicateUnit { name: s("hour") }
+            DefinitionError::DuplicateUnit { name: s("bell") }
         );
         let mut def = aster();
-        def.groupings[2].member_unit.as_mut().unwrap().name = s("decade");
+        def.groupings[2].member_unit.as_mut().unwrap().name = s("cohort");
         assert_eq!(
             refused(def),
-            DefinitionError::DuplicateUnit { name: s("decade") }
+            DefinitionError::DuplicateUnit { name: s("cohort") }
         );
         let mut def = aster();
         def.fundamental.name = s("age");
@@ -798,7 +798,7 @@ pub(crate) mod tests {
         assert_eq!(
             refused(def),
             DefinitionError::DuplicateMember {
-                unit: s("year"),
+                unit: s("orbit"),
                 name: s("Prime")
             }
         );
@@ -807,16 +807,16 @@ pub(crate) mod tests {
     #[test]
     fn era_unit_must_be_at_or_above_the_fundamental_unit() {
         let mut def = aster();
-        def.era.unit = s("week");
+        def.era.unit = s("rota");
         assert_eq!(
             refused(def),
-            DefinitionError::EraUnitUnknown { unit: s("week") }
+            DefinitionError::EraUnitUnknown { unit: s("rota") }
         );
         let mut def = aster();
-        def.era.unit = s("hour");
+        def.era.unit = s("bell");
         assert_eq!(
             refused(def),
-            DefinitionError::EraUnitBelowFundamental { unit: s("hour") }
+            DefinitionError::EraUnitBelowFundamental { unit: s("bell") }
         );
     }
 
@@ -826,13 +826,13 @@ pub(crate) mod tests {
         def.groupings[2].first_number = Some(0);
         assert_eq!(
             refused(def),
-            DefinitionError::FirstNumberNotAllowed { unit: s("year") }
+            DefinitionError::FirstNumberNotAllowed { unit: s("orbit") }
         );
         let mut def = aster();
         def.groupings[1].first_number = Some(1);
         assert_eq!(
             refused(def),
-            DefinitionError::FirstNumberNotAllowed { unit: s("decade") }
+            DefinitionError::FirstNumberNotAllowed { unit: s("cohort") }
         );
         let mut def = bare(Ratio::ONE);
         def.fundamental.first_number = Some(0);
@@ -890,7 +890,7 @@ pub(crate) mod tests {
     #[test]
     fn too_many_ticks() {
         let mut def = bare(secs(1_000_000 * 31_557_600, 1));
-        def.subdivisions = vec![sub("minute", 1 << 60)];
+        def.subdivisions = vec![sub("pulse", 1 << 60)];
         assert_eq!(refused(def), beyond("tick", Limit::TooManyTicks));
     }
 
@@ -931,12 +931,12 @@ pub(crate) mod tests {
         let cal = Calendar::new(bare(Ratio::ONE)).unwrap();
         assert_eq!(cal.units(), ["tick"]);
         assert_eq!(cal.era_unit(), "tick");
-        // A year of one 400-sol month.
+        // A orbit of one 400-sol span.
         let mut def = bare(Ratio::ONE);
         def.groupings = vec![GroupingDef {
-            name: s("year"),
+            name: s("orbit"),
             member_unit: Some(MemberUnitDef {
-                name: s("month"),
+                name: s("span"),
                 first_number: None,
             }),
             members: vec![MemberDef {
@@ -946,11 +946,11 @@ pub(crate) mod tests {
             first_number: None,
             rules: vec![],
         }];
-        def.era.unit = s("year");
+        def.era.unit = s("orbit");
         let cal = Calendar::new(def).unwrap();
-        assert_eq!(cal.units(), ["year", "month", "tick"]);
-        assert_eq!(cal.units_per("year", "tick"), Ok(400));
-        // A 1 ns fundamental unit, and one of a million years.
+        assert_eq!(cal.units(), ["orbit", "span", "tick"]);
+        assert_eq!(cal.units_per("orbit", "tick"), Ok(400));
+        // A 1 ns fundamental unit, and one of a million orbits.
         assert!(Calendar::new(bare(secs(1, 1_000_000_000))).is_ok());
         assert!(Calendar::new(bare(secs(31_557_600_000_000, 1))).is_ok());
     }
@@ -958,6 +958,6 @@ pub(crate) mod tests {
     #[test]
     fn aster_is_accepted() {
         let cal = Calendar::new(aster()).unwrap();
-        assert_eq!(cal.units_per("year", "sol"), Ok(668));
+        assert_eq!(cal.units_per("orbit", "sol"), Ok(668));
     }
 }

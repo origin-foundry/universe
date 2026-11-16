@@ -44,7 +44,7 @@ pub struct FundamentalDef {
 }
 
 /// A unit made of an ordered list of members, each a run of the unit directly below it, such
-/// as a year of twelve months counted in sols, or a decade of ten years.
+/// as Aster's orbit of twelve spans counted in sols, or its cohort of ten orbits.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct GroupingDef {
     /// Unique among unit names.
@@ -55,48 +55,48 @@ pub struct GroupingDef {
     pub members: Vec<MemberDef>,
     /// Default 1. Refused if this grouping is the era's unit or above it.
     pub first_number: Option<i64>,
-    /// Leap rules; may be empty. Only the grouping that is the era's unit may have any
+    /// Adjustment rules; may be empty. Only the grouping that is the era's unit may have any
     /// (spec 006, research R1).
-    pub rules: Vec<LeapRuleDef>,
+    pub rules: Vec<AdjustmentRuleDef>,
 }
 
-/// A leap rule on the era's unit: in each instance whose number makes `condition` true,
+/// An adjustment rule on the era's unit: in each instance whose number makes `condition` true,
 /// `member` is `change` units longer (or shorter, when negative). Rules that hold in the same
-/// instance add up. Field rules are in `specs/006-leap-rules/data-model.md`.
+/// instance add up. Field rules are in spec 006's `data-model.md`.
 ///
 /// ```
-/// # use uni_calendar::{Calendar, CalendarDef, Clock, EraDef, FundamentalDef, GroupingDef, LeapRuleDef, MemberDef, MemberUnitDef};
+/// # use uni_calendar::{Calendar, CalendarDef, Clock, EraDef, FundamentalDef, GroupingDef, AdjustmentRuleDef, MemberDef, MemberUnitDef};
 /// # use uni_time::{Instant, Ratio};
 /// # let def = CalendarDef {
-/// #     name: "Leap".to_string(),
+/// #     name: "Adjustment".to_string(),
 /// #     clock: Clock::Gct,
 /// #     groupings: vec![GroupingDef {
-/// #         name: "year".to_string(),
-/// #         member_unit: Some(MemberUnitDef { name: "month".to_string(), first_number: None }),
+/// #         name: "orbit".to_string(),
+/// #         member_unit: Some(MemberUnitDef { name: "span".to_string(), first_number: None }),
 /// #         members: vec![MemberDef { name: Some("Long".to_string()), count: 200 },
 /// #             MemberDef { name: Some("Short".to_string()), count: 165 }],
 /// #         first_number: None,
-/// #         rules: vec![LeapRuleDef { condition: "year % 4 == 0".to_string(),
+/// #         rules: vec![AdjustmentRuleDef { condition: "orbit % 4 == 0".to_string(),
 /// #             member: "Short".to_string(), change: 1 }],
 /// #     }],
-/// #     fundamental: FundamentalDef { name: "day".to_string(),
+/// #     fundamental: FundamentalDef { name: "sol".to_string(),
 /// #         length: Ratio::from_int(86_400).unwrap(), first_number: None },
 /// #     subdivisions: vec![],
-/// #     era: EraDef { name: "Era".to_string(), unit: "year".to_string(), epoch: Instant::ZERO },
+/// #     era: EraDef { name: "Era".to_string(), unit: "orbit".to_string(), epoch: Instant::ZERO },
 /// # };
-/// // A 365-day year of two months; Short is a day longer when `year % 4 == 0`.
+/// // A 365-sol orbit of two spans; Short is a sol longer when `orbit % 4 == 0`.
 /// let cal = Calendar::new(def).unwrap();
 /// use uni_calendar::{CalendarError, Date};
 ///
-/// // Day 166 of Short exists only in leap years, and the error says which year was checked.
+/// // Sol 166 of Short exists only in long orbits, and the error says which orbit was checked.
 /// assert!(cal.date_to_instant(&Date { values: vec![4, 2, 166] }).is_ok());
 /// let refused = cal.date_to_instant(&Date { values: vec![5, 2, 166] }).unwrap_err();
-/// assert_eq!(refused.to_string(), "day 166 is outside 1 to 165 in Short in year 5");
+/// assert_eq!(refused.to_string(), "sol 166 is outside 1 to 165 in Short in orbit 5");
 /// ```
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct LeapRuleDef {
+pub struct AdjustmentRuleDef {
     /// A true/false expression (spec 005) reading one whole-number variable named after the
-    /// era's unit, such as `year % 4 == 0`.
+    /// era's unit, such as `orbit % 4 == 0`.
     pub condition: String,
     /// The member it changes: its name, or its number from 1 when it has none.
     pub member: String,
@@ -104,11 +104,11 @@ pub struct LeapRuleDef {
     pub change: i64,
 }
 
-/// The unit a grouping's members are instances of, such as the month; its lengths come from
+/// The unit a grouping's members are instances of, such as Aster's span; its lengths come from
 /// the grouping's members.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct MemberUnitDef {
-    /// Unique among unit names (e.g. "month").
+    /// Unique among unit names (e.g. "span").
     pub name: String,
     /// Default 1. Refused if the member unit is the era's unit or above it.
     pub first_number: Option<i64>,
@@ -123,10 +123,10 @@ pub struct MemberDef {
     pub count: i64,
 }
 
-/// A unit split into equal children, such as a sol into 20 hours.
+/// A unit split into equal children, such as a sol into 20 bells.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SubdivisionDef {
-    /// Unique among unit names (e.g. "hour").
+    /// Unique among unit names (e.g. "bell").
     pub name: String,
     /// `≥ 1`: equal children of the unit above.
     pub parts: i64,
