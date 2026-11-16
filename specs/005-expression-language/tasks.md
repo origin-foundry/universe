@@ -74,7 +74,7 @@ description: "Task list for spec 005, expression language basics"
 
 ### Tests (write first; they must fail)
 
-- [ ] T011 [US2] Write `crates/uni-expr/tests/eval.rs` covering Story 2's acceptance scenarios:
+- [x] T011 [US2] Write `crates/uni-expr/tests/eval.rs` covering Story 2's acceptance scenarios:
   - the Aster rule at 5, 100, 500, 0, −5, 1 → true, false, true, true, true, false; the Gregorian rule at 2000, 1900, 2024, 2023, 0, −4, −100 → true, false, true, false, true, true, false;
   - `-7 % 4`, `-7 / 4`, `7 % -4`, `7 / -4` → 1, −2, −1, −2;
   - `if year % 2 == 0 then year / 2 % 3 == 0 else false` at 6, 4, 3 → true, false, false;
@@ -85,7 +85,7 @@ description: "Task list for spec 005, expression language basics"
 
 ### Implementation
 
-- [ ] T012 [US2] Implement `Expr::eval` in `crates/uni-expr/src/eval.rs`: check the inputs against the declarations (`Inputs`), then walk the tree using `arith.rs` for every whole-number operation, mapping `None` to `DivisionByZero` (divisor 0) or `OutOfRange` at the operator's position; `&&`, `||` and `if` evaluate only what they need (FR-007). Work until T011 passes.
+- [x] T012 [US2] Implement `Expr::eval` in `crates/uni-expr/src/eval.rs`: check the inputs against the declarations (`Inputs`), then walk the tree using `arith.rs` for every whole-number operation, mapping `None` to `DivisionByZero` (divisor 0) or `OutOfRange` at the operator's position; `&&`, `||` and `if` evaluate only what they need (FR-007). Work until T011 passes.
 
 **Checkpoint**: Stories 1 and 2 work together; the language is usable.
 
