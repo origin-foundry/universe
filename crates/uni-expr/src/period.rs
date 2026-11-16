@@ -47,12 +47,12 @@ impl Expr {
     /// ```
     /// use uni_expr::{Expr, PeriodError, Pos, Type, VarDecl};
     ///
-    /// let vars = [VarDecl { name: "year".into(), ty: Type::Int }];
-    /// let rule = Expr::check("year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)", &vars, Type::Bool)?;
-    /// assert_eq!(rule.period("year", 100_000), Ok(400));
+    /// let vars = [VarDecl { name: "turn".into(), ty: Type::Int }];
+    /// let rule = Expr::check("turn % 4 == 0 && (turn % 100 != 0 || turn % 400 == 0)", &vars, Type::Bool)?;
+    /// assert_eq!(rule.period("turn", 100_000), Ok(400));
     ///
-    /// let drifting = Expr::check("year / 7 % 2 == 0", &vars, Type::Bool)?;
-    /// assert_eq!(drifting.period("year", 100_000), Err(PeriodError::NotRepeating { at: Pos { line: 1, column: 6 } }));
+    /// let drifting = Expr::check("turn / 7 % 2 == 0", &vars, Type::Bool)?;
+    /// assert_eq!(drifting.period("turn", 100_000), Err(PeriodError::NotRepeating { at: Pos { line: 1, column: 6 } }));
     /// # Ok::<(), uni_expr::CheckError>(())
     /// ```
     pub fn period(&self, var: &str, limit: i64) -> Result<i64, PeriodError> {
@@ -223,7 +223,7 @@ mod tests {
     fn form(source: &str, limit: i64) -> Result<Form, PeriodError> {
         let vars = [
             VarDecl {
-                name: "year".into(),
+                name: "turn".into(),
                 ty: Type::Int,
             },
             VarDecl {
@@ -250,7 +250,7 @@ mod tests {
             form("if 1 == 2 then 3 else 4", 10),
             Ok(Form::Const(Value::Int(4)))
         );
-        // A fold that fails fails the same way for every year.
+        // A fold that fails fails the same way for every turn.
         assert_eq!(form("1 / 0", 10), Ok(Form::Periodic(1)));
         assert_eq!(form("9223372036854775807 + 1", 10), Ok(Form::Periodic(1)));
         assert_eq!(form("-(-9223372036854775808)", 10), Ok(Form::Periodic(1)));
@@ -258,53 +258,53 @@ mod tests {
 
     #[test]
     fn affine_parts_combine() {
-        assert_eq!(form("year", 10), Ok(Form::Affine(1, 0)));
-        assert_eq!(form("3 * year - 2", 10), Ok(Form::Affine(3, -2)));
-        assert_eq!(form("5 - 2 * (year + 1)", 10), Ok(Form::Affine(-2, 3)));
-        assert_eq!(form("year * 4 + year", 10), Ok(Form::Affine(5, 0)));
-        assert_eq!(form("-year - -year", 10), Ok(Form::Const(Value::Int(0))));
-        assert_eq!(form("year * 0 + 6", 10), Ok(Form::Const(Value::Int(6))));
+        assert_eq!(form("turn", 10), Ok(Form::Affine(1, 0)));
+        assert_eq!(form("3 * turn - 2", 10), Ok(Form::Affine(3, -2)));
+        assert_eq!(form("5 - 2 * (turn + 1)", 10), Ok(Form::Affine(-2, 3)));
+        assert_eq!(form("turn * 4 + turn", 10), Ok(Form::Affine(5, 0)));
+        assert_eq!(form("-turn - -turn", 10), Ok(Form::Const(Value::Int(0))));
+        assert_eq!(form("turn * 0 + 6", 10), Ok(Form::Const(Value::Int(6))));
     }
 
     #[test]
     fn coefficient_overflow_stops_repeating() {
         assert_eq!(
-            form("year * 4611686018427387904 * 4", 10),
+            form("turn * 4611686018427387904 * 4", 10),
             Err(PeriodError::NotRepeating { at: at(28) })
         );
         assert_eq!(
-            form("year + 9223372036854775807 + 1", 10),
+            form("turn + 9223372036854775807 + 1", 10),
             Err(PeriodError::NotRepeating { at: at(28) })
         );
         assert_eq!(
-            form("-(year - 9223372036854775807 - 1)", 10),
+            form("-(turn - 9223372036854775807 - 1)", 10),
             Err(PeriodError::NotRepeating { at: at(1) })
         );
     }
 
     #[test]
     fn remainders_by_constants_repeat() {
-        assert_eq!(form("(2 * year + 1) % 6", 100), Ok(Form::Periodic(6)));
-        assert_eq!(form("(2 * year + 1) % -6", 100), Ok(Form::Periodic(6)));
-        assert_eq!(form("year % 0", 100), Ok(Form::Periodic(1)));
-        assert_eq!(form("year % (5 - 5)", 100), Ok(Form::Periodic(1)));
+        assert_eq!(form("(2 * turn + 1) % 6", 100), Ok(Form::Periodic(6)));
+        assert_eq!(form("(2 * turn + 1) % -6", 100), Ok(Form::Periodic(6)));
+        assert_eq!(form("turn % 0", 100), Ok(Form::Periodic(1)));
+        assert_eq!(form("turn % (5 - 5)", 100), Ok(Form::Periodic(1)));
         assert_eq!(
-            form("year % 101", 100),
+            form("turn % 101", 100),
             Err(PeriodError::OverLimit { limit: 100 })
         );
     }
 
     #[test]
     fn periodic_parts_take_the_lcm() {
-        assert_eq!(form("year % 4 + year % 6", 100), Ok(Form::Periodic(12)));
-        assert_eq!(form("year % 4 * n", 100), Ok(Form::Periodic(4)));
+        assert_eq!(form("turn % 4 + turn % 6", 100), Ok(Form::Periodic(12)));
+        assert_eq!(form("turn % 4 * n", 100), Ok(Form::Periodic(4)));
         assert_eq!(
-            form("(year % 9) / 2 - year % 6", 100),
+            form("(turn % 9) / 2 - turn % 6", 100),
             Ok(Form::Periodic(18))
         );
-        assert_eq!(form("year % 8 == year % 12", 100), Ok(Form::Periodic(24)));
+        assert_eq!(form("turn % 8 == turn % 12", 100), Ok(Form::Periodic(24)));
         assert_eq!(
-            form("if year % 2 == 0 then year % 5 else n", 100),
+            form("if turn % 2 == 0 then turn % 5 else n", 100),
             Ok(Form::Periodic(10))
         );
         assert_eq!(gcd(12, 18), 6);
@@ -314,16 +314,16 @@ mod tests {
     #[test]
     fn over_the_limit_as_soon_as_it_appears() {
         assert_eq!(
-            form("year % 7 + year % 11 + year % 13", 100),
+            form("turn % 7 + turn % 11 + turn % 13", 100),
             Err(PeriodError::OverLimit { limit: 100 })
         );
         // The left side passes the limit before the `/` on the right is reached.
         assert_eq!(
-            form("year % 7 * (year % 11) + year / 2", 50),
+            form("turn % 7 * (turn % 11) + turn / 2", 50),
             Err(PeriodError::OverLimit { limit: 50 })
         );
         assert_eq!(
-            form("year % 7 * (year % 11) + year / 2", 100),
+            form("turn % 7 * (turn % 11) + turn / 2", 100),
             Err(PeriodError::NotRepeating { at: at(31) })
         );
         let lcm = |p, q, limit| Analysis { var: 0, limit }.lcm(p, q);

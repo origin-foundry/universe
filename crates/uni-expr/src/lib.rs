@@ -1,6 +1,6 @@
 //! The expression language, first subset (spec 005).
 //!
-//! Calendars describe their irregular parts, such as leap rules, with small expressions. This
+//! Calendars describe their irregular parts, such as adjustment rules, with small expressions. This
 //! crate checks such an expression before it is used, evaluates it exactly, and works out how
 //! it repeats as one of its variables counts up.
 //!
@@ -37,11 +37,11 @@
 //! ```
 //! use uni_expr::{Expr, Type, Value, VarDecl};
 //!
-//! let vars = [VarDecl { name: "year".into(), ty: Type::Int }];
-//! let rule = Expr::check("year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)", &vars, Type::Bool)?;
+//! let vars = [VarDecl { name: "turn".into(), ty: Type::Int }];
+//! let rule = Expr::check("turn % 4 == 0 && (turn % 100 != 0 || turn % 400 == 0)", &vars, Type::Bool)?;
 //! assert_eq!(rule.eval(&[Value::Int(2000)])?, Value::Bool(true));
 //! assert_eq!(rule.eval(&[Value::Int(1900)])?, Value::Bool(false));
-//! assert_eq!(rule.period("year", 100_000)?, 400);
+//! assert_eq!(rule.period("turn", 100_000)?, 400);
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 

@@ -18,7 +18,7 @@ pub enum CheckError {
     },
     /// A whole-number literal outside the 64-bit range.
     LiteralOutOfRange { at: Pos },
-    /// A second comparison operator in a row, such as the second `<` in `1 < year < 5`.
+    /// A second comparison operator in a row, such as the second `<` in `1 < turn < 5`.
     ChainedComparison { at: Pos },
     /// The expression nests more than `limit` levels deep.
     TooDeep { limit: usize, at: Pos },
@@ -262,10 +262,10 @@ mod tests {
             ),
             (
                 CheckError::UnknownVariable {
-                    name: "month".into(),
+                    name: "phase".into(),
                     at: Pos::START,
                 },
-                "unknown variable `month` at 1:1",
+                "unknown variable `phase` at 1:1",
             ),
             (
                 CheckError::TypeMismatch {
@@ -346,10 +346,10 @@ mod tests {
         );
         assert_eq!(
             PeriodError::NotAWholeNumber {
-                name: "year".into()
+                name: "turn".into()
             }
             .to_string(),
-            "`year` isn't a whole-number variable of this expression"
+            "`turn` isn't a whole-number variable of this expression"
         );
         assert_eq!(
             PeriodError::BadLimit { limit: 0 }.to_string(),
