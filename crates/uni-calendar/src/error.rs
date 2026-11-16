@@ -30,6 +30,46 @@ pub enum DefinitionError {
     FirstNumberNotAllowed { unit: String },
     /// One of the engine's limits (research R3) is exceeded.
     BeyondLimits { unit: String, limit: Limit },
+    /// A grouping other than the era's unit has leap rules, or the era's unit has them but
+    /// isn't a grouping (spec 006, research R5).
+    RulesNotOnEraUnit { unit: String },
+    /// Rule `rule` (from 1) of `unit` has a condition the expression language refuses,
+    /// including an era unit name that can't be a variable name.
+    RuleCondition {
+        unit: String,
+        rule: usize,
+        error: uni_expr::CheckError,
+    },
+    /// Rule `rule` changes a member `unit` doesn't have.
+    RuleUnknownMember {
+        unit: String,
+        rule: usize,
+        member: String,
+    },
+    /// Rule `rule` changes its member by 0.
+    RuleZeroChange { unit: String, rule: usize },
+    /// Rule `rule`'s condition doesn't repeat, or repeats only beyond the limit.
+    RulePeriod {
+        unit: String,
+        rule: usize,
+        error: uni_expr::PeriodError,
+    },
+    /// The rules together repeat only after more than `limit` instances.
+    RulesPeriodOverLimit { unit: String, limit: i64 },
+    /// Rule `rule`'s condition fails to evaluate for instance `year` of `unit`.
+    RuleFails {
+        unit: String,
+        rule: usize,
+        year: i64,
+        error: uni_expr::EvalError,
+    },
+    /// `member` of `unit` would be `length` long (below 1) in instance `year`.
+    MemberTooShort {
+        unit: String,
+        member: String,
+        year: i64,
+        length: i64,
+    },
 }
 
 /// The engine's limits (research R3), so a valid calendar never fails part-way through the
@@ -44,6 +84,18 @@ pub enum Limit {
     TooManyTicks,
     /// A grouping's length in fundamental units doesn't fit in 64 bits.
     GroupingTooLong,
+    /// One repetition of the era's unit's rules doesn't fit in 64 bits of fundamental units.
+    CycleTooLong,
+}
+
+/// An instance of the era's unit, named so a message can say which one: "year 1",
+/// "cycle 3".
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct EraNumber {
+    /// The era's unit's name.
+    pub unit: String,
+    /// The instance's astronomical number, as the date shows it.
+    pub number: i64,
 }
 
 /// Why a conversion or query was refused (FR-013, FR-015, FR-019).
@@ -57,6 +109,9 @@ pub enum CalendarError {
         first: i64,
         last: i64,
         within: Option<String>,
+        /// The instance of the era's unit the value was checked against: set whenever the
+        /// calendar has leap rules and the unit is below the era's unit, `None` otherwise.
+        year: Option<EraNumber>,
     },
     /// The result needs a number outside 64 bits, or an instant outside the `Instant` range.
     OutOfRange,
@@ -69,6 +124,8 @@ pub enum CalendarError {
     /// `units_per` asked for a count that isn't one fixed whole number: how many `of` are in
     /// a `unit`.
     NotFixed { unit: String, of: String },
+    /// `era_instance` on a calendar whose era's unit isn't a grouping.
+    NotAGrouping { unit: String },
 }
 
 impl fmt::Display for DefinitionError {
@@ -108,6 +165,39 @@ impl fmt::Display for DefinitionError {
             E::BeyondLimits { unit, limit } => {
                 write!(f, "{unit} is beyond the engine's limits: {limit}")
             }
+            E::RulesNotOnEraUnit { unit } => write!(
+                f,
+                "{unit} can't have leap rules: rules go on the era's unit for now"
+            ),
+            E::RuleCondition { unit, rule, error } => write!(f, "rule {rule} of {unit}: {error}"),
+            E::RuleUnknownMember { unit, rule, member } => write!(
+                f,
+                "rule {rule} of {unit} changes {member}, which {unit} doesn't have"
+            ),
+            E::RuleZeroChange { unit, rule } => {
+                write!(f, "rule {rule} of {unit} changes its member by 0")
+            }
+            E::RulePeriod { unit, rule, error } => write!(f, "rule {rule} of {unit}: {error}"),
+            E::RulesPeriodOverLimit { unit, limit } => write!(
+                f,
+                "the rules of {unit} repeat only after more than {} {unit}s",
+                grouped(*limit)
+            ),
+            E::RuleFails {
+                unit,
+                rule,
+                year,
+                error,
+            } => write!(f, "rule {rule} of {unit} fails in {unit} {year}: {error}"),
+            E::MemberTooShort {
+                unit,
+                member,
+                year,
+                length,
+            } => write!(
+                f,
+                "{member} of {unit} would be {length} long in {unit} {year}"
+            ),
         }
     }
 }
@@ -121,6 +211,9 @@ impl fmt::Display for Limit {
             Limit::ShorterThanNanosecond => "it is shorter than a nanosecond",
             Limit::TooManyTicks => "it is too long for how finely it is subdivided",
             Limit::GroupingTooLong => "it is too long to count in fundamental units",
+            Limit::CycleTooLong => {
+                "one repetition of its rules is too long to count in fundamental units"
+            }
         })
     }
 }
@@ -135,10 +228,14 @@ impl fmt::Display for CalendarError {
                 first,
                 last,
                 within,
+                year,
             } => {
                 write!(f, "{unit} {value} is outside {first} to {last}")?;
-                match within {
-                    Some(member) => write!(f, " in {member}"),
+                if let Some(member) = within {
+                    write!(f, " in {member}")?;
+                }
+                match year {
+                    Some(EraNumber { unit, number }) => write!(f, " in {unit} {number}"),
                     None => Ok(()),
                 }
             }
@@ -147,11 +244,30 @@ impl fmt::Display for CalendarError {
             E::TooManyValues { max, .. } => write!(f, "a date has at most {max} values here"),
             E::UnknownUnit { name } => write!(f, "no unit named {name}"),
             E::NotFixed { unit, of } => write!(f, "the number of {of}s in a {unit} varies"),
+            E::NotAGrouping { unit } => {
+                write!(f, "{unit} isn't a grouping, so it has no members")
+            }
         }
     }
 }
 
 impl std::error::Error for CalendarError {}
+
+/// A whole number with commas between groups of three digits.
+fn grouped(n: i64) -> String {
+    let digits = n.unsigned_abs().to_string();
+    let mut out = String::new();
+    if n < 0 {
+        out.push('-');
+    }
+    for (i, d) in digits.chars().enumerate() {
+        if i > 0 && (digits.len() - i).is_multiple_of(3) {
+            out.push(',');
+        }
+        out.push(d);
+    }
+    out
+}
 
 #[cfg(test)]
 mod tests {
@@ -223,6 +339,90 @@ mod tests {
     }
 
     #[test]
+    fn rule_messages_name_the_rule_and_year() {
+        use DefinitionError as E;
+        use uni_expr::{CheckError, EvalError, PeriodError, Pos};
+        let at = |column| Pos { line: 1, column };
+        let cases = [
+            (
+                E::RulesNotOnEraUnit { unit: s("decade") },
+                "decade can't have leap rules: rules go on the era's unit for now",
+            ),
+            (
+                E::RuleCondition {
+                    unit: s("year"),
+                    rule: 1,
+                    error: CheckError::UnknownVariable {
+                        name: s("month"),
+                        at: at(1),
+                    },
+                },
+                "rule 1 of year: unknown variable `month` at 1:1",
+            ),
+            (
+                E::RuleUnknownMember {
+                    unit: s("year"),
+                    rule: 1,
+                    member: s("Thirteenth"),
+                },
+                "rule 1 of year changes Thirteenth, which year doesn't have",
+            ),
+            (
+                E::RuleZeroChange {
+                    unit: s("year"),
+                    rule: 2,
+                },
+                "rule 2 of year changes its member by 0",
+            ),
+            (
+                E::RulePeriod {
+                    unit: s("year"),
+                    rule: 1,
+                    error: PeriodError::NotRepeating { at: at(6) },
+                },
+                "rule 1 of year: the part at 1:6 stops the expression repeating as the variable \
+                 counts up",
+            ),
+            (
+                E::RulesPeriodOverLimit {
+                    unit: s("year"),
+                    limit: 100_000,
+                },
+                "the rules of year repeat only after more than 100,000 years",
+            ),
+            (
+                E::RuleFails {
+                    unit: s("year"),
+                    rule: 1,
+                    year: 7,
+                    error: EvalError::DivisionByZero { at: at(5) },
+                },
+                "rule 1 of year fails in year 7: division by zero at 1:5",
+            ),
+            (
+                E::MemberTooShort {
+                    unit: s("year"),
+                    member: s("Third"),
+                    year: 2,
+                    length: 0,
+                },
+                "Third of year would be 0 long in year 2",
+            ),
+            (
+                E::BeyondLimits {
+                    unit: s("year"),
+                    limit: Limit::CycleTooLong,
+                },
+                "year is beyond the engine's limits: one repetition of its rules is too long to \
+                 count in fundamental units",
+            ),
+        ];
+        for (error, message) in cases {
+            assert_eq!(error.to_string(), message);
+        }
+    }
+
+    #[test]
     fn limit_messages() {
         assert_eq!(
             Limit::LengthTooFine.to_string(),
@@ -249,6 +449,7 @@ mod tests {
                     first: 1,
                     last: 55,
                     within: Some(s("Third")),
+                    year: None,
                 },
                 "sol 56 is outside 1 to 55 in Third",
             ),
@@ -259,8 +460,41 @@ mod tests {
                     first: 0,
                     last: 19,
                     within: None,
+                    year: None,
                 },
                 "hour 20 is outside 0 to 19",
+            ),
+            (
+                E::InvalidValue {
+                    unit: s("sol"),
+                    value: 56,
+                    first: 1,
+                    last: 55,
+                    within: Some(s("Twelfth")),
+                    year: Some(EraNumber {
+                        unit: s("year"),
+                        number: 1,
+                    }),
+                },
+                "sol 56 is outside 1 to 55 in Twelfth in year 1",
+            ),
+            (
+                E::InvalidValue {
+                    unit: s("turn"),
+                    value: 13,
+                    first: 0,
+                    last: 12,
+                    within: Some(s("3")),
+                    year: Some(EraNumber {
+                        unit: s("cycle"),
+                        number: 3,
+                    }),
+                },
+                "turn 13 is outside 0 to 12 in 3 in cycle 3",
+            ),
+            (
+                E::NotAGrouping { unit: s("sol") },
+                "sol isn't a grouping, so it has no members",
             ),
             (E::OutOfRange, "date is out of the supported range"),
             (E::EmptyDate, "a date needs at least the era's unit"),
@@ -280,6 +514,14 @@ mod tests {
         for (error, message) in cases {
             assert_eq!(error.to_string(), message);
         }
+    }
+
+    #[test]
+    fn grouping_digits() {
+        assert_eq!(grouped(0), "0");
+        assert_eq!(grouped(999), "999");
+        assert_eq!(grouped(100_000), "100,000");
+        assert_eq!(grouped(-1_234_567), "-1,234,567");
     }
 
     #[test]

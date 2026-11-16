@@ -5,7 +5,7 @@
 use std::sync::LazyLock;
 
 use uni_calendar::{
-    CalendarDef, Clock, EraDef, FundamentalDef, GroupingDef, MemberDef, MemberUnitDef,
+    CalendarDef, Clock, EraDef, FundamentalDef, GroupingDef, LeapRuleDef, MemberDef, MemberUnitDef,
     SubdivisionDef,
 };
 use uni_time::{Instant, Ratio, Span};
@@ -137,4 +137,74 @@ pub fn ns(n: i128) -> Span {
 /// An exact number of seconds, `num / den`.
 pub fn secs(num: i128, den: i128) -> Ratio {
     Ratio::new(num, den).unwrap()
+}
+
+/// Aster with the spec's leap rule: Twelfth is 1 sol longer when
+/// `year % 5 == 0 && (year % 100 != 0 || year % 500 == 0)` (rule period 500).
+pub fn aster_with_rule(epoch: Instant) -> CalendarDef {
+    let mut def = aster(epoch);
+    def.groupings[2].rules = vec![rule(
+        "year % 5 == 0 && (year % 100 != 0 || year % 500 == 0)",
+        "Twelfth",
+        1,
+    )];
+    def
+}
+
+/// Tessel with a shortening rule on an unnamed member (research R8): phase 3 is 1 turn shorter
+/// (13 instead of 14) when `cycle % 3 == 0`.
+pub fn tessel_with_rule(epoch: Instant) -> CalendarDef {
+    let mut def = tessel(epoch);
+    def.groupings[0].rules = vec![rule("cycle % 3 == 0", "3", -1)];
+    def
+}
+
+/// The Gregorian month lengths of a common year.
+pub const GREGORIAN_MONTHS: [i64; 12] = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
+/// A test calendar shaped like the proleptic Gregorian calendar (spec Story 3, scenario 4): an
+/// 86,400 s day, a year of 12 months whose second is 1 day longer by the Gregorian rule, and
+/// an era numbering years from `Instant::ZERO`. Not the Gregorian preset.
+pub fn gregorian_shaped() -> CalendarDef {
+    CalendarDef {
+        name: "Gregorian-shaped".to_string(),
+        clock: Clock::Gct,
+        groupings: vec![GroupingDef {
+            name: "year".to_string(),
+            member_unit: Some(MemberUnitDef {
+                name: "month".to_string(),
+                first_number: None,
+            }),
+            members: GREGORIAN_MONTHS
+                .iter()
+                .map(|&count| MemberDef { name: None, count })
+                .collect(),
+            first_number: None,
+            rules: vec![rule(
+                "year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)",
+                "2",
+                1,
+            )],
+        }],
+        fundamental: FundamentalDef {
+            name: "day".to_string(),
+            length: Ratio::from_int(86_400).unwrap(),
+            first_number: None,
+        },
+        subdivisions: vec![],
+        era: EraDef {
+            name: "Common Era".to_string(),
+            unit: "year".to_string(),
+            epoch: Instant::ZERO,
+        },
+    }
+}
+
+/// A leap rule.
+pub fn rule(condition: &str, member: &str, change: i64) -> LeapRuleDef {
+    LeapRuleDef {
+        condition: condition.to_string(),
+        member: member.to_string(),
+        change,
+    }
 }

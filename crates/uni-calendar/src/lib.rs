@@ -39,4 +39,4 @@ pub use def::{
     CalendarDef, Clock, EraDef, FundamentalDef, GroupingDef, LeapRuleDef, MemberDef, MemberUnitDef,
     SubdivisionDef,
 };
-pub use error::{CalendarError, DefinitionError, Limit};
+pub use error::{CalendarError, DefinitionError, EraNumber, Limit};
