@@ -63,6 +63,36 @@ pub struct GroupingDef {
 /// A leap rule on the era's unit: in each instance whose number makes `condition` true,
 /// `member` is `change` units longer (or shorter, when negative). Rules that hold in the same
 /// instance add up. Field rules are in `specs/006-leap-rules/data-model.md`.
+///
+/// ```
+/// # use uni_calendar::{Calendar, CalendarDef, Clock, EraDef, FundamentalDef, GroupingDef, LeapRuleDef, MemberDef, MemberUnitDef};
+/// # use uni_time::{Instant, Ratio};
+/// # let def = CalendarDef {
+/// #     name: "Leap".to_string(),
+/// #     clock: Clock::Gct,
+/// #     groupings: vec![GroupingDef {
+/// #         name: "year".to_string(),
+/// #         member_unit: Some(MemberUnitDef { name: "month".to_string(), first_number: None }),
+/// #         members: vec![MemberDef { name: Some("Long".to_string()), count: 200 },
+/// #             MemberDef { name: Some("Short".to_string()), count: 165 }],
+/// #         first_number: None,
+/// #         rules: vec![LeapRuleDef { condition: "year % 4 == 0".to_string(),
+/// #             member: "Short".to_string(), change: 1 }],
+/// #     }],
+/// #     fundamental: FundamentalDef { name: "day".to_string(),
+/// #         length: Ratio::from_int(86_400).unwrap(), first_number: None },
+/// #     subdivisions: vec![],
+/// #     era: EraDef { name: "Era".to_string(), unit: "year".to_string(), epoch: Instant::ZERO },
+/// # };
+/// // A 365-day year of two months; Short is a day longer when `year % 4 == 0`.
+/// let cal = Calendar::new(def).unwrap();
+/// use uni_calendar::{CalendarError, Date};
+///
+/// // Day 166 of Short exists only in leap years, and the error says which year was checked.
+/// assert!(cal.date_to_instant(&Date { values: vec![4, 2, 166] }).is_ok());
+/// let refused = cal.date_to_instant(&Date { values: vec![5, 2, 166] }).unwrap_err();
+/// assert_eq!(refused.to_string(), "day 166 is outside 1 to 165 in Short in year 5");
+/// ```
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct LeapRuleDef {
     /// A true/false expression (spec 005) reading one whole-number variable named after the

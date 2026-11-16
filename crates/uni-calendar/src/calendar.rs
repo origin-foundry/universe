@@ -178,12 +178,66 @@ impl Calendar {
     }
 
     /// The number of instances of the era's unit after which its rules repeat (1 without
-    /// rules).
+    /// rules), worked out from the rules themselves (FR-007).
+    ///
+    /// ```
+    /// # use uni_calendar::{Calendar, CalendarDef, Clock, EraDef, FundamentalDef, GroupingDef, LeapRuleDef, MemberDef, MemberUnitDef};
+    /// # use uni_time::{Instant, Ratio};
+    /// # let def = CalendarDef {
+    /// #     name: "Leap".to_string(),
+    /// #     clock: Clock::Gct,
+    /// #     groupings: vec![GroupingDef {
+    /// #         name: "year".to_string(),
+    /// #         member_unit: Some(MemberUnitDef { name: "month".to_string(), first_number: None }),
+    /// #         members: vec![MemberDef { name: Some("Long".to_string()), count: 200 },
+    /// #             MemberDef { name: Some("Short".to_string()), count: 165 }],
+    /// #         first_number: None,
+    /// #         rules: vec![LeapRuleDef { condition: "year % 4 == 0".to_string(),
+    /// #             member: "Short".to_string(), change: 1 }],
+    /// #     }],
+    /// #     fundamental: FundamentalDef { name: "day".to_string(),
+    /// #         length: Ratio::from_int(86_400).unwrap(), first_number: None },
+    /// #     subdivisions: vec![],
+    /// #     era: EraDef { name: "Era".to_string(), unit: "year".to_string(), epoch: Instant::ZERO },
+    /// # };
+    /// // A 365-day year of two months; Short is a day longer when `year % 4 == 0`.
+    /// let cal = Calendar::new(def).unwrap();
+    /// assert_eq!(cal.rule_period(), 4);
+    /// ```
     pub fn rule_period(&self) -> i64 {
         self.cycle.as_ref().map_or(1, |c| c.period)
     }
 
-    /// One instance of the era's unit after its rules (FR-010).
+    /// One instance of the era's unit after its rules (FR-010): each member's count, the
+    /// instance's length in fundamental units and which rules hold. An era's unit that isn't
+    /// a grouping is `NotAGrouping`.
+    ///
+    /// ```
+    /// # use uni_calendar::{Calendar, CalendarDef, Clock, EraDef, FundamentalDef, GroupingDef, LeapRuleDef, MemberDef, MemberUnitDef};
+    /// # use uni_time::{Instant, Ratio};
+    /// # let def = CalendarDef {
+    /// #     name: "Leap".to_string(),
+    /// #     clock: Clock::Gct,
+    /// #     groupings: vec![GroupingDef {
+    /// #         name: "year".to_string(),
+    /// #         member_unit: Some(MemberUnitDef { name: "month".to_string(), first_number: None }),
+    /// #         members: vec![MemberDef { name: Some("Long".to_string()), count: 200 },
+    /// #             MemberDef { name: Some("Short".to_string()), count: 165 }],
+    /// #         first_number: None,
+    /// #         rules: vec![LeapRuleDef { condition: "year % 4 == 0".to_string(),
+    /// #             member: "Short".to_string(), change: 1 }],
+    /// #     }],
+    /// #     fundamental: FundamentalDef { name: "day".to_string(),
+    /// #         length: Ratio::from_int(86_400).unwrap(), first_number: None },
+    /// #     subdivisions: vec![],
+    /// #     era: EraDef { name: "Era".to_string(), unit: "year".to_string(), epoch: Instant::ZERO },
+    /// # };
+    /// // A 365-day year of two months; Short is a day longer when `year % 4 == 0`.
+    /// let cal = Calendar::new(def).unwrap();
+    /// let leap = cal.era_instance(4).unwrap();
+    /// assert_eq!((leap.members, leap.length, leap.holding), (vec![200, 166], 366, vec![1]));
+    /// assert_eq!(cal.era_instance(5).unwrap().length, 365);
+    /// ```
     pub fn era_instance(&self, number: i64) -> R<EraInstance> {
         let cycle = self
             .cycle
