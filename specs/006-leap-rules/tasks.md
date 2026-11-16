@@ -70,7 +70,7 @@ description: "Task list for spec 006, leap rules"
 
 ### Tests (write first; they must fail)
 
-- [ ] T009 [US2] Write the conversion tests in `crates/uni-calendar/tests/leap_rules.rs` (names starting `convert_`), one per Story 2 scenario, on `aster_with_rule`:
+- [X] T009 [US2] Write the conversion tests in `crates/uni-calendar/tests/leap_rules.rs` (names starting `convert_`), one per Story 2 scenario, on `aster_with_rule`:
   - `[5, 12, 56]` → instant → back gives the same date; its fixed number is 3,340;
   - `[1, 12, 56]` → `InvalidValue { unit: "sol", value: 56, first: 1, last: 55, within: Some("Twelfth"), year: Some(1) }`;
   - `[6]` starts at fixed number 3,341; `[501]` at 334,096; `[0]` at −669 (year 0 is a leap year) and `[-4]` at −3,341 (years −4 to −1 common, year 0 leap), worked by hand in the test's comments;
