@@ -201,6 +201,11 @@ impl Calendar {
             })?
     }
 
+    /// Whether the era's unit has leap rules.
+    pub(crate) fn has_rules(&self) -> bool {
+        self.cycle.as_ref().is_some_and(|c| c.rules > 0)
+    }
+
     fn index_of(&self, name: &str) -> R<usize> {
         self.units
             .iter()
@@ -217,6 +222,16 @@ impl Calendar {
         }
         if o > i {
             return None;
+        }
+        // With leap rules, anything counted across the era's unit varies with the year's
+        // variant (sols in a year or a decade), except the era's unit's own members: every
+        // year still has all its months (research R6).
+        if self.has_rules() && o <= self.era && i > self.era {
+            let own_members =
+                i == self.era + 1 && matches!(self.units[i].kind, Kind::Member { .. });
+            if !own_members {
+                return None;
+            }
         }
         if let Kind::Member { counts, .. } = &self.units[i].kind {
             // A member unit's instances vary, but every instance of its grouping (just above
@@ -242,7 +257,16 @@ impl Calendar {
         match &self.units[index].kind {
             Kind::Grouping { length, .. } => Ratio::from_int((*length).into()).ok(),
             Kind::Member { starts, .. } => {
-                let mut lengths = starts.windows(2).map(|w| w[1] - w[0]);
+                // The era's unit's own members take their lengths from every variant.
+                let all: Vec<&[i64]> = match &self.cycle {
+                    Some(cycle) if cycle.rules > 0 && index == self.era + 1 => {
+                        cycle.variants.iter().map(|v| v.starts.as_slice()).collect()
+                    }
+                    _ => vec![starts.as_slice()],
+                };
+                let mut lengths = all
+                    .into_iter()
+                    .flat_map(|starts| starts.windows(2).map(|w| w[1] - w[0]));
                 let first = lengths.next()?;
                 lengths
                     .all(|l| l == first)
