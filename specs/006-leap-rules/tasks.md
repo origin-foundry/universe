@@ -123,7 +123,7 @@ description: "Task list for spec 006, leap rules"
   - `python crates/uni-calendar/tests/data/gregorian_days.py` reproduces the committed fixture (compare with `git diff --exit-code` after writing it)
 
   Also confirm the architecture check catches floating point in `uni-calendar`: temporarily add `let x: f64 = 1.0;` to `crates/uni-calendar/src/lib.rs`, see the check fail, and revert (SC-006).
-- [ ] T019 Open the build PR as the bot from `build/006-leap-rules`: label `build`, body with `Design: #<design PR>` and `Closes #43`. Move card #43 to **PR review** with `python scripts/board.py move 43 "PR review"` only if it is in Building.
+- [X] T019 Open the build PR as the bot from `build/006-leap-rules`: label `build`, body with `Design: #<design PR>` and `Closes #43`. Move card #43 to **PR review** with `python scripts/board.py move 43 "PR review"` only if it is in Building.
 
 ---
 
