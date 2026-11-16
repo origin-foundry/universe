@@ -78,7 +78,8 @@ class FastLanePRs(unittest.TestCase):
         for f in (".specify/memory/constitution.md", "scripts/hooks/stop_checks.py",
                   ".github/workflows/pr-policy.yml", ".github/CODEOWNERS", "knowledge/glossary.md",
                   "scripts/check_architecture.py", "scripts/tests/test_check_architecture.py",
-                  "scripts/tests/fixtures/architecture/ok/layout.md", "scripts/check_privacy.py"):
+                  "scripts/tests/fixtures/architecture/ok/layout.md", "scripts/check_privacy.py",
+                  "scripts/check_earth_terms.py", "scripts/tests/test_check_earth_terms.py"):
             errors = check(pr(["fast-lane"], [f]))
             self.assertTrue(errors, f)
 
