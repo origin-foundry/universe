@@ -137,7 +137,7 @@ description: "Task list for spec 005, expression language basics"
 - [x] T018 [P] Write `crates/uni-expr/tests/timing.rs`: a `#[test] #[ignore]` that checks the Gregorian rule once and evaluates it 1,000,000 times for years from −500,000 to 499,999, timing with `std::time::Instant` and asserting under one second (under 1 µs each). No floats.
 - [x] T019 Run `cargo test -p uni-expr --release -- --ignored` and record the timing in the build PR description (SC-004).
 - [x] T020 Add doc comments with a short example (the contract's example) to `Expr::check`, `Expr::eval` and `Expr::period`, and finish the crate doc in `crates/uni-expr/src/lib.rs`: what this subset covers, and what comes later (`let`, functions, other types, sky functions, storing the AST).
-- [ ] T021 Run the full local verification and record the results in the build PR description:
+- [x] T021 Run the full local verification and record the results in the build PR description:
   - `cargo fmt --all --check`
   - `cargo clippy --workspace --all-targets -- -D warnings`
   - `cargo test --workspace`
@@ -148,7 +148,7 @@ description: "Task list for spec 005, expression language basics"
   - `python scripts/check_privacy.py`
 
   Also confirm the architecture check catches floating point in `uni-expr`: temporarily add `let x: f64 = 1.0;` to `crates/uni-expr/src/lib.rs`, see the check fail, and revert (SC-005).
-- [ ] T022 Open the build PR as the bot from `build/005-expression-language`: label `build`, body with `Design: #<design PR>` and `Closes #44`. Move card #44 to **PR review** with `python scripts/board.py move 44 "PR review"`.
+- [x] T022 Open the build PR as the bot from `build/005-expression-language`: label `build`, body with `Design: #<design PR>` and `Closes #44`. Move card #44 to **PR review** with `python scripts/board.py move 44 "PR review"`.
 
 ---
 
