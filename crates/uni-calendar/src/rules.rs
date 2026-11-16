@@ -1,8 +1,12 @@
 //! Leap rules on the era's unit: checking them, their period, and the cycle table that both
 //! conversion directions search (spec 006, research R3 to R5).
 
-use crate::calendar::Unit;
-use crate::{CalendarDef, CalendarError, DefinitionError};
+use std::collections::HashMap;
+
+use uni_expr::{Expr, Type, Value, VarDecl};
+
+use crate::calendar::{Kind, RULE_PERIOD_LIMIT, Unit};
+use crate::{CalendarDef, CalendarError, DefinitionError, GroupingDef, Limit};
 
 /// The cycle of the era's unit when it is a grouping: one rule period of instances, each with
 /// its variant (research R4). A calendar without rules has a one-instance cycle.
@@ -33,34 +37,262 @@ pub(crate) struct Variant {
     pub(crate) holding: Vec<usize>,
 }
 
+/// A checked rule: its condition and period, the index of the member it changes, and the
+/// change.
+struct Rule {
+    condition: Expr,
+    period: i64,
+    member: usize,
+    change: i64,
+}
+
 impl Cycle {
     /// Checks the rules of `def` (research R5) and builds the cycle, or `None` when the era's
     /// unit isn't a grouping. `units` is the checked chain with its lengths, `era` the era's
     /// unit's index in it.
     pub(crate) fn build(
-        _def: &CalendarDef,
-        _units: &[Unit],
-        _era: usize,
+        def: &CalendarDef,
+        units: &[Unit],
+        era: usize,
     ) -> Result<Option<Cycle>, DefinitionError> {
-        todo!()
+        let name = &units[era].name;
+        // 1. Rules only on the era's unit, which must be a grouping. Unit names are unique, so
+        // a grouping with the era's unit's name is the era's unit.
+        if let Some(g) = def
+            .groupings
+            .iter()
+            .find(|g| !g.rules.is_empty() && &g.name != name)
+        {
+            return Err(DefinitionError::RulesNotOnEraUnit {
+                unit: g.name.clone(),
+            });
+        }
+        let (Some(grouping), Kind::Grouping { length, .. }) = (
+            def.groupings.iter().find(|g| &g.name == name),
+            &units[era].kind,
+        ) else {
+            return Ok(None);
+        };
+        // 2 and 3. Each rule, then their combined period.
+        let rules = check_rules(grouping)?;
+        let mut period: i64 = 1;
+        for rule in &rules {
+            period = lcm(period, rule.period);
+            if period > RULE_PERIOD_LIMIT {
+                return Err(DefinitionError::RulesPeriodOverLimit {
+                    unit: name.clone(),
+                    limit: RULE_PERIOD_LIMIT,
+                });
+            }
+        }
+        // 4. The table, year by year. The members count the unit below the grouping, whose
+        // length in fundamental units is the grouping's length over the members' total.
+        let base: Vec<i64> = grouping.members.iter().map(|m| m.count).collect();
+        let below = length / base.iter().sum::<i64>(); // the sum is at most `length`
+        let too_long = || DefinitionError::BeyondLimits {
+            unit: name.clone(),
+            limit: Limit::CycleTooLong,
+        };
+        let size = usize::try_from(period).expect("at most the limit");
+        let mut variants: Vec<Variant> = Vec::new();
+        let mut seen: HashMap<Vec<usize>, u32> = HashMap::new();
+        let mut residues = Vec::with_capacity(size);
+        let mut starts = Vec::with_capacity(size + 1);
+        starts.push(0i64);
+        for year in 1..=period {
+            let mut holding = Vec::new();
+            for (i, rule) in rules.iter().enumerate() {
+                match rule.condition.eval(&[Value::Int(year)]) {
+                    Ok(Value::Bool(true)) => holding.push(i + 1),
+                    Ok(_) => {}
+                    Err(error) => {
+                        return Err(DefinitionError::RuleFails {
+                            unit: name.clone(),
+                            rule: i + 1,
+                            year,
+                            error,
+                        });
+                    }
+                }
+            }
+            let index = match seen.get(&holding) {
+                Some(&index) => index,
+                None => {
+                    let variant =
+                        Variant::new(grouping, &base, &rules, holding.clone(), year, below)
+                            .map_err(|e| e.unwrap_or_else(too_long))?;
+                    variants.push(variant);
+                    let index = u32::try_from(variants.len() - 1).expect("at most one per year");
+                    seen.insert(holding, index);
+                    index
+                }
+            };
+            residues.push(index);
+            let total = starts[starts.len() - 1]
+                .checked_add(variants[index as usize].length())
+                .ok_or_else(too_long)?;
+            starts.push(total);
+        }
+        Ok(Some(Cycle {
+            rules: rules.len(),
+            period,
+            variants,
+            residues,
+            starts,
+        }))
+    }
+
+    /// The cycle's length in fundamental units.
+    fn length(&self) -> i64 {
+        self.starts[self.starts.len() - 1]
     }
 
     /// The variant of the instance whose count from the epoch is `count`.
-    pub(crate) fn variant(&self, _count: i64) -> &Variant {
-        todo!()
+    pub(crate) fn variant(&self, count: i64) -> &Variant {
+        let r = usize::try_from(count.rem_euclid(self.period)).expect("below the period");
+        &self.variants[self.residues[r] as usize]
     }
 
     /// The instance of the era's unit that fixed number `fixed` falls in: its count from the
     /// epoch, the position in fundamental units inside it, and its variant.
-    pub(crate) fn locate(&self, _fixed: i64) -> Result<(i64, i64, &Variant), CalendarError> {
-        todo!()
+    pub(crate) fn locate(&self, fixed: i64) -> Result<(i64, i64, &Variant), CalendarError> {
+        let length = self.length();
+        let (cycle, rest) = (fixed.div_euclid(length), fixed.rem_euclid(length));
+        // The last start at or before `rest`; starts[0] is 0 and starts[P] is past it.
+        let r = self.starts.partition_point(|&s| s <= rest) - 1;
+        let count = cycle
+            .checked_mul(self.period)
+            .and_then(|c| c.checked_add(i64::try_from(r).ok()?))
+            .ok_or(CalendarError::OutOfRange)?;
+        Ok((
+            count,
+            rest - self.starts[r],
+            &self.variants[self.residues[r] as usize],
+        ))
     }
 
     /// Where the instance whose count from the epoch is `count` starts, in fundamental units
     /// from the epoch.
-    pub(crate) fn start(&self, _count: i64) -> Result<i64, CalendarError> {
-        todo!()
+    pub(crate) fn start(&self, count: i64) -> Result<i64, CalendarError> {
+        let r = usize::try_from(count.rem_euclid(self.period)).expect("below the period");
+        count
+            .div_euclid(self.period)
+            .checked_mul(self.length())
+            .and_then(|f| f.checked_add(self.starts[r]))
+            .ok_or(CalendarError::OutOfRange)
     }
+}
+
+impl Variant {
+    /// The instance's length in fundamental units.
+    pub(crate) fn length(&self) -> i64 {
+        self.starts[self.starts.len() - 1]
+    }
+
+    /// The variant where the rules numbered in `holding` hold, first met in instance `year`.
+    /// `Err(None)` means a total doesn't fit in `i64`.
+    fn new(
+        grouping: &GroupingDef,
+        base: &[i64],
+        rules: &[Rule],
+        holding: Vec<usize>,
+        year: i64,
+        below: i64,
+    ) -> Result<Variant, Option<DefinitionError>> {
+        let mut counts = base.to_vec();
+        for &h in &holding {
+            let rule = &rules[h - 1];
+            counts[rule.member] = counts[rule.member].checked_add(rule.change).ok_or(None)?;
+        }
+        if let Some((j, &length)) = counts.iter().enumerate().find(|(_, c)| **c < 1) {
+            return Err(Some(DefinitionError::MemberTooShort {
+                unit: grouping.name.clone(),
+                member: label(grouping, j),
+                year,
+                length,
+            }));
+        }
+        let mut starts = Vec::with_capacity(counts.len() + 1);
+        let mut total: i64 = 0;
+        starts.push(total);
+        for &count in &counts {
+            total = count
+                .checked_mul(below)
+                .and_then(|l| total.checked_add(l))
+                .ok_or(None)?;
+            starts.push(total);
+        }
+        Ok(Variant {
+            counts,
+            starts,
+            holding,
+        })
+    }
+}
+
+/// Checks each rule in order (research R5, step 2): its condition, member, change and period.
+fn check_rules(grouping: &GroupingDef) -> Result<Vec<Rule>, DefinitionError> {
+    let unit = &grouping.name;
+    let vars = [VarDecl {
+        name: unit.clone(),
+        ty: Type::Int,
+    }];
+    let mut rules = Vec::with_capacity(grouping.rules.len());
+    for (i, def) in grouping.rules.iter().enumerate() {
+        let rule = i + 1;
+        let condition = Expr::check(&def.condition, &vars, Type::Bool).map_err(|error| {
+            DefinitionError::RuleCondition {
+                unit: unit.clone(),
+                rule,
+                error,
+            }
+        })?;
+        let member = (0..grouping.members.len())
+            .find(|&j| label(grouping, j) == def.member)
+            .ok_or_else(|| DefinitionError::RuleUnknownMember {
+                unit: unit.clone(),
+                rule,
+                member: def.member.clone(),
+            })?;
+        if def.change == 0 {
+            return Err(DefinitionError::RuleZeroChange {
+                unit: unit.clone(),
+                rule,
+            });
+        }
+        let period = condition.period(unit, RULE_PERIOD_LIMIT).map_err(|error| {
+            DefinitionError::RulePeriod {
+                unit: unit.clone(),
+                rule,
+                error,
+            }
+        })?;
+        rules.push(Rule {
+            condition,
+            period,
+            member,
+            change: def.change,
+        });
+    }
+    Ok(rules)
+}
+
+/// A member's label: its name, or its number from 1 when it has none.
+fn label(grouping: &GroupingDef, j: usize) -> String {
+    grouping.members[j]
+        .name
+        .clone()
+        .unwrap_or_else(|| (j + 1).to_string())
+}
+
+/// The least common multiple of two positive numbers, each at most the period limit, so the
+/// result fits easily.
+fn lcm(a: i64, b: i64) -> i64 {
+    let (mut x, mut y) = (a, b);
+    while y != 0 {
+        (x, y) = (y, x % y);
+    }
+    a / x * b
 }
 
 #[cfg(test)]

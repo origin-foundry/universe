@@ -130,6 +130,7 @@ impl Calendar {
         check_first_numbers(&def, era)?;
         let (p, q, parts) = check_fundamental_limits(&def)?;
         let units = with_lengths(&def, units)?;
+        let cycle = Cycle::build(&def, &units, era)?;
         Ok(Calendar {
             name: def.name,
             clock: def.clock,
@@ -146,7 +147,7 @@ impl Calendar {
             p,
             q,
             parts,
-            cycle: None,
+            cycle,
         })
     }
 
@@ -179,7 +180,7 @@ impl Calendar {
     /// The number of instances of the era's unit after which its rules repeat (1 without
     /// rules).
     pub fn rule_period(&self) -> i64 {
-        todo!()
+        self.cycle.as_ref().map_or(1, |c| c.period)
     }
 
     /// One instance of the era's unit after its rules (FR-010).
