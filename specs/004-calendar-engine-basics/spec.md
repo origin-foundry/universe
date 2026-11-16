@@ -103,7 +103,7 @@ The engine must stay exact across the whole range later features need, including
 
 **Acceptance Scenarios**:
 
-1. **Given** random valid calendars and random instants within ±100,000 Aster years of the epoch, **When** each instant is converted to a date and back (start of date plus remainder), **Then** the original instant comes back exactly.
+1. **Given** random valid calendars whose fundamental unit is long enough for the range (at least about 643 ns for Aster-length years; research R5) and random instants within ±100,000 Aster years of the epoch, **When** each instant is converted to a date and back (start of date plus remainder), **Then** the original instant comes back exactly.
 2. **Given** random valid dates, **When** each is converted to an instant and back, **Then** the same date comes back.
 3. **Given** a fundamental-unit length whose unit boundaries don't fall on whole nanoseconds, **When** dates are converted, **Then** each date's instant is the first whole nanosecond at or after its exact start, the result says it was rounded and by how much, and converting that instant back gives the same date.
 
@@ -175,7 +175,7 @@ The engine must stay exact across the whole range later features need, including
 ### Measurable Outcomes
 
 - **SC-001**: 100% of hand-worked test dates convert correctly in both directions, at, after and before the epoch.
-- **SC-002**: Round-trip property tests run at least 10,000 random cases per property with no failures, across ±100,000 years of the epoch.
+- **SC-002**: Round-trip property tests run at least 10,000 random cases per property with no failures, across ±100,000 years of the epoch for calendars whose fundamental unit allows it (research R5; corrected in spec 006's design PR).
 - **SC-003**: 100% of the invalid dates and invalid definitions in the tests are refused with an error naming the unit and reason; none produces a date or instant.
 - **SC-004**: A single conversion takes under 10 microseconds on the owner's machine, whether the date is near the epoch or 100,000 years away.
 - **SC-005**: The calendar engine contains no floating-point code, as confirmed by the architecture check.
