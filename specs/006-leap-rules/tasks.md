@@ -79,7 +79,9 @@ description: "Task list for spec 006, leap rules"
   - `era_instance(5)` → Twelfth 56 (the 12th entry), `length` 669, `holding` `[1]`; `era_instance(1)` → 55, 668, `[]`; `era_instance(0)` and `era_instance(-5)` leap; `era_instance` on a calendar whose era numbers sols → `NotAGrouping`;
   - decades: the instant at the start of year 11 is in decade 2, and the last nanosecond of year 10 in decade 1; year 101 is in age 2;
   - on `tessel_with_rule`: cycles 0, 3 and −3 have phase 3 of 13 turns, cycle 1 of 14; `[3, 3, 13]` (cycle 3, phase 3, turn 13; turns count from 0) is refused with `year: Some(3)` while `[1, 3, 13]` is accepted, and fixed numbers around cycles −3 to 4 match sums worked by hand in the test;
-  - spec 004's `aster.rs` and `tessel.rs` still pass unchanged (calendars without rules report `year: None`).
+  - two rules that both hold (Aster's rule plus `year % 25 == 0` lengthening Twelfth by 2): `era_instance(25)` has Twelfth 58 and `holding` `[1, 2]`, and `[25, 12, 58]` converts both ways (Story 1 scenario 8, FR-004);
+  - a year whose start lies outside the range (`[i64::MAX / 2]` and `[i64::MIN / 2]`) → `OutOfRange`, never a wrapped date (FR-012);
+  - spec 004's `aster.rs` and `tessel.rs` still pass, unchanged in meaning (calendars without rules report `year: None`).
 
 ### Implementation
 
