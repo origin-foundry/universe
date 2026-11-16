@@ -1,6 +1,7 @@
 # Bundle update log
 
 ## 2026-11-16
+* **Verification**: human:origin-foundry re-verified the spec 006 changes to [leap rules](/calendar/leap-rules.md) and [conversion](/calendar/conversion.md) in conversation during review of #47. Both are stable again.
 * **Update**: Spec 006 (leap rules): [leap rules](/calendar/leap-rules.md) gains "First implementation": rules on the era's unit, a predicate reading the unit's own number, lengthen or shorten changes that add up, the rule period worked out from the predicates (at most 100,000 instances), and everything checked once when the calendar is checked. [Conversion](/calendar/conversion.md) says how the supercycle's period is found and searched, and that units above the era's unit are numbered by count of its instances. Both back to draft until re-verified by human:origin-foundry.
 * **Verification**: human:origin-foundry re-verified the spec 005 changes to the [expression language](/language/expression-language.md) in conversation during review of #45. It is stable again.
 

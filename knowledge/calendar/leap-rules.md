@@ -3,8 +3,9 @@ type: Design
 title: Leap rules
 description: Predicate-and-modification rules, plus length and start expressions for complex calendars.
 tags: [calendar, leap-rules, rules]
-status: draft
+status: stable
 generated: { by: claude-code/claude-opus-5-5, at: 2026-10-30T08:24:17Z }
+verified: { by: human:origin-foundry, at: 2026-11-16T10:46:09Z }
 ---
 
 # Rules
