@@ -426,6 +426,78 @@ fn split(r: i128, p: i128, parts: &[i64]) -> (Vec<i128>, i128) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{
+        CalendarDef, Clock, EraDef, FundamentalDef, GroupingDef, LeapRuleDef, MemberDef,
+        MemberUnitDef,
+    };
+
+    /// A grouping with a member unit, named `name`, whose members have `counts`.
+    fn grouping(name: &str, member_unit: &str, counts: &[i64]) -> GroupingDef {
+        GroupingDef {
+            name: name.to_string(),
+            member_unit: Some(MemberUnitDef {
+                name: member_unit.to_string(),
+                first_number: None,
+            }),
+            members: counts
+                .iter()
+                .map(|&count| MemberDef { name: None, count })
+                .collect(),
+            first_number: None,
+            rules: vec![],
+        }
+    }
+
+    /// Regression (found by spec 004's property tests while building spec 006): the year's
+    /// variant was looked up for a member unit further down, here the day of a 7-day week
+    /// inside a year of 3 parts, and day 5 indexed past the year's 3 members.
+    #[test]
+    fn member_units_below_the_years_own_use_their_own_counts() {
+        let mut year = grouping("year", "part", &[2, 2, 3]);
+        year.rules = vec![LeapRuleDef {
+            condition: "year % 2 == 0".to_string(),
+            member: "3".to_string(),
+            change: 1,
+        }];
+        let def = CalendarDef {
+            name: "Weeks".to_string(),
+            clock: Clock::Gct,
+            groupings: vec![year, grouping("week", "day", &[1, 1, 1, 1, 1, 1, 1])],
+            fundamental: FundamentalDef {
+                name: "sol".to_string(),
+                length: Ratio::from_int(1).unwrap(),
+                first_number: None,
+            },
+            subdivisions: vec![],
+            era: EraDef {
+                name: "Era".to_string(),
+                unit: "year".to_string(),
+                epoch: Instant::ZERO,
+            },
+        };
+        let cal = Calendar::new(def).unwrap();
+        // Year 2 is 8 weeks (the third part lengthened to 4); its last day is day 7 of week 4
+        // of part 3: 7 weeks of 7 sols plus 6.
+        let start = cal
+            .date_to_instant(&Date {
+                values: vec![2, 3, 4, 7, 1],
+            })
+            .unwrap();
+        assert_eq!(cal.fixed_from_instant(start.instant), Ok(49 + 49 + 6));
+        // Day 5 of part 1's first week is fine in any year; week 4 of part 3 only in even ones.
+        assert!(
+            cal.date_to_instant(&Date {
+                values: vec![1, 1, 1, 5]
+            })
+            .is_ok()
+        );
+        assert!(matches!(
+            cal.date_to_instant(&Date {
+                values: vec![1, 3, 4]
+            }),
+            Err(CalendarError::InvalidValue { .. })
+        ));
+    }
 
     #[test]
     fn floor_division_rounds_towards_minus_infinity() {

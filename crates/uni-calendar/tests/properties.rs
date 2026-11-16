@@ -1,18 +1,25 @@
 //! Property tests over random calendars (US4; constitution VI; research R7). 10,000 cases per
 //! property (SC-002).
 //!
-//! Round trips can't catch a mistake made the same way in both directions, so the last
-//! property compares the engine with an independent oracle: a deliberately simple reference
-//! that uses `num_rational::BigRational` (arbitrary precision, so it never overflows), steps
-//! through units one at a time from the epoch, and shares no code with the engine.
+//! Random calendars whose era's unit is a grouping also get zero to three random leap rules
+//! (spec 006, research R8), so the round trips cover calendars with rules too.
+//!
+//! Round trips can't catch a mistake made the same way in both directions, so two properties
+//! compare the engine with independent oracles that share no code with it: a deliberately
+//! simple reference that uses `num_rational::BigRational` (arbitrary precision, so it never
+//! overflows) and steps through units one at a time from the epoch, for calendars without
+//! rules; and a year-by-year reference that walks the era's unit from the epoch, evaluating
+//! every rule for every year with `uni_expr` directly (no cycle table), for calendars with
+//! rules.
 
 use num_bigint::BigInt;
 use num_rational::BigRational;
 use proptest::prelude::*;
 use uni_calendar::{
-    Calendar, CalendarDef, Clock, Date, EraDef, FundamentalDef, GroupingDef, InstantDate,
-    MemberDef, MemberUnitDef, SubdivisionDef,
+    Calendar, CalendarDef, Clock, Date, DefinitionError, EraDef, FundamentalDef, GroupingDef,
+    InstantDate, LeapRuleDef, MemberDef, MemberUnitDef, SubdivisionDef,
 };
+use uni_expr::{Expr, Type, Value, VarDecl};
 use uni_time::{Instant, Ratio};
 
 const CASES: u32 = 10_000;
@@ -58,6 +65,33 @@ fn denominator() -> impl Strategy<Value = i128> {
     prop_oneof![Just(1i128), 1i128..=1_000, 1i128..=1_000_000_000]
 }
 
+/// One part of a random condition, `(a * year + b) % m == c`: `a`, `b`, `m` and a seed for
+/// `c` (taken modulo `m`). Small moduli are likelier, so rule periods are usually short and
+/// the year-by-year reference stays quick; any `m` up to 50 can still come up.
+type Term = (i64, i64, i64, u64);
+
+/// A random rule: its first term, an optional second joined by `&&` (true) or `||` (false),
+/// a seed for its member, and its change before it is kept valid.
+type RuleSeed = (Term, Option<(bool, Term)>, usize, i64);
+
+fn term() -> impl Strategy<Value = Term> {
+    (
+        -3i64..=3,
+        -100i64..=100,
+        prop_oneof![3 => 1i64..=12, 1 => 1i64..=50],
+        any::<u64>(),
+    )
+}
+
+fn rule_seed() -> impl Strategy<Value = RuleSeed> {
+    (
+        term(),
+        prop::option::of((any::<bool>(), term())),
+        any::<usize>(),
+        -2i64..=3,
+    )
+}
+
 fn case() -> impl Strategy<Value = Case> {
     (
         prop::collection::vec(grouping_shape(), 1..=4),
@@ -77,12 +111,13 @@ fn case() -> impl Strategy<Value = Case> {
                 prop::collection::vec(prop::option::of(-5i64..=5), MAX_UNITS),
                 -1_000_000_000_000_000i64..=1_000_000_000_000_000,
                 0u32..1_000_000_000,
+                prop::collection::vec(rule_seed(), 0..=3),
             )
         })
         .prop_map(
-            |(groupings, parts, whole, q, fraction, era, firsts, secs, nanos)| {
+            |(groupings, parts, whole, q, fraction, era, firsts, secs, nanos, rules)| {
                 let fraction = i128::try_from(fraction % q.unsigned_abs()).unwrap();
-                build(
+                let mut case = build(
                     &groupings,
                     &parts,
                     whole * q + fraction,
@@ -91,7 +126,9 @@ fn case() -> impl Strategy<Value = Case> {
                     &firsts,
                     secs,
                     nanos,
-                )
+                );
+                add_rules(&mut case.def, &rules);
+                case
             },
         )
 }
@@ -189,6 +226,60 @@ fn build(
         p: length_ns.numer(),
         q: length_ns.denom(),
     }
+}
+
+/// Adds random rules to the era's unit when it is a grouping (research R8). Each change is
+/// kept valid by construction: a shortening that could take its member below 1 in a year where
+/// every shortening rule on it holds is turned into a lengthening. Rules whose combined period
+/// passes the engine's limit are dropped from the end until the calendar is accepted.
+fn add_rules(def: &mut CalendarDef, seeds: &[RuleSeed]) {
+    let era = def.era.unit.clone();
+    let Some(g) = def.groupings.iter_mut().find(|g| g.name == era) else {
+        return;
+    };
+    let mut lowest: Vec<i64> = g.members.iter().map(|m| m.count).collect();
+    let text = |&(a, b, m, c): &Term| {
+        let c = i64::try_from(c % m.unsigned_abs()).unwrap();
+        format!("({a} * {era} + {b}) % {m} == {c}")
+    };
+    for (first, second, member, change) in seeds {
+        let j = member % g.members.len();
+        let mut change = if *change == 0 { 1 } else { *change };
+        if change < 0 && lowest[j] + change < 1 {
+            change = -change;
+        }
+        if change < 0 {
+            lowest[j] += change;
+        }
+        let condition = match second {
+            None => text(first),
+            Some((and, second)) => {
+                let join = if *and { "&&" } else { "||" };
+                format!("{} {join} {}", text(first), text(second))
+            }
+        };
+        g.rules.push(LeapRuleDef {
+            condition,
+            member: g.members[j]
+                .name
+                .clone()
+                .unwrap_or_else(|| (j + 1).to_string()),
+            change,
+        });
+    }
+    while let Err(DefinitionError::RulesPeriodOverLimit { .. }) = Calendar::new(def.clone()) {
+        let g = def.groupings.iter_mut().find(|g| g.name == era).unwrap();
+        g.rules.pop();
+    }
+}
+
+/// The same calendar without its rules.
+fn without_rules(def: &CalendarDef) -> CalendarDef {
+    let mut def = def.clone();
+    for g in &mut def.groupings {
+        g.rules.clear();
+    }
+    def
 }
 
 fn offset_ns() -> impl Strategy<Value = i128> {
@@ -405,6 +496,134 @@ fn valid_date(model: &Model, era_value: i64, seeds: &[u64], len: usize) -> (Date
 }
 
 // ---------------------------------------------------------------------------------------------
+// The year-by-year reference (research R8)
+
+/// The era's unit's rules, evaluated directly for each year with `uni_expr`, never through a
+/// cycle.
+struct Reference {
+    /// Each rule: its condition, member index and change.
+    rules: Vec<(Expr, usize, i64)>,
+    /// The members' listed counts.
+    base: Vec<i64>,
+    /// The length of the unit the members count, in fundamental units.
+    below: i128,
+}
+
+impl Reference {
+    /// `None` when the era's unit isn't a grouping.
+    fn new(def: &CalendarDef) -> Option<Reference> {
+        let at = def.groupings.iter().position(|g| g.name == def.era.unit)?;
+        let g = &def.groupings[at];
+        let vars = [VarDecl {
+            name: g.name.clone(),
+            ty: Type::Int,
+        }];
+        let label = |j: usize| {
+            g.members[j]
+                .name
+                .clone()
+                .unwrap_or_else(|| (j + 1).to_string())
+        };
+        let rules = g
+            .rules
+            .iter()
+            .map(|rule| {
+                let expr = Expr::check(&rule.condition, &vars, Type::Bool).unwrap();
+                let j = (0..g.members.len())
+                    .find(|&j| label(j) == rule.member)
+                    .unwrap();
+                (expr, j, rule.change)
+            })
+            .collect();
+        let below = def.groupings[at + 1..]
+            .iter()
+            .map(|g| g.members.iter().map(|m| i128::from(m.count)).sum::<i128>())
+            .product();
+        Some(Reference {
+            rules,
+            base: g.members.iter().map(|m| m.count).collect(),
+            below,
+        })
+    }
+
+    /// The members' counts in year `year`.
+    fn counts(&self, year: i64) -> Vec<i64> {
+        let mut counts = self.base.clone();
+        for (expr, j, change) in &self.rules {
+            if expr.eval(&[Value::Int(year)]) == Ok(Value::Bool(true)) {
+                counts[*j] += change;
+            }
+        }
+        counts
+    }
+
+    /// Year `year`'s length in fundamental units.
+    fn length(&self, year: i64) -> i128 {
+        self.counts(year)
+            .iter()
+            .map(|&c| i128::from(c))
+            .sum::<i128>()
+            * self.below
+    }
+
+    /// Where year `year` starts, in fundamental units from the epoch, by adding up every
+    /// year between it and the epoch.
+    fn start(&self, year: i64) -> i128 {
+        if year >= 1 {
+            (1..year).map(|y| self.length(y)).sum()
+        } else {
+            -(year..=0).map(|y| self.length(y)).sum::<i128>()
+        }
+    }
+}
+
+/// The calendar as it is in year `year`: the era's unit's members at that year's counts, and
+/// no rules, so the test-side model can describe the units below the year.
+fn year_def(def: &CalendarDef, year: i64) -> CalendarDef {
+    let mut out = without_rules(def);
+    if let Some(reference) = Reference::new(def) {
+        let g = out
+            .groupings
+            .iter_mut()
+            .find(|g| g.name == def.era.unit)
+            .unwrap();
+        for (m, count) in g.members.iter_mut().zip(reference.counts(year)) {
+            m.count = count;
+        }
+    }
+    out
+}
+
+/// The date values, from the era's unit down, of the fundamental unit `offset` units into
+/// year `year`, worked out from that year's model alone.
+fn reference_date(def: &CalendarDef, year: i64, offset: i128) -> Vec<i64> {
+    let model = Model::new(&year_def(def, year));
+    let fundamental = model
+        .nodes
+        .iter()
+        .position(|n| matches!(n, Node::Fundamental))
+        .unwrap();
+    let mut rem = big(offset) * model.lengths[fundamental].clone().unwrap();
+    let mut values = vec![year];
+    let mut index = 0usize;
+    for k in model.era + 1..model.nodes.len() {
+        if k > fundamental {
+            values.push(model.firsts[k]); // a fundamental unit's start is in its first parts
+            continue;
+        }
+        let children = model.children(k - 1, index);
+        let mut pos = 0usize;
+        while rem >= children[pos] {
+            rem -= &children[pos];
+            pos += 1;
+        }
+        index = pos;
+        values.push(model.firsts[k] + i64::try_from(pos).unwrap());
+    }
+    values
+}
+
+// ---------------------------------------------------------------------------------------------
 // The oracle
 
 struct OracleDate {
@@ -526,7 +745,7 @@ proptest! {
         len in any::<usize>(),
     ) {
         let cal = engine(&case);
-        let model = Model::new(&case.def);
+        let model = Model::new(&year_def(&case.def, era_value));
         let (date, full) = valid_date(&model, era_value, &seeds, len);
         let start = cal.date_to_instant(&date).unwrap();
         let back = cal.instant_to_date(start.instant).unwrap();
@@ -559,17 +778,50 @@ proptest! {
         prop_assert!(key(&da) <= key(&db), "{:?} then {:?}", da, db);
     }
 
-    /// T016: the engine agrees with the stepping oracle within ±50 top-level units.
+    /// T016: the engine agrees with the stepping oracle within ±50 top-level units, for
+    /// calendars without rules (the oracle's units all have fixed lengths).
     #[test]
     fn engine_matches_the_oracle(case in case(), fraction in -50_000_000i128..=50_000_000) {
+        let def = without_rules(&case.def);
         // An offset of fraction / 10⁶ top-level units, to the nearest nanosecond below.
         let offset = top_length_ns(&case) * fraction / 1_000_000;
         let t = at(&case, offset);
-        let got = engine(&case).instant_to_date(t).unwrap();
-        let want = oracle(&case.def, t);
+        let got = Calendar::new(def.clone()).unwrap().instant_to_date(t).unwrap();
+        let want = oracle(&def, t);
         let to_big = |v: &[i64]| v.iter().map(|&n| BigInt::from(n)).collect::<Vec<_>>();
         prop_assert_eq!(to_big(&got.above), want.above);
         prop_assert_eq!(to_big(&got.date.values), want.date);
         prop_assert_eq!(ratio(got.remainder), want.remainder);
+    }
+
+    /// Spec 006 Story 3 scenario 3: with random rules, years agree with the year-by-year
+    /// reference within ±(2 × rule period + 50) years of the epoch: where each starts, its
+    /// members' lengths, and the date of a fundamental unit inside it.
+    #[test]
+    fn engine_matches_the_year_by_year_reference(
+        case in case(),
+        near in -50i64..=50,
+        far in -1_000_000i64..=1_000_000,
+        pick_far in any::<bool>(),
+        seed in any::<u64>(),
+    ) {
+        let Some(reference) = Reference::new(&case.def) else {
+            return Ok(()); // the era's unit isn't a grouping: no rules to check
+        };
+        let cal = engine(&case);
+        let span = 2 * cal.rule_period() + 50;
+        let year = 1 + if pick_far { far * span / 1_000_000 } else { near };
+        let start = reference.start(year);
+        let start_fixed = i64::try_from(start).unwrap();
+        // Where the year starts.
+        let got = cal.date_to_instant(&Date { values: vec![year] }).unwrap();
+        prop_assert_eq!(cal.fixed_from_instant(got.instant), Ok(start_fixed));
+        // Its members' lengths.
+        prop_assert_eq!(cal.era_instance(year).unwrap().members, reference.counts(year));
+        // The date of one fundamental unit inside it.
+        let offset = i128::from(seed) % reference.length(year);
+        let fixed = i64::try_from(start + offset).unwrap();
+        let got = cal.instant_to_date(cal.start_of_fixed(fixed).unwrap().instant).unwrap();
+        prop_assert_eq!(got.date.values, reference_date(&case.def, year, offset));
     }
 }
