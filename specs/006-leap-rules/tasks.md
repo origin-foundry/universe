@@ -108,8 +108,8 @@ description: "Task list for spec 006, leap rules"
 
 ## Phase 6: Performance and polish
 
-- [ ] T015 [P] Extend `crates/uni-calendar/tests/timing.rs` with `#[ignore]` checks on `aster_with_rule` and `gregorian_shaped()`: 100,000 conversions each way, half near the epoch and half about 100,000 years away (within the calendar's range), each direction under one second (under 10 µs each, SC-004). No floats.
-- [ ] T016 Run `cargo test -p uni-calendar --release -- --ignored` and record the timings in the build PR description (SC-004).
+- [X] T015 [P] Extend `crates/uni-calendar/tests/timing.rs` with `#[ignore]` checks on `aster_with_rule` and `gregorian_shaped()`: 100,000 conversions each way, half near the epoch and half about 100,000 years away (within the calendar's range), each direction under one second (under 10 µs each, SC-004). No floats.
+- [X] T016 Run `cargo test -p uni-calendar --release -- --ignored` and record the timings in the build PR description (SC-004).
 - [ ] T017 Add doc comments with a short example (the contract's) to `LeapRuleDef`, `Calendar::rule_period` and `Calendar::era_instance`, and update the crate doc in `crates/uni-calendar/src/lib.rs`: leap rules on the era's unit now exist; what comes later (rules on other units, inserting members, intercalary members, length and start expressions, non-repeating rules).
 - [ ] T018 Run the full local verification and record the results in the build PR description:
   - `cargo fmt --all --check`
