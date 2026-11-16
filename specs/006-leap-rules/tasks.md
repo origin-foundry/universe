@@ -85,7 +85,7 @@ description: "Task list for spec 006, leap rules"
 
 ### Implementation
 
-- [ ] T010 [US2] In `crates/uni-calendar/src/convert.rs`, route both directions through the cycle (research R4, R6): instant to date finds the era unit's count by floored division by the cycle length and a binary search in `starts`, numbers units above the era's unit by that count divided by their length in era-unit instances, and uses the year's variant for the member unit and the units inside it; date to instant checks each value against the year's variant (setting `InvalidValue.year` when the calendar has rules) and adds `cycle × cycle length + starts[r] + member start`. All arithmetic checked (`OutOfRange`). Keep calendars whose era's unit isn't a grouping on spec 004's path. Implement `Calendar::era_instance` in `crates/uni-calendar/src/calendar.rs`. Work until T009 passes and spec 004's tests still do.
+- [X] T010 [US2] In `crates/uni-calendar/src/convert.rs`, route both directions through the cycle (research R4, R6): instant to date finds the era unit's count by floored division by the cycle length and a binary search in `starts`, numbers units above the era's unit by that count divided by their length in era-unit instances, and uses the year's variant for the member unit and the units inside it; date to instant checks each value against the year's variant (setting `InvalidValue.year` when the calendar has rules) and adds `cycle × cycle length + starts[r] + member start`. All arithmetic checked (`OutOfRange`). Keep calendars whose era's unit isn't a grouping on spec 004's path. Implement `Calendar::era_instance` in `crates/uni-calendar/src/calendar.rs`. Work until T009 passes and spec 004's tests still do.
 
 **Checkpoint**: Stories 1 and 2 work together.
 

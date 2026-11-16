@@ -184,8 +184,20 @@ impl Calendar {
     }
 
     /// One instance of the era's unit after its rules (FR-010).
-    pub fn era_instance(&self, _number: i64) -> R<EraInstance> {
-        todo!()
+    pub fn era_instance(&self, number: i64) -> R<EraInstance> {
+        let cycle = self
+            .cycle
+            .as_ref()
+            .ok_or_else(|| CalendarError::NotAGrouping {
+                unit: self.era_unit().to_string(),
+            })?;
+        let count = number.checked_sub(1).ok_or(CalendarError::OutOfRange)?;
+        let variant = cycle.variant(count);
+        Ok(EraInstance {
+            members: variant.counts.clone(),
+            length: variant.length(),
+            holding: variant.holding.clone(),
+        })
     }
 
     /// How many `inner` there are in one `outer`, when that's one fixed whole number: a year
