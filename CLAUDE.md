@@ -32,6 +32,7 @@ The full path, roles and board moves are in the workflow playbook above. In shor
 - PR policy (runs in CI): `scripts/check_pr_policy.py`
 - Architecture rules: `python scripts/check_architecture.py`
 - Privacy: `python scripts/check_privacy.py`. It also reads `.privacy-words` (gitignored, owner-only: one private word or phrase per line, such as a name) when present.
+- Earth terms (runs in CI): `python scripts/check_earth_terms.py`. It finds Earth's calendar words (year, month, day, leap, …) in the code, including inside identifiers, and allows them only in Gregorian-named files, on lines that also say Earth or Gregorian, or between `earth-terms: off` and `earth-terms: on` (ADR 0009). Swapping in words of the same length keeps error-column assertions intact (`uni-expr`'s tests use `turn`, `phase`, `flag`).
 - A Stop hook (`scripts/hooks/stop_checks.py`) runs the fast local checks before a turn ends; fix what it reports rather than working around it.
 
 ## Board
