@@ -3,8 +3,9 @@ type: Design
 title: Adjustment rules
 description: Predicate-and-modification rules that adjust a unit's members, plus length and start expressions for complex calendars.
 tags: [calendar, adjustment-rules, rules]
-status: draft
+status: stable
 generated: { by: claude-code/claude-opus-5-5, at: 2026-10-30T08:24:17Z }
+verified: { by: human:origin-foundry, at: 2026-11-16T18:19:49Z }
 ---
 
 An **adjustment rule** changes a unit's shape in the instances where it holds. On Earth these are leap rules, such as the Gregorian calendar's extra day in February; [ADR 0009](/decisions/0009-earth-neutral-names.md) names them generically, because they lengthen and shorten.

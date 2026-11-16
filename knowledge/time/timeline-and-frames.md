@@ -3,8 +3,9 @@ type: Design
 title: Timeline and frames
 description: The hidden absolute timeline (GCT), system time (SBT), and how instants are represented.
 tags: [time, gct, sbt, frames, precision]
-status: draft
+status: stable
 generated: { by: claude-code/claude-opus-5-5, at: 2026-10-30T08:24:17Z }
+verified: { by: human:origin-foundry, at: 2026-11-16T18:19:49Z }
 ---
 
 # Absolute timeline

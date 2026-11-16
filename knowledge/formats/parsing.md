@@ -3,8 +3,9 @@ type: Design
 title: Format parsing
 description: Compiling templates into parsers, invertibility and ambiguity.
 tags: [formats, parsing]
-status: draft
+status: stable
 generated: { by: claude-code/claude-opus-5-5, at: 2026-10-30T08:24:17Z }
+verified: { by: human:origin-foundry, at: 2026-11-16T18:19:49Z }
 ---
 
 # Rules

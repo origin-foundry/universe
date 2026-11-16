@@ -3,8 +3,9 @@ type: Design
 title: Parallel cycles
 description: Modular counters that run alongside the unit tree, like Earth's week.
 tags: [calendar, cycles]
-status: draft
+status: stable
 generated: { by: claude-code/claude-opus-5-5, at: 2026-10-30T08:24:17Z }
+verified: { by: human:origin-foundry, at: 2026-11-16T18:19:49Z }
 ---
 
 # Definition

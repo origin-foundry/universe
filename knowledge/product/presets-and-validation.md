@@ -3,8 +3,9 @@ type: Test Strategy
 title: Presets and validation
 description: Real-world presets that double as the correctness test oracle.
 tags: [testing, presets, validation, earth]
-status: draft
+status: stable
 generated: { by: claude-code/claude-opus-5-5, at: 2026-10-30T08:24:17Z }
+verified: { by: human:origin-foundry, at: 2026-11-16T18:19:49Z }
 ---
 
 # Presets

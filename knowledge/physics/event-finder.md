@@ -3,8 +3,9 @@ type: Design
 title: Event finder
 description: Root-finding on the ephemeris to detect sky events and fit mean periods.
 tags: [physics, events, cycles]
-status: draft
+status: stable
 generated: { by: claude-code/claude-opus-5-5, at: 2026-10-30T08:24:17Z }
+verified: { by: human:origin-foundry, at: 2026-11-16T18:19:49Z }
 ---
 
 # Method

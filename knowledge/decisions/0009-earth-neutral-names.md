@@ -3,9 +3,10 @@ type: Architecture Decision
 title: "ADR 0009: Earth-neutral names"
 description: Code and design use the calendar model's own terms, not Earth's (year, month, leap); Earth words appear only where the subject really is Earth, and a check enforces it in code.
 tags: [decision, terminology, calendar, code]
-status: draft
+status: stable
 decided: 2026-11-16
 generated: { by: claude-code/claude-opus-5-5, at: 2026-11-16T16:00:00Z }
+verified: { by: human:origin-foundry, at: 2026-11-16T18:19:49Z }
 ---
 
 # Context
