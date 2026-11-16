@@ -135,8 +135,8 @@ description: "Task list for spec 006, leap rules"
 - [X] T021 Rename the test calendars' units: Aster in `crates/uni-calendar/tests/common/mod.rs` becomes age, cohort, orbit, span, sol, bell, pulse; the small calendars inside unit tests (`src/calendar.rs`, `src/convert.rs`, `src/error.rs`, `src/rules.rs`) use the same names, and a week-like stand-in is a rota. Move the Gregorian-shaped calendar and `GREGORIAN_MONTHS` into `tests/common/gregorian.rs`, so its Earth names are allowed. Update the expected messages and values.
 - [X] T022 Rename the rest of the code to the model's terms (ADR 0009's table) in `uni-calendar`, `uni-expr` and `uni-time`: variables, test names, comments and strings, such as `tests/leap_rules.rs` → `tests/adjustment_rules.rs`, `year_def`, `hour_ten`, `HUNDRED_THOUSAND_YEARS`, and expression examples that read `year`. Earth stays only as "on Earth, …" asides, in Gregorian-named files, or between `earth-terms: off` and `earth-terms: on` where a block is about Earth's calendar (such as the Gregorian rule in `uni-expr`'s tests).
 - [X] T023 `python scripts/check_earth_terms.py` passes. Run it in CI next to the privacy check in `.github/workflows/ci.yml`, and add it to `CLAUDE.md`'s Checks list.
-- [ ] T024 Full local verification as in T018: fmt, clippy, the whole workspace's tests (including the properties and the Gregorian fixture), deny, the architecture check, the script tests, the knowledge bundle, privacy and Earth terms; the release timing checks still pass.
-- [ ] T025 Open the build PR as the bot from a new branch: label `build`, body with `Design: #<ADR 0009's design PR>`.
+- [X] T024 Full local verification as in T018: fmt, clippy, the whole workspace's tests (including the properties and the Gregorian fixture), deny, the architecture check, the script tests, the knowledge bundle, privacy and Earth terms; the release timing checks still pass.
+- [X] T025 Open the build PR as the bot from a new branch: label `build`, body with `Design: #<ADR 0009's design PR>`.
 
 ---
 

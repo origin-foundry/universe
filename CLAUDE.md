@@ -85,6 +85,7 @@ Notes here are public: keep them general. Anything true only of a particular mac
 
 - Test-only hooks go behind `#[cfg(test)]`, with the tests that use them as unit tests inside the crate. A crate's dev-dependency on itself (to switch a feature on for its integration tests) fails `scripts/check_architecture.py` as an upward dependency, and changing that check needs a design PR.
 - A crate with a path-only dependency on another workspace crate needs `publish = false`, or `cargo deny` reports the dependency as a wildcard.
+- Run `cargo deny check advisories bans sources`, as CI does. A bare `cargo deny check` also checks licences, which this project deliberately doesn't (`deny.toml`), and fails.
 
 **Tauri**
 
