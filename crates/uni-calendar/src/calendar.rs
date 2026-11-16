@@ -4,7 +4,7 @@ use std::collections::HashSet;
 
 use uni_time::{Instant, Ratio};
 
-use crate::{CalendarDef, CalendarError, Clock, DefinitionError, Limit};
+use crate::{CalendarDef, CalendarError, Clock, DefinitionError, EraInstance, Limit};
 
 type R<T> = Result<T, CalendarError>;
 
@@ -13,6 +13,10 @@ const NANOS_PER_SEC: i128 = 1_000_000_000;
 const MAX_DENOMINATOR: i128 = 1_000_000_000;
 /// The fundamental unit's length in ticks must stay below this (research R3).
 const MAX_TICKS: i128 = 1 << 120;
+
+/// The most instances of the era's unit its leap rules may take to repeat (spec 006,
+/// research R3).
+pub const RULE_PERIOD_LIMIT: i64 = 100_000;
 
 /// A checked calendar, ready to convert between instants and dates. Immutable; made only by
 /// [`Calendar::new`].
@@ -99,6 +103,7 @@ impl Calendar {
     ///         member_unit: None,
     ///         members: vec![MemberDef { name: None, count: 400 }],
     ///         first_number: None,
+    ///         rules: vec![],
     ///     }],
     ///     fundamental: FundamentalDef {
     ///         name: "sol".to_string(),
@@ -164,6 +169,17 @@ impl Calendar {
 
     pub fn era_unit(&self) -> &str {
         &self.units[self.era].name
+    }
+
+    /// The number of instances of the era's unit after which its rules repeat (1 without
+    /// rules).
+    pub fn rule_period(&self) -> i64 {
+        todo!()
+    }
+
+    /// One instance of the era's unit after its rules (FR-010).
+    pub fn era_instance(&self, _number: i64) -> R<EraInstance> {
+        todo!()
     }
 
     /// How many `inner` there are in one `outer`, when that's one fixed whole number: a year
@@ -478,7 +494,7 @@ fn with_lengths(def: &CalendarDef, mut units: Vec<Unit>) -> Result<Vec<Unit>, De
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use uni_time::{Instant, Ratio};
 
     use super::*;
@@ -496,6 +512,7 @@ mod tests {
             member_unit: None,
             members: vec![MemberDef { name: None, count }],
             first_number: None,
+            rules: vec![],
         }
     }
 
@@ -508,7 +525,7 @@ mod tests {
     }
 
     /// Aster, as in the spec, built here because unit tests can't see `tests/common`.
-    fn aster() -> CalendarDef {
+    pub(crate) fn aster() -> CalendarDef {
         let counts = [56, 56, 55, 56, 56, 55, 56, 56, 55, 56, 56, 55];
         let names = [
             "Prime", "Second", "Third", "Fourth", "Fifth", "Sixth", "Seventh", "Eighth", "Ninth",
@@ -535,6 +552,7 @@ mod tests {
                         })
                         .collect(),
                     first_number: None,
+                    rules: vec![],
                 },
             ],
             fundamental: FundamentalDef {
@@ -805,6 +823,7 @@ mod tests {
                 },
             ],
             first_number: None,
+            rules: vec![],
         }];
         def.era.unit = s("wide");
         assert_eq!(refused(def), beyond("wide", Limit::GroupingTooLong));
@@ -829,6 +848,7 @@ mod tests {
                 count: 400,
             }],
             first_number: None,
+            rules: vec![],
         }];
         def.era.unit = s("year");
         let cal = Calendar::new(def).unwrap();

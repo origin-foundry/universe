@@ -55,6 +55,23 @@ pub struct GroupingDef {
     pub members: Vec<MemberDef>,
     /// Default 1. Refused if this grouping is the era's unit or above it.
     pub first_number: Option<i64>,
+    /// Leap rules; may be empty. Only the grouping that is the era's unit may have any
+    /// (spec 006, research R1).
+    pub rules: Vec<LeapRuleDef>,
+}
+
+/// A leap rule on the era's unit: in each instance whose number makes `condition` true,
+/// `member` is `change` units longer (or shorter, when negative). Rules that hold in the same
+/// instance add up. Field rules are in `specs/006-leap-rules/data-model.md`.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct LeapRuleDef {
+    /// A true/false expression (spec 005) reading one whole-number variable named after the
+    /// era's unit, such as `year % 4 == 0`.
+    pub condition: String,
+    /// The member it changes: its name, or its number from 1 when it has none.
+    pub member: String,
+    /// Not 0. Positive lengthens, negative shortens, in the unit the grouping's members count.
+    pub change: i64,
 }
 
 /// The unit a grouping's members are instances of, such as the month; its lengths come from

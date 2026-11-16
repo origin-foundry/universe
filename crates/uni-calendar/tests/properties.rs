@@ -132,6 +132,7 @@ fn build(
                 })
                 .collect(),
             first_number: None,
+            rules: vec![],
         });
     }
     names.push("f".to_string());

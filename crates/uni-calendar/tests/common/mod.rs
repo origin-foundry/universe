@@ -39,6 +39,7 @@ fn one_member(name: &str, count: i64) -> GroupingDef {
         member_unit: None,
         members: vec![MemberDef { name: None, count }],
         first_number: None,
+        rules: vec![],
     }
 }
 
@@ -73,6 +74,7 @@ pub fn aster(epoch: Instant) -> CalendarDef {
                     })
                     .collect(),
                 first_number: None,
+                rules: vec![],
             },
         ],
         fundamental: FundamentalDef {
@@ -106,6 +108,7 @@ pub fn tessel(epoch: Instant) -> CalendarDef {
                 .map(|&count| MemberDef { name: None, count })
                 .collect(),
             first_number: None,
+            rules: vec![],
         }],
         fundamental: FundamentalDef {
             name: "turn".to_string(),

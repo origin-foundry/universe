@@ -31,11 +31,12 @@ mod convert;
 mod date;
 mod def;
 mod error;
+mod rules;
 
-pub use calendar::Calendar;
-pub use date::{Date, DateStart, InstantDate};
+pub use calendar::{Calendar, RULE_PERIOD_LIMIT};
+pub use date::{Date, DateStart, EraInstance, InstantDate};
 pub use def::{
-    CalendarDef, Clock, EraDef, FundamentalDef, GroupingDef, MemberDef, MemberUnitDef,
+    CalendarDef, Clock, EraDef, FundamentalDef, GroupingDef, LeapRuleDef, MemberDef, MemberUnitDef,
     SubdivisionDef,
 };
 pub use error::{CalendarError, DefinitionError, Limit};

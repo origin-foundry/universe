@@ -3944,6 +3944,7 @@ dependencies = [
  "num-bigint",
  "num-rational",
  "proptest",
+ "uni-expr",
  "uni-time",
 ]
 
