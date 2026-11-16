@@ -1,14 +1,19 @@
-//! The test calendars shared by the integration tests: Aster (spec.md) and Tessel (research R7).
+//! The test calendars shared by the integration tests: Aster (spec.md) and Tessel (research R7),
+//! with invented unit names (ADR 0009), and the Gregorian-shaped calendar in `gregorian.rs`.
 
 #![allow(dead_code)] // each test file uses only some of these
 
 use std::sync::LazyLock;
 
 use uni_calendar::{
-    CalendarDef, Clock, EraDef, FundamentalDef, GroupingDef, LeapRuleDef, MemberDef, MemberUnitDef,
-    SubdivisionDef,
+    AdjustmentRuleDef, CalendarDef, Clock, EraDef, FundamentalDef, GroupingDef, MemberDef,
+    MemberUnitDef, SubdivisionDef,
 };
 use uni_time::{Instant, Ratio, Span};
+
+mod gregorian;
+#[allow(unused_imports)] // only some test files use it
+pub use gregorian::*;
 
 /// An arbitrary epoch away from the timeline's zero, so nothing passes by accident.
 /// (`Instant::new` isn't `const`, so this is a lazily built static: write `*EPOCH`.)
@@ -18,7 +23,7 @@ pub static EPOCH: LazyLock<Instant> =
 /// Aster's sol, 88,775.244 s, in nanoseconds.
 pub const SOL_NS: i128 = 88_775_244_000_000;
 
-pub const MONTHS: [(&str, i64); 12] = [
+pub const SPANS: [(&str, i64); 12] = [
     ("Prime", 56),
     ("Second", 56),
     ("Third", 55),
@@ -51,22 +56,22 @@ fn subdivision(name: &str, parts: i64) -> SubdivisionDef {
     }
 }
 
-/// The spec's Aster: age (10 decades), decade (10 years), year (12 months in sols), sol of
-/// 88,775.244 s, hour (20 parts), minute (100 parts); the era "After Landing" numbers years.
+/// The spec's Aster: age (10 cohorts), cohort (10 orbits), orbit (12 spans in sols), sol of
+/// 88,775.244 s, bell (20 parts), pulse (100 parts); the era "After Landing" numbers orbits.
 pub fn aster(epoch: Instant) -> CalendarDef {
     CalendarDef {
         name: "Aster".to_string(),
         clock: Clock::Gct,
         groupings: vec![
             one_member("age", 10),
-            one_member("decade", 10),
+            one_member("cohort", 10),
             GroupingDef {
-                name: "year".to_string(),
+                name: "orbit".to_string(),
                 member_unit: Some(MemberUnitDef {
-                    name: "month".to_string(),
+                    name: "span".to_string(),
                     first_number: None,
                 }),
-                members: MONTHS
+                members: SPANS
                     .iter()
                     .map(|&(name, count)| MemberDef {
                         name: Some(name.to_string()),
@@ -82,10 +87,10 @@ pub fn aster(epoch: Instant) -> CalendarDef {
             length: Ratio::new(88_775_244, 1000).unwrap(),
             first_number: None,
         },
-        subdivisions: vec![subdivision("hour", 20), subdivision("minute", 100)],
+        subdivisions: vec![subdivision("bell", 20), subdivision("pulse", 100)],
         era: EraDef {
             name: "After Landing".to_string(),
-            unit: "year".to_string(),
+            unit: "orbit".to_string(),
             epoch,
         },
     }
@@ -139,12 +144,12 @@ pub fn secs(num: i128, den: i128) -> Ratio {
     Ratio::new(num, den).unwrap()
 }
 
-/// Aster with the spec's leap rule: Twelfth is 1 sol longer when
-/// `year % 5 == 0 && (year % 100 != 0 || year % 500 == 0)` (rule period 500).
+/// Aster with the spec's adjustment rule: Twelfth is 1 sol longer when
+/// `orbit % 5 == 0 && (orbit % 100 != 0 || orbit % 500 == 0)` (rule period 500).
 pub fn aster_with_rule(epoch: Instant) -> CalendarDef {
     let mut def = aster(epoch);
     def.groupings[2].rules = vec![rule(
-        "year % 5 == 0 && (year % 100 != 0 || year % 500 == 0)",
+        "orbit % 5 == 0 && (orbit % 100 != 0 || orbit % 500 == 0)",
         "Twelfth",
         1,
     )];
@@ -159,50 +164,9 @@ pub fn tessel_with_rule(epoch: Instant) -> CalendarDef {
     def
 }
 
-/// The Gregorian month lengths of a common year.
-pub const GREGORIAN_MONTHS: [i64; 12] = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-
-/// A test calendar shaped like the proleptic Gregorian calendar (spec Story 3, scenario 4): an
-/// 86,400 s day, a year of 12 months whose second is 1 day longer by the Gregorian rule, and
-/// an era numbering years from `Instant::ZERO`. Not the Gregorian preset.
-pub fn gregorian_shaped() -> CalendarDef {
-    CalendarDef {
-        name: "Gregorian-shaped".to_string(),
-        clock: Clock::Gct,
-        groupings: vec![GroupingDef {
-            name: "year".to_string(),
-            member_unit: Some(MemberUnitDef {
-                name: "month".to_string(),
-                first_number: None,
-            }),
-            members: GREGORIAN_MONTHS
-                .iter()
-                .map(|&count| MemberDef { name: None, count })
-                .collect(),
-            first_number: None,
-            rules: vec![rule(
-                "year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)",
-                "2",
-                1,
-            )],
-        }],
-        fundamental: FundamentalDef {
-            name: "day".to_string(),
-            length: Ratio::from_int(86_400).unwrap(),
-            first_number: None,
-        },
-        subdivisions: vec![],
-        era: EraDef {
-            name: "Common Era".to_string(),
-            unit: "year".to_string(),
-            epoch: Instant::ZERO,
-        },
-    }
-}
-
-/// A leap rule.
-pub fn rule(condition: &str, member: &str, change: i64) -> LeapRuleDef {
-    LeapRuleDef {
+/// An adjustment rule.
+pub fn rule(condition: &str, member: &str, change: i64) -> AdjustmentRuleDef {
+    AdjustmentRuleDef {
         condition: condition.to_string(),
         member: member.to_string(),
         change,

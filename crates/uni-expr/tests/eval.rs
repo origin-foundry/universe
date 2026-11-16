@@ -2,18 +2,19 @@
 
 use uni_expr::{EvalError, Expr, Pos, Type, Value, VarDecl};
 
-const ASTER: &str = "year % 5 == 0 && (year % 100 != 0 || year % 500 == 0)";
-const GREGORIAN: &str = "year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)";
+const ASTER: &str = "turn % 5 == 0 && (turn % 100 != 0 || turn % 500 == 0)";
+/// The Gregorian rule, with its variable called `turn` like the other tests' (ADR 0009).
+const GREGORIAN: &str = "turn % 4 == 0 && (turn % 100 != 0 || turn % 400 == 0)";
 
-fn year() -> Vec<VarDecl> {
+fn turn() -> Vec<VarDecl> {
     vec![VarDecl {
-        name: "year".into(),
+        name: "turn".into(),
         ty: Type::Int,
     }]
 }
 
 fn checked(source: &str, result: Type) -> Expr {
-    Expr::check(source, &year(), result).expect(source)
+    Expr::check(source, &turn(), result).expect(source)
 }
 
 fn at(column: u32) -> Pos {
@@ -25,9 +26,9 @@ fn eval(source: &str, result: Type, y: i64) -> Result<Value, EvalError> {
 }
 
 #[test]
-fn leap_rules() {
+fn the_gregorian_rule() {
     let aster = checked(ASTER, Type::Bool);
-    for (y, leap) in [
+    for (y, flag) in [
         (5, true),
         (100, false),
         (500, true),
@@ -35,10 +36,10 @@ fn leap_rules() {
         (-5, true),
         (1, false),
     ] {
-        assert_eq!(aster.eval(&[Value::Int(y)]), Ok(Value::Bool(leap)), "{y}");
+        assert_eq!(aster.eval(&[Value::Int(y)]), Ok(Value::Bool(flag)), "{y}");
     }
     let gregorian = checked(GREGORIAN, Type::Bool);
-    for (y, leap) in [
+    for (y, flag) in [
         (2000, true),
         (1900, false),
         (2024, true),
@@ -49,7 +50,7 @@ fn leap_rules() {
     ] {
         assert_eq!(
             gregorian.eval(&[Value::Int(y)]),
-            Ok(Value::Bool(leap)),
+            Ok(Value::Bool(flag)),
             "{y}"
         );
     }
@@ -74,19 +75,19 @@ fn division_is_floored() {
 #[test]
 fn every_operator() {
     for (source, value) in [
-        ("year + 2", Value::Int(9)),
-        ("year - 2", Value::Int(5)),
-        ("year * 2", Value::Int(14)),
-        ("-year", Value::Int(-7)),
-        ("year < 7", Value::Bool(false)),
-        ("year <= 7", Value::Bool(true)),
-        ("year > 6", Value::Bool(true)),
-        ("year >= 8", Value::Bool(false)),
-        ("year != 7", Value::Bool(false)),
-        ("!(year == 7)", Value::Bool(false)),
-        ("(year == 7) == true", Value::Bool(true)),
+        ("turn + 2", Value::Int(9)),
+        ("turn - 2", Value::Int(5)),
+        ("turn * 2", Value::Int(14)),
+        ("-turn", Value::Int(-7)),
+        ("turn < 7", Value::Bool(false)),
+        ("turn <= 7", Value::Bool(true)),
+        ("turn > 6", Value::Bool(true)),
+        ("turn >= 8", Value::Bool(false)),
+        ("turn != 7", Value::Bool(false)),
+        ("!(turn == 7)", Value::Bool(false)),
+        ("(turn == 7) == true", Value::Bool(true)),
         ("true != false", Value::Bool(true)),
-        ("if year > 0 then year else -year", Value::Int(7)),
+        ("if turn > 0 then turn else -turn", Value::Int(7)),
     ] {
         let ty = value.ty();
         assert_eq!(eval(source, ty, 7), Ok(value), "{source}");
@@ -96,7 +97,7 @@ fn every_operator() {
 #[test]
 fn if_takes_one_branch() {
     let rule = checked(
-        "if year % 2 == 0 then year / 2 % 3 == 0 else false",
+        "if turn % 2 == 0 then turn / 2 % 3 == 0 else false",
         Type::Bool,
     );
     for (y, value) in [(6, true), (4, false), (3, false)] {
@@ -106,14 +107,14 @@ fn if_takes_one_branch() {
 
 #[test]
 fn division_by_zero_points_at_the_operator() {
-    let rule = checked("100 / (year % 7) == 3", Type::Bool);
+    let rule = checked("100 / (turn % 7) == 3", Type::Bool);
     assert_eq!(
         rule.eval(&[Value::Int(14)]),
         Err(EvalError::DivisionByZero { at: at(5) })
     );
     assert_eq!(rule.eval(&[Value::Int(1)]), Ok(Value::Bool(false)));
     assert_eq!(
-        eval("year % 0", Type::Int, 3),
+        eval("turn % 0", Type::Int, 3),
         Err(EvalError::DivisionByZero { at: at(6) })
     );
 }
@@ -121,24 +122,24 @@ fn division_by_zero_points_at_the_operator() {
 #[test]
 fn results_outside_64_bits_are_refused() {
     assert_eq!(
-        eval("year * 4611686018427387904", Type::Int, 2),
+        eval("turn * 4611686018427387904", Type::Int, 2),
         Err(EvalError::OutOfRange { at: at(6) })
     );
     assert_eq!(
-        eval("-year", Type::Int, i64::MIN),
+        eval("-turn", Type::Int, i64::MIN),
         Err(EvalError::OutOfRange { at: at(1) })
     );
     assert_eq!(
-        eval("year / -1", Type::Int, i64::MIN),
+        eval("turn / -1", Type::Int, i64::MIN),
         Err(EvalError::OutOfRange { at: at(6) })
     );
-    assert_eq!(eval("year % -1", Type::Int, i64::MIN), Ok(Value::Int(0)));
+    assert_eq!(eval("turn % -1", Type::Int, i64::MIN), Ok(Value::Int(0)));
     assert_eq!(
-        eval("year + 1", Type::Int, i64::MAX),
+        eval("turn + 1", Type::Int, i64::MAX),
         Err(EvalError::OutOfRange { at: at(6) })
     );
     assert_eq!(
-        eval("year - 1", Type::Int, i64::MIN),
+        eval("turn - 1", Type::Int, i64::MIN),
         Err(EvalError::OutOfRange { at: at(6) })
     );
 }
@@ -146,11 +147,11 @@ fn results_outside_64_bits_are_refused() {
 #[test]
 fn only_what_is_needed_is_evaluated() {
     assert_eq!(
-        eval("year % 2 == 0 && 100 / (year % 7) == 3", Type::Bool, 7),
+        eval("turn % 2 == 0 && 100 / (turn % 7) == 3", Type::Bool, 7),
         Ok(Value::Bool(false))
     );
     assert_eq!(
-        eval("year % 2 == 1 || 1 / 0 == 0", Type::Bool, 7),
+        eval("turn % 2 == 1 || 1 / 0 == 0", Type::Bool, 7),
         Ok(Value::Bool(true))
     );
     assert_eq!(
@@ -163,7 +164,7 @@ fn only_what_is_needed_is_evaluated() {
     );
     // When the left side doesn't decide, the right side is evaluated, errors and all.
     assert_eq!(
-        eval("year % 2 == 1 && 1 / 0 == 0", Type::Bool, 7),
+        eval("turn % 2 == 1 && 1 / 0 == 0", Type::Bool, 7),
         Err(EvalError::DivisionByZero { at: at(20) })
     );
 }
@@ -172,15 +173,15 @@ fn only_what_is_needed_is_evaluated() {
 fn values_follow_the_declarations() {
     let vars = [
         VarDecl {
-            name: "year".into(),
+            name: "turn".into(),
             ty: Type::Int,
         },
         VarDecl {
-            name: "leap".into(),
+            name: "flag".into(),
             ty: Type::Bool,
         },
     ];
-    let expr = Expr::check("if leap then year + 1 else year", &vars, Type::Int).unwrap();
+    let expr = Expr::check("if flag then turn + 1 else turn", &vars, Type::Int).unwrap();
     assert_eq!(
         expr.eval(&[Value::Int(4), Value::Bool(true)]),
         Ok(Value::Int(5))

@@ -26,13 +26,13 @@ impl Expr {
     /// ```
     /// use uni_expr::{CheckError, Expr, Pos, Type, VarDecl};
     ///
-    /// let vars = [VarDecl { name: "year".into(), ty: Type::Int }];
-    /// let rule = Expr::check("year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)", &vars, Type::Bool)?;
-    /// assert_eq!(rule.source(), "year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)");
+    /// let vars = [VarDecl { name: "turn".into(), ty: Type::Int }];
+    /// let rule = Expr::check("turn % 4 == 0 && (turn % 100 != 0 || turn % 400 == 0)", &vars, Type::Bool)?;
+    /// assert_eq!(rule.source(), "turn % 4 == 0 && (turn % 100 != 0 || turn % 400 == 0)");
     ///
     /// assert_eq!(
-    ///     Expr::check("month == 2", &vars, Type::Bool),
-    ///     Err(CheckError::UnknownVariable { name: "month".into(), at: Pos { line: 1, column: 1 } }),
+    ///     Expr::check("phase == 2", &vars, Type::Bool),
+    ///     Err(CheckError::UnknownVariable { name: "phase".into(), at: Pos { line: 1, column: 1 } }),
     /// );
     /// # Ok::<(), CheckError>(())
     /// ```
@@ -174,11 +174,11 @@ mod tests {
     fn vars() -> Vec<VarDecl> {
         vec![
             VarDecl {
-                name: "year".into(),
+                name: "turn".into(),
                 ty: Type::Int,
             },
             VarDecl {
-                name: "leap".into(),
+                name: "flag".into(),
                 ty: Type::Bool,
             },
         ]
@@ -195,25 +195,25 @@ mod tests {
             ("1", Type::Int),
             ("true", Type::Bool),
             ("false", Type::Bool),
-            ("year", Type::Int),
-            ("leap", Type::Bool),
-            ("-year", Type::Int),
-            ("!leap", Type::Bool),
-            ("year + 1", Type::Int),
-            ("year - 1", Type::Int),
-            ("year * 1", Type::Int),
-            ("year / 1", Type::Int),
-            ("year % 1", Type::Int),
-            ("year < 1", Type::Bool),
-            ("year <= 1", Type::Bool),
-            ("year > 1", Type::Bool),
-            ("year >= 1", Type::Bool),
-            ("year == 1", Type::Bool),
-            ("leap != true", Type::Bool),
-            ("leap && true", Type::Bool),
-            ("leap || false", Type::Bool),
-            ("if leap then year else 0", Type::Int),
-            ("if leap then leap else false", Type::Bool),
+            ("turn", Type::Int),
+            ("flag", Type::Bool),
+            ("-turn", Type::Int),
+            ("!flag", Type::Bool),
+            ("turn + 1", Type::Int),
+            ("turn - 1", Type::Int),
+            ("turn * 1", Type::Int),
+            ("turn / 1", Type::Int),
+            ("turn % 1", Type::Int),
+            ("turn < 1", Type::Bool),
+            ("turn <= 1", Type::Bool),
+            ("turn > 1", Type::Bool),
+            ("turn >= 1", Type::Bool),
+            ("turn == 1", Type::Bool),
+            ("flag != true", Type::Bool),
+            ("flag && true", Type::Bool),
+            ("flag || false", Type::Bool),
+            ("if flag then turn else 0", Type::Int),
+            ("if flag then flag else false", Type::Bool),
         ] {
             assert_eq!(type_of(source), Ok(ty), "{source}");
         }
@@ -230,24 +230,24 @@ mod tests {
                 at: at(column),
             })
         };
-        assert_eq!(type_of("leap * 2"), mismatch("*", Type::Int, Type::Bool, 1));
+        assert_eq!(type_of("flag * 2"), mismatch("*", Type::Int, Type::Bool, 1));
         assert_eq!(
-            type_of("leap == 2"),
+            type_of("flag == 2"),
             mismatch("==", Type::Bool, Type::Int, 9)
         );
         assert_eq!(
-            type_of("year || leap"),
+            type_of("turn || flag"),
             mismatch("||", Type::Bool, Type::Int, 1)
         );
         assert_eq!(
-            type_of("year >= (leap)"),
+            type_of("turn >= (flag)"),
             mismatch(">=", Type::Int, Type::Bool, 9)
         );
     }
 
     #[test]
     fn variables_resolve_to_their_index() {
-        let mut ast = parse(lex("leap && year > 0").unwrap()).unwrap();
+        let mut ast = parse(lex("flag && turn > 0").unwrap()).unwrap();
         resolve(&mut ast, &vars()).unwrap();
         let Kind::Binary { lhs, rhs, .. } = ast.kind else {
             panic!("{ast:?}");
@@ -280,7 +280,7 @@ mod tests {
         );
         assert_eq!(reason(&[int("else")]), "it's a keyword");
         assert_eq!(
-            reason(&[int("n"), int("year"), int("n")]),
+            reason(&[int("n"), int("turn"), int("n")]),
             "it's declared more than once"
         );
         assert_eq!(check_declarations(&[int("ano"), int("年")]), Ok(()));

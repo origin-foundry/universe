@@ -18,12 +18,12 @@ impl Expr {
     /// ```
     /// use uni_expr::{EvalError, Expr, Pos, Type, Value, VarDecl};
     ///
-    /// let vars = [VarDecl { name: "year".into(), ty: Type::Int }];
-    /// let rule = Expr::check("year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)", &vars, Type::Bool)?;
+    /// let vars = [VarDecl { name: "turn".into(), ty: Type::Int }];
+    /// let rule = Expr::check("turn % 4 == 0 && (turn % 100 != 0 || turn % 400 == 0)", &vars, Type::Bool)?;
     /// assert_eq!(rule.eval(&[Value::Int(2000)]), Ok(Value::Bool(true)));
     /// assert_eq!(rule.eval(&[Value::Int(1900)]), Ok(Value::Bool(false)));
     ///
-    /// let ratio = Expr::check("100 / (year % 7)", &vars, Type::Int)?;
+    /// let ratio = Expr::check("100 / (turn % 7)", &vars, Type::Int)?;
     /// assert_eq!(ratio.eval(&[Value::Int(14)]), Err(EvalError::DivisionByZero { at: Pos { line: 1, column: 5 } }));
     /// # Ok::<(), uni_expr::CheckError>(())
     /// ```

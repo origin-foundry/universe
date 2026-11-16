@@ -59,7 +59,7 @@ impl Op {
 enum T {
     Int(i64),
     Bool(bool),
-    Year,
+    Turn,
     N,
     Neg(Box<T>),
     Not(Box<T>),
@@ -78,7 +78,7 @@ impl T {
     fn precedence(&self) -> u8 {
         match self {
             T::Int(v) if *v < 0 => UNARY,
-            T::Int(_) | T::Bool(_) | T::Year | T::N => ATOM,
+            T::Int(_) | T::Bool(_) | T::Turn | T::N => ATOM,
             T::Neg(_) | T::Not(_) => UNARY,
             T::Bin(op, ..) => op.precedence(),
             T::If(..) => 0,
@@ -91,7 +91,7 @@ impl T {
             T::Int(v) if *v < 0 => format!("({v})"),
             T::Int(v) => v.to_string(),
             T::Bool(b) => b.to_string(),
-            T::Year => "year".into(),
+            T::Turn => "turn".into(),
             T::N => "n".into(),
             T::Neg(x) => format!("(-{})", x.full()),
             T::Not(x) => format!("(!{})", x.full()),
@@ -133,13 +133,13 @@ impl T {
         }
     }
 
-    /// Every `year` replaced by `(a·year + b) % m`, so periods are common.
-    fn wrap_year(&self, a: i64, b: i64, m: i64) -> T {
-        let w = |x: &T| Box::new(x.wrap_year(a, b, m));
+    /// Every `turn` replaced by `(a·turn + b) % m`, so periods are common.
+    fn wrap_turn(&self, a: i64, b: i64, m: i64) -> T {
+        let w = |x: &T| Box::new(x.wrap_turn(a, b, m));
         match self {
-            T::Year => T::bin(
+            T::Turn => T::bin(
                 Op::Rem,
-                T::bin(Op::Add, T::bin(Op::Mul, T::Int(a), T::Year), T::Int(b)),
+                T::bin(Op::Add, T::bin(Op::Mul, T::Int(a), T::Turn), T::Int(b)),
                 T::Int(m),
             ),
             T::Neg(x) => T::Neg(w(x)),
@@ -171,7 +171,7 @@ fn literal() -> impl Strategy<Value = i64> {
 fn trees(depth: usize) -> (BoxedStrategy<T>, BoxedStrategy<T>) {
     let mut ints = prop_oneof![
         2 => literal().prop_map(T::Int),
-        2 => Just(T::Year),
+        2 => Just(T::Turn),
         1 => Just(T::N),
     ]
     .boxed();
@@ -247,7 +247,7 @@ fn floored(a: &BigInt, b: &BigInt) -> (BigInt, BigInt) {
 
 /// The reference evaluator: unlimited-size integers; any whole number it computes that
 /// doesn't fit in 64 bits is out of range.
-fn reference(t: &T, year: i64, n: i64) -> Result<Ref, RefError> {
+fn reference(t: &T, turn: i64, n: i64) -> Result<Ref, RefError> {
     let fits = |v: BigInt| {
         if v >= BigInt::from(i64::MIN) && v <= BigInt::from(i64::MAX) {
             Ok(Ref::Int(v))
@@ -255,32 +255,32 @@ fn reference(t: &T, year: i64, n: i64) -> Result<Ref, RefError> {
             Err(RefError::OutOfRange)
         }
     };
-    let int = |t: &T| match reference(t, year, n)? {
+    let int = |t: &T| match reference(t, turn, n)? {
         Ref::Int(v) => Ok(v),
         Ref::Bool(_) => unreachable!("well typed"),
     };
-    let boolean = |t: &T| match reference(t, year, n)? {
+    let boolean = |t: &T| match reference(t, turn, n)? {
         Ref::Bool(b) => Ok(b),
         Ref::Int(_) => unreachable!("well typed"),
     };
     match t {
         T::Int(v) => Ok(Ref::Int(BigInt::from(*v))),
         T::Bool(b) => Ok(Ref::Bool(*b)),
-        T::Year => Ok(Ref::Int(BigInt::from(year))),
+        T::Turn => Ok(Ref::Int(BigInt::from(turn))),
         T::N => Ok(Ref::Int(BigInt::from(n))),
         T::Neg(x) => fits(-int(x)?),
         T::Not(x) => Ok(Ref::Bool(!boolean(x)?)),
         T::If(c, a, b) => {
             if boolean(c)? {
-                reference(a, year, n)
+                reference(a, turn, n)
             } else {
-                reference(b, year, n)
+                reference(b, turn, n)
             }
         }
         T::Bin(Op::And, l, r) => Ok(Ref::Bool(boolean(l)? && boolean(r)?)),
         T::Bin(Op::Or, l, r) => Ok(Ref::Bool(boolean(l)? || boolean(r)?)),
         T::Bin(op @ (Op::Eq | Op::Ne), l, r) => {
-            let (a, b) = (reference(l, year, n)?, reference(r, year, n)?);
+            let (a, b) = (reference(l, turn, n)?, reference(r, turn, n)?);
             Ok(Ref::Bool((a == b) == (*op == Op::Eq)))
         }
         T::Bin(op, l, r) => {
@@ -305,7 +305,7 @@ fn reference(t: &T, year: i64, n: i64) -> Result<Ref, RefError> {
 fn vars() -> Vec<VarDecl> {
     vec![
         VarDecl {
-            name: "year".into(),
+            name: "turn".into(),
             ty: Type::Int,
         },
         VarDecl {
@@ -371,7 +371,7 @@ fn any_text() -> impl Strategy<Value = String> {
         (0usize..=5000, 0usize..4).prop_map(|(k, shape)| match shape {
             0 => "(".repeat(k),
             1 => format!("{}1{}", "(".repeat(k), ")".repeat(k)),
-            2 => format!("{}year", "- ".repeat(k)),
+            2 => format!("{}turn", "- ".repeat(k)),
             _ => format!("{}1", "1 + ".repeat(k)),
         }),
     ]
@@ -385,15 +385,15 @@ proptest! {
     #[test]
     fn evaluation_matches_the_reference(
         (tree, ty) in typed_tree(),
-        year in variable_value(),
+        turn in variable_value(),
         n in variable_value(),
     ) {
-        let expected = reference(&tree, year, n);
+        let expected = reference(&tree, turn, n);
         for source in [tree.full(), tree.minimal()] {
             let expr = Expr::check(&source, &vars(), ty)
                 .map_err(|e| TestCaseError::fail(format!("{source}: {e}")))?;
-            let got = as_ref(expr.eval(&[Value::Int(year), Value::Int(n)]));
-            prop_assert_eq!(&got, &expected, "{} at year {}, n {}", source, year, n);
+            let got = as_ref(expr.eval(&[Value::Int(turn), Value::Int(n)]));
+            prop_assert_eq!(&got, &expected, "{} at turn {}, n {}", source, turn, n);
         }
     }
 
@@ -407,13 +407,13 @@ proptest! {
         n in variable_value(),
     ) {
         let tree = match wrap {
-            Some((a, b, m)) => tree.wrap_year(a, b, m),
+            Some((a, b, m)) => tree.wrap_turn(a, b, m),
             None => tree,
         };
         let source = tree.minimal();
         let expr = Expr::check(&source, &vars(), ty)
             .map_err(|e| TestCaseError::fail(format!("{source}: {e}")))?;
-        if let Ok(p) = expr.period("year", 10_000) {
+        if let Ok(p) = expr.period("turn", 10_000) {
             prop_assert!((1..=10_000).contains(&p));
             let here = reference(&tree, y, n);
             let there = reference(&tree, y + p, n);
@@ -432,7 +432,7 @@ proptest! {
             Ok(expr) => {
                 prop_assert_eq!(expr.source(), source.as_str());
                 let _ = expr.eval(&[Value::Int(y), Value::Int(y)]);
-                let _ = expr.period("year", 10_000);
+                let _ = expr.period("turn", 10_000);
             }
             Err(error) => {
                 let at = error_position(&error).expect("declarations are valid");

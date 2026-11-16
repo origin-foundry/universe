@@ -73,7 +73,7 @@ mod tests {
     use super::*;
     use crate::{Span, TimeError};
 
-    const HUNDRED_THOUSAND_YEARS: i64 = 3_155_695_200_000; // 100,000 Gregorian years of seconds
+    const HUNDRED_THOUSAND_EARTH_YEARS: i64 = 3_155_695_200_000; // 100,000 Gregorian years of seconds
     const ONE_NS: i128 = 1;
 
     fn at(secs: i64, nanos: u32) -> Instant {
@@ -100,8 +100,8 @@ mod tests {
     }
 
     #[test]
-    fn exact_at_a_hundred_thousand_years_either_way() {
-        for secs in [HUNDRED_THOUSAND_YEARS, -HUNDRED_THOUSAND_YEARS] {
+    fn exact_at_a_hundred_thousand_earth_years_either_way() {
+        for secs in [HUNDRED_THOUSAND_EARTH_YEARS, -HUNDRED_THOUSAND_EARTH_YEARS] {
             let t = at(secs, 0);
             let later = t.checked_add(Span::from_nanos(ONE_NS).unwrap()).unwrap();
             assert_eq!(later.since(t).as_nanos(), 1);

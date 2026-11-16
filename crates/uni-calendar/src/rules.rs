@@ -1,4 +1,4 @@
-//! Leap rules on the era's unit: checking them, their period, and the cycle table that both
+//! Adjustment rules on the era's unit: checking them, their period, and the cycle table that both
 //! conversion directions search (spec 006, research R3 to R5).
 
 use std::collections::HashMap;
@@ -85,7 +85,7 @@ impl Cycle {
                 });
             }
         }
-        // 4. The table, year by year. The members count the unit below the grouping, whose
+        // 4. The table, one instance of the era's unit at a time. The members count the unit below the grouping, whose
         // length in fundamental units is the grouping's length over the members' total.
         let base: Vec<i64> = grouping.members.iter().map(|m| m.count).collect();
         let below = length / base.iter().sum::<i64>(); // the sum is at most `length`
@@ -99,17 +99,17 @@ impl Cycle {
         let mut residues = Vec::with_capacity(size);
         let mut starts = Vec::with_capacity(size + 1);
         starts.push(0i64);
-        for year in 1..=period {
+        for era_number in 1..=period {
             let mut holding = Vec::new();
             for (i, rule) in rules.iter().enumerate() {
-                match rule.condition.eval(&[Value::Int(year)]) {
+                match rule.condition.eval(&[Value::Int(era_number)]) {
                     Ok(Value::Bool(true)) => holding.push(i + 1),
                     Ok(_) => {}
                     Err(error) => {
                         return Err(DefinitionError::RuleFails {
                             unit: name.clone(),
                             rule: i + 1,
-                            year,
+                            era_number,
                             error,
                         });
                     }
@@ -119,10 +119,11 @@ impl Cycle {
                 Some(&index) => index,
                 None => {
                     let variant =
-                        Variant::new(grouping, &base, &rules, holding.clone(), year, below)
+                        Variant::new(grouping, &base, &rules, holding.clone(), era_number, below)
                             .map_err(|e| e.unwrap_or_else(too_long))?;
                     variants.push(variant);
-                    let index = u32::try_from(variants.len() - 1).expect("at most one per year");
+                    let index =
+                        u32::try_from(variants.len() - 1).expect("at most one per instance");
                     seen.insert(holding, index);
                     index
                 }
@@ -189,14 +190,14 @@ impl Variant {
         self.starts[self.starts.len() - 1]
     }
 
-    /// The variant where the rules numbered in `holding` hold, first met in instance `year`.
+    /// The variant where the rules numbered in `holding` hold, first met in instance `era_number`.
     /// `Err(None)` means a total doesn't fit in `i64`.
     fn new(
         grouping: &GroupingDef,
         base: &[i64],
         rules: &[Rule],
         holding: Vec<usize>,
-        year: i64,
+        era_number: i64,
         below: i64,
     ) -> Result<Variant, Option<DefinitionError>> {
         let mut counts = base.to_vec();
@@ -208,7 +209,7 @@ impl Variant {
             return Err(Some(DefinitionError::MemberTooShort {
                 unit: grouping.name.clone(),
                 member: label(grouping, j),
-                year,
+                era_number,
                 length,
             }));
         }
@@ -298,26 +299,26 @@ fn lcm(a: i64, b: i64) -> i64 {
 #[cfg(test)]
 mod tests {
     use crate::calendar::tests::aster;
-    use crate::{Calendar, LeapRuleDef};
+    use crate::{AdjustmentRuleDef, Calendar};
 
-    fn rule(condition: &str, member: &str, change: i64) -> LeapRuleDef {
-        LeapRuleDef {
+    fn rule(condition: &str, member: &str, change: i64) -> AdjustmentRuleDef {
+        AdjustmentRuleDef {
             condition: condition.to_string(),
             member: member.to_string(),
             change,
         }
     }
 
-    const ASTER_RULE: &str = "year % 5 == 0 && (year % 100 != 0 || year % 500 == 0)";
+    const ASTER_RULE: &str = "orbit % 5 == 0 && (orbit % 100 != 0 || orbit % 500 == 0)";
     const COMMON: [i64; 12] = [56, 56, 55, 56, 56, 55, 56, 56, 55, 56, 56, 55];
 
-    fn cycle_of(rules: Vec<LeapRuleDef>) -> super::Cycle {
+    fn cycle_of(rules: Vec<AdjustmentRuleDef>) -> super::Cycle {
         let mut def = aster();
         def.groupings[2].rules = rules;
         Calendar::new(def)
             .unwrap()
             .cycle
-            .expect("the year is a grouping")
+            .expect("the orbit is a grouping")
     }
 
     #[test]
@@ -328,21 +329,21 @@ mod tests {
         assert_eq!(cycle.residues.len(), 500);
         assert_eq!(cycle.starts.len(), 501);
         assert_eq!(cycle.variants.len(), 2);
-        let mut leap = COMMON;
-        leap[11] = 56;
+        let mut long = COMMON;
+        long[11] = 56;
         let counts = |r: i64| &cycle.variant(r).counts;
-        assert_eq!(counts(0), &COMMON); // year 1
-        assert_eq!(counts(4), &leap); // year 5
-        assert_eq!(counts(99), &COMMON); // year 100
-        assert_eq!(counts(499), &leap); // year 500
+        assert_eq!(counts(0), &COMMON); // orbit 1
+        assert_eq!(counts(4), &long); // orbit 5
+        assert_eq!(counts(99), &COMMON); // orbit 100
+        assert_eq!(counts(499), &long); // orbit 500
         assert_eq!(cycle.variant(4).holding, [1]);
         assert_eq!(cycle.variant(0).holding, Vec::<usize>::new());
         assert_eq!(*cycle.variant(4).starts.last().unwrap(), 669);
         assert_eq!(cycle.variant(4).starts[11], 668 - 55);
-        // 500 years of 668 sols plus 96 leap days.
+        // 500 orbits of 668 sols plus 96 extra sols.
         assert_eq!(cycle.starts[500], 334_096);
         assert_eq!(cycle.starts[5], 3_341);
-        // Residues repeat: counts −1 and 499 are both year 500's variant (years 0 and 500).
+        // Residues repeat: counts −1 and 499 are both orbit 500's variant (orbits 0 and 500).
         assert_eq!(cycle.variant(-1), cycle.variant(499));
         assert_eq!(cycle.variant(-500), cycle.variant(0));
     }
@@ -351,20 +352,20 @@ mod tests {
     fn two_rules_on_one_member_add_up_in_one_variant() {
         let cycle = cycle_of(vec![
             rule(ASTER_RULE, "Twelfth", 1),
-            rule("year % 25 == 0", "Twelfth", 2),
+            rule("orbit % 25 == 0", "Twelfth", 2),
         ]);
         assert_eq!(cycle.period, 500);
-        // Common, Aster's rule alone, both, and the second alone (years 100, 200, 300, 400).
+        // Common, Aster's rule alone, both, and the second alone (orbits 100, 200, 300, 400).
         assert_eq!(cycle.variants.len(), 4);
-        let year_25 = cycle.variant(24);
-        assert_eq!(year_25.counts[11], 58);
-        assert_eq!(year_25.holding, [1, 2]);
+        let orbit_25 = cycle.variant(24);
+        assert_eq!(orbit_25.counts[11], 58);
+        assert_eq!(orbit_25.holding, [1, 2]);
         assert_eq!(cycle.variant(99).counts[11], 57);
         assert_eq!(cycle.variant(99).holding, [2]);
     }
 
     #[test]
-    fn a_calendar_without_rules_has_a_one_year_cycle() {
+    fn a_calendar_without_rules_has_a_one_orbit_cycle() {
         let cycle = Calendar::new(aster()).unwrap().cycle.unwrap();
         assert_eq!(cycle.rules, 0);
         assert_eq!(cycle.period, 1);
@@ -378,10 +379,10 @@ mod tests {
     #[test]
     fn locating_fixed_numbers_in_the_cycle() {
         let cycle = cycle_of(vec![rule(ASTER_RULE, "Twelfth", 1)]);
-        // Fixed number 3,340 is the last sol of year 5 (count 4); 3,341 starts year 6.
+        // Fixed number 3,340 is the last sol of orbit 5 (count 4); 3,341 starts orbit 6.
         assert_eq!(cycle.locate(3_340).map(|(c, p, _)| (c, p)), Ok((4, 668)));
         assert_eq!(cycle.locate(3_341).map(|(c, p, _)| (c, p)), Ok((5, 0)));
-        // One sol before the epoch: the last sol of year 0 (count −1), a leap year.
+        // One sol before the epoch: the last sol of orbit 0 (count −1), a long orbit.
         assert_eq!(cycle.locate(-1).map(|(c, p, _)| (c, p)), Ok((-1, 668)));
         assert_eq!(cycle.start(500), Ok(334_096));
         assert_eq!(cycle.start(-1), Ok(-669));

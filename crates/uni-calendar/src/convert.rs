@@ -85,19 +85,19 @@ impl Calendar {
     /// # let def = CalendarDef {
     /// #     name: "Plain".to_string(),
     /// #     clock: Clock::Gct,
-    /// #     groupings: vec![GroupingDef { name: "year".to_string(), member_unit: None,
+    /// #     groupings: vec![GroupingDef { name: "orbit".to_string(), member_unit: None,
     /// #         members: vec![MemberDef { name: None, count: 400 }], first_number: None, rules: vec![] }],
     /// #     fundamental: FundamentalDef { name: "sol".to_string(),
     /// #         length: Ratio::from_int(90_000).unwrap(), first_number: None },
-    /// #     subdivisions: vec![SubdivisionDef { name: "hour".to_string(), parts: 10, first_number: None }],
-    /// #     era: EraDef { name: "Plain Era".to_string(), unit: "year".to_string(), epoch: Instant::ZERO },
+    /// #     subdivisions: vec![SubdivisionDef { name: "bell".to_string(), parts: 10, first_number: None }],
+    /// #     era: EraDef { name: "Plain Era".to_string(), unit: "orbit".to_string(), epoch: Instant::ZERO },
     /// # };
-    /// // A 400-sol year of 90,000 s sols, 10 hours in each, epoch at the timeline's zero.
+    /// // A 400-sol orbit of 90,000 s sols, 10 bells in each, epoch at the timeline's zero.
     /// let cal = Calendar::new(def).unwrap();
     /// let t = Instant::ZERO.checked_add(Span::from_secs(-1)).unwrap();
     /// let got = cal.instant_to_date(t).unwrap();
-    /// assert_eq!(got.date.values, [0, 400, 9]); // year 0, sol 400, hour 9
-    /// assert_eq!(got.remainder, Ratio::from_int(8_999).unwrap()); // seconds into hour 9
+    /// assert_eq!(got.date.values, [0, 400, 9]); // orbit 0, sol 400, bell 9
+    /// assert_eq!(got.remainder, Ratio::from_int(8_999).unwrap()); // seconds into bell 9
     /// ```
     pub fn instant_to_date(&self, instant: Instant) -> R<InstantDate> {
         let (fixed, position) = self.locate(instant)?;
@@ -171,7 +171,8 @@ impl Calendar {
 
     /// Pushes the numbers of the units above the era's unit, which is a grouping here, given
     /// its count from the epoch. Their lengths are counted in instances of the era's unit,
-    /// which don't vary even when the instances' lengths do (a decade is always 10 years).
+    /// which don't vary even when the instances' lengths do (Aster's cohort is always 10
+    /// orbits).
     fn number_above(&self, count: i64, numbers: &mut Vec<i64>) -> R<()> {
         let Kind::Grouping {
             length: era_length, ..
@@ -242,20 +243,20 @@ impl Calendar {
     /// # let def = CalendarDef {
     /// #     name: "Plain".to_string(),
     /// #     clock: Clock::Gct,
-    /// #     groupings: vec![GroupingDef { name: "year".to_string(), member_unit: None,
+    /// #     groupings: vec![GroupingDef { name: "orbit".to_string(), member_unit: None,
     /// #         members: vec![MemberDef { name: None, count: 400 }], first_number: None, rules: vec![] }],
     /// #     fundamental: FundamentalDef { name: "sol".to_string(),
     /// #         length: Ratio::from_int(90_000).unwrap(), first_number: None },
-    /// #     subdivisions: vec![SubdivisionDef { name: "hour".to_string(), parts: 10, first_number: None }],
-    /// #     era: EraDef { name: "Plain Era".to_string(), unit: "year".to_string(), epoch: Instant::ZERO },
+    /// #     subdivisions: vec![SubdivisionDef { name: "bell".to_string(), parts: 10, first_number: None }],
+    /// #     era: EraDef { name: "Plain Era".to_string(), unit: "orbit".to_string(), epoch: Instant::ZERO },
     /// # };
-    /// // A 400-sol year of 90,000 s sols, 10 hours in each, epoch at the timeline's zero.
+    /// // A 400-sol orbit of 90,000 s sols, 10 bells in each, epoch at the timeline's zero.
     /// let cal = Calendar::new(def).unwrap();
     /// let start = cal.date_to_instant(&Date { values: vec![1, 2] }).unwrap(); // sol 2
     /// assert_eq!(start.instant, Instant::ZERO.checked_add(Span::from_secs(90_000)).unwrap());
     /// assert_eq!(start.rounded_by, None);
-    /// let hour_ten = cal.date_to_instant(&Date { values: vec![1, 1, 10] });
-    /// assert_eq!(hour_ten.unwrap_err().to_string(), "hour 10 is outside 0 to 9");
+    /// let bell_ten = cal.date_to_instant(&Date { values: vec![1, 1, 10] });
+    /// assert_eq!(bell_ten.unwrap_err().to_string(), "bell 10 is outside 0 to 9");
     /// ```
     pub fn date_to_instant(&self, date: &Date) -> R<DateStart> {
         let values = &date.values;
@@ -383,7 +384,7 @@ impl Calendar {
                 first,
                 last,
                 within,
-                year: self.has_rules().then(|| EraNumber {
+                era_number: self.has_rules().then(|| EraNumber {
                     unit: self.units[self.era].name.clone(),
                     number,
                 }),
@@ -427,7 +428,7 @@ fn split(r: i128, p: i128, parts: &[i64]) -> (Vec<i128>, i128) {
 mod tests {
     use super::*;
     use crate::{
-        CalendarDef, Clock, EraDef, FundamentalDef, GroupingDef, LeapRuleDef, MemberDef,
+        AdjustmentRuleDef, CalendarDef, Clock, EraDef, FundamentalDef, GroupingDef, MemberDef,
         MemberUnitDef,
     };
 
@@ -448,21 +449,21 @@ mod tests {
         }
     }
 
-    /// Regression (found by spec 004's property tests while building spec 006): the year's
-    /// variant was looked up for a member unit further down, here the day of a 7-day week
-    /// inside a year of 3 parts, and day 5 indexed past the year's 3 members.
+    /// Regression (found by spec 004's property tests while building spec 006): the orbit's
+    /// variant was looked up for a member unit further down, here the slot of a 7-slot rota
+    /// inside an orbit of 3 parts, and slot 5 indexed past the orbit's 3 members.
     #[test]
-    fn member_units_below_the_years_own_use_their_own_counts() {
-        let mut year = grouping("year", "part", &[2, 2, 3]);
-        year.rules = vec![LeapRuleDef {
-            condition: "year % 2 == 0".to_string(),
+    fn member_units_below_the_orbits_own_use_their_own_counts() {
+        let mut orbit = grouping("orbit", "part", &[2, 2, 3]);
+        orbit.rules = vec![AdjustmentRuleDef {
+            condition: "orbit % 2 == 0".to_string(),
             member: "3".to_string(),
             change: 1,
         }];
         let def = CalendarDef {
-            name: "Weeks".to_string(),
+            name: "Rotas".to_string(),
             clock: Clock::Gct,
-            groupings: vec![year, grouping("week", "day", &[1, 1, 1, 1, 1, 1, 1])],
+            groupings: vec![orbit, grouping("rota", "slot", &[1, 1, 1, 1, 1, 1, 1])],
             fundamental: FundamentalDef {
                 name: "sol".to_string(),
                 length: Ratio::from_int(1).unwrap(),
@@ -471,20 +472,20 @@ mod tests {
             subdivisions: vec![],
             era: EraDef {
                 name: "Era".to_string(),
-                unit: "year".to_string(),
+                unit: "orbit".to_string(),
                 epoch: Instant::ZERO,
             },
         };
         let cal = Calendar::new(def).unwrap();
-        // Year 2 is 8 weeks (the third part lengthened to 4); its last day is day 7 of week 4
-        // of part 3: 7 weeks of 7 sols plus 6.
+        // Orbit 2 is 8 rotas (the third part lengthened to 4); its last slot is slot 7 of rota 4
+        // of part 3: 7 rotas of 7 sols plus 6.
         let start = cal
             .date_to_instant(&Date {
                 values: vec![2, 3, 4, 7, 1],
             })
             .unwrap();
         assert_eq!(cal.fixed_from_instant(start.instant), Ok(49 + 49 + 6));
-        // Day 5 of part 1's first week is fine in any year; week 4 of part 3 only in even ones.
+        // Slot 5 of part 1's first rota is fine in any orbit; rota 4 of part 3 only in even ones.
         assert!(
             cal.date_to_instant(&Date {
                 values: vec![1, 1, 1, 5]
@@ -509,7 +510,7 @@ mod tests {
     }
 
     #[test]
-    fn member_lookup_at_each_months_first_and_last_sol() {
+    fn member_lookup_at_each_spans_first_and_last_sol() {
         let counts = [56, 56, 55, 56, 56, 55, 56, 56, 55, 56, 56, 55];
         let mut starts = vec![0];
         for c in counts {
@@ -517,11 +518,11 @@ mod tests {
         }
         assert_eq!(*starts.last().unwrap(), 668);
         for (j, c) in counts.iter().enumerate() {
-            assert_eq!(member_at(&starts, starts[j]), j, "first sol of month {j}");
+            assert_eq!(member_at(&starts, starts[j]), j, "first sol of span {j}");
             assert_eq!(
                 member_at(&starts, starts[j] + c - 1),
                 j,
-                "last sol of month {j}"
+                "last sol of span {j}"
             );
         }
         assert_eq!(member_at(&[0, 400], 399), 0);
@@ -536,7 +537,7 @@ mod tests {
         assert_eq!(indices, [1]);
         // In units of 1/7 ns: 20,000 s × 7 − 1 × 100,000 s = 40,000 s, i.e. 4 × 10¹³ / 7 ns.
         assert_eq!(rem, 40_000_000_000_000);
-        // Two levels, Aster-style: a sol of 88,775.244 s into 20 hours of 100 minutes.
+        // Two levels, Aster-style: a sol of 88,775.244 s into 20 bells of 100 pulses.
         let p = 88_775_244_000_000;
         let (indices, rem) = split(p - 1, p, &[20, 100]);
         assert_eq!(indices, [19, 99]);

@@ -266,7 +266,7 @@ mod tests {
             ]
         );
         assert_eq!(lex("a \n").unwrap().end, pos(2, 1));
-        assert_eq!(lex("year").unwrap().end, pos(1, 5));
+        assert_eq!(lex("turn").unwrap().end, pos(1, 5));
         assert_eq!(lex("").unwrap().end, pos(1, 1));
     }
 
@@ -285,7 +285,7 @@ mod tests {
     #[test]
     fn invalid_characters() {
         for (source, found, column) in [
-            ("year # 2", '#', 6),
+            ("turn # 2", '#', 6),
             ("a = b", '=', 3),
             ("a & b", '&', 3),
             ("a | b", '|', 3),

@@ -32,6 +32,7 @@ The full path, roles and board moves are in the workflow playbook above. In shor
 - PR policy (runs in CI): `scripts/check_pr_policy.py`
 - Architecture rules: `python scripts/check_architecture.py`
 - Privacy: `python scripts/check_privacy.py`. It also reads `.privacy-words` (gitignored, owner-only: one private word or phrase per line, such as a name) when present.
+- Earth terms (runs in CI): `python scripts/check_earth_terms.py`. It finds Earth's calendar words (year, month, day, leap, …) in the code, including inside identifiers, and allows them only in Gregorian-named files, on lines that also say Earth or Gregorian, or between `earth-terms: off` and `earth-terms: on` (ADR 0009). Swapping in words of the same length keeps error-column assertions intact (`uni-expr`'s tests use `turn`, `phase`, `flag`).
 - A Stop hook (`scripts/hooks/stop_checks.py`) runs the fast local checks before a turn ends; fix what it reports rather than working around it.
 
 ## Board
@@ -84,6 +85,7 @@ Notes here are public: keep them general. Anything true only of a particular mac
 
 - Test-only hooks go behind `#[cfg(test)]`, with the tests that use them as unit tests inside the crate. A crate's dev-dependency on itself (to switch a feature on for its integration tests) fails `scripts/check_architecture.py` as an upward dependency, and changing that check needs a design PR.
 - A crate with a path-only dependency on another workspace crate needs `publish = false`, or `cargo deny` reports the dependency as a wildcard.
+- Run `cargo deny check advisories bans sources`, as CI does. A bare `cargo deny check` also checks licences, which this project deliberately doesn't (`deny.toml`), and fails.
 
 **Tauri**
 
