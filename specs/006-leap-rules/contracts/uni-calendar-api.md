@@ -64,10 +64,16 @@ pub enum DefinitionError {
 pub enum Limit { LengthTooFine, ShorterThanNanosecond, TooManyTicks, GroupingTooLong, CycleTooLong }
 
 pub enum CalendarError {
-    InvalidValue { unit: String, value: i64, first: i64, last: i64, within: Option<String>, year: Option<i64> },
+    InvalidValue { unit: String, value: i64, first: i64, last: i64, within: Option<String>, year: Option<EraNumber> },
     // … OutOfRange, EmptyDate, TooManyValues, UnknownUnit, NotFixed as before, plus:
     NotAGrouping { unit: String },
 }
+
+pub struct EraNumber {                                  // new; re-exported from the crate root
+    pub unit: String,                                    // the era's unit's name
+    pub number: i64,                                     // the instance's number
+}
+// derives: Clone, Debug, PartialEq, Eq, Hash
 ```
 
 ## Example

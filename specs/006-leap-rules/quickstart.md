@@ -19,7 +19,7 @@ From the repository root (on Windows, see the working notes in `CLAUDE.md` for t
    | A rule on the decade | `RulesNotOnEraUnit { unit: "decade" }` |
    | Condition `year > 100` | `RulePeriod { error: NotRepeating { at: 1:6 } }` |
    | `[5, 12, 56]` → instant → back | same date; fixed number 3,340 |
-   | `[1, 12, 56]` | `InvalidValue { unit: "sol", value: 56, first: 1, last: 55, within: Some("Twelfth"), year: Some(1) }` |
+   | `[1, 12, 56]` | `InvalidValue { unit: "sol", value: 56, first: 1, last: 55, within: Some("Twelfth"), year: Some(EraNumber { unit: "year", number: 1 }) }` |
    | `[6]`, `[501]` | fixed numbers 3,341 and 334,096 |
    | `[100, 12, 56]`; `[500, 12, 56]` | refused; accepted |
    | 1 ns before the epoch | year 0, Twelfth, sol 56, hour 19, minute 99, decade 0, age 0 |
