@@ -4,6 +4,7 @@ use std::collections::HashSet;
 
 use uni_time::{Instant, Ratio};
 
+use crate::rules::Cycle;
 use crate::{CalendarDef, CalendarError, Clock, DefinitionError, EraInstance, Limit};
 
 type R<T> = Result<T, CalendarError>;
@@ -43,6 +44,9 @@ pub struct Calendar {
     pub(crate) q: i128,
     /// The product of the subdivisions' part counts.
     pub(crate) parts: i128,
+    /// The era's unit's cycle when it is a grouping (spec 006, research R4); `None` keeps the
+    /// spec 004 path for an era that numbers a member unit or the fundamental unit.
+    pub(crate) cycle: Option<Cycle>,
 }
 
 /// One unit of the chain.
@@ -142,6 +146,7 @@ impl Calendar {
             p,
             q,
             parts,
+            cycle: None,
         })
     }
 

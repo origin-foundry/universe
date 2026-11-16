@@ -40,7 +40,7 @@ description: "Task list for spec 006, leap rules"
 
 ### Tests (write first; they must fail)
 
-- [ ] T005 [P] [US1] Write the definition tests in `crates/uni-calendar/tests/leap_rules.rs` (names starting `define_`), one per Story 1 scenario, each asserting the exact error variant and fields:
+- [X] T005 [P] [US1] Write the definition tests in `crates/uni-calendar/tests/leap_rules.rs` (names starting `define_`), one per Story 1 scenario, each asserting the exact error variant and fields:
   - Aster with its rule is accepted; `rule_period()` is 500; `units_per("year", "sol")` and `units_per("decade", "sol")` are `NotFixed`; `units_per("year", "month")` is 12 and `units_per("decade", "year")` is 10; Aster without rules has `rule_period()` 1 and `units_per("year", "sol")` 668;
   - condition `year % 4` → `RuleCondition { rule: 1, error: TypeMismatch { context: "result", .. } }`; `month == 2` → `RuleCondition` with `UnknownVariable { name: "month", at: 1:1 }`;
   - member `Thirteenth` → `RuleUnknownMember { rule: 1, member: "Thirteenth" }`; change 0 → `RuleZeroChange`; a second rule's fault reports `rule: 2`;
@@ -51,7 +51,7 @@ description: "Task list for spec 006, leap rules"
   - an era unit named `if` (a keyword) with a rule → `RuleCondition` with `InvalidVariable`; with no rules it is still accepted (spec 004 behaviour);
   - Tessel with its rule is accepted, with `rule_period()` 3, and its condition reads `cycle`;
   - a rule whose member is given by number (`"3"`) on Tessel's unnamed members works; `"4"` is `RuleUnknownMember`.
-- [ ] T006 [P] [US1] Write unit tests in `crates/uni-calendar/src/rules.rs` for the cycle table: for Aster with its rule, `P = 500`, two variants, residue 4 (year 5) and residue 499 (year 500) leap, residue 99 (year 100) common, the cycle length 334,096 and `starts[5]` 3,341; two rules on one member add up in one variant; a calendar without rules gets `P = 1` and one variant equal to the listed members.
+- [X] T006 [P] [US1] Write unit tests in `crates/uni-calendar/src/rules.rs` for the cycle table: for Aster with its rule, `P = 500`, two variants, residue 4 (year 5) and residue 499 (year 500) leap, residue 99 (year 100) common, the cycle length 334,096 and `starts[5]` 3,341; two rules on one member add up in one variant; a calendar without rules gets `P = 1` and one variant equal to the listed members.
 
 ### Implementation
 
