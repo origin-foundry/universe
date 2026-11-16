@@ -41,7 +41,7 @@ description: "Task list for spec 005, expression language basics"
 
 ### Tests (write first; they must fail)
 
-- [ ] T006 [P] [US1] Write `crates/uni-expr/tests/check.rs` covering Story 1's acceptance scenarios and quickstart.md's table, each asserting the exact `CheckError` variant and `Pos`, with `year` declared as `Type::Int`:
+- [x] T006 [P] [US1] Write `crates/uni-expr/tests/check.rs` covering Story 1's acceptance scenarios and quickstart.md's table, each asserting the exact `CheckError` variant and `Pos`, with `year` declared as `Type::Int`:
   - the Aster rule and the Gregorian rule with a `Bool` result are accepted, and `source()` returns the text unchanged; `if year % 2 == 0 then year / 2 % 3 == 0 else false` is accepted;
   - `year % 4` (Bool expected) → `TypeMismatch { context: "result", expected: Bool, found: Int, at: 1:1 }`;
   - `year % 4 == 0 &&` → `Unexpected { found: None, expected: "a value", at: 1:17 }`;
@@ -54,13 +54,13 @@ description: "Task list for spec 005, expression language basics"
   - a variable named `année` is accepted and positions after it count characters, not bytes;
   - declarations: `if` as a name, `2x`, an empty name, and two `year`s → `InvalidVariable` with the reason;
   - 257 nested parentheses and a chain of 300 `+ 1` terms → `TooDeep { limit: 256, .. }`; 200 nested parentheses are accepted.
-- [ ] T007 [P] [US1] Write unit tests in `crates/uni-expr/src/lex.rs` (tokens and their positions for every operator, keyword, name and literal; whitespace including `\r\n` and tabs; positions on later lines), `crates/uni-expr/src/parse.rs` (precedence and grouping: `1 + 2 * 3`, `a - b - c` groups left, `-a * b`, `!a && b`, `a || b && c`, `if c then 1 else 2 + 3` takes `2 + 3` as the else branch) and `crates/uni-expr/src/check.rs` (types of each node kind; variables resolved to their declaration index).
+- [x] T007 [P] [US1] Write unit tests in `crates/uni-expr/src/lex.rs` (tokens and their positions for every operator, keyword, name and literal; whitespace including `\r\n` and tabs; positions on later lines), `crates/uni-expr/src/parse.rs` (precedence and grouping: `1 + 2 * 3`, `a - b - c` groups left, `-a * b`, `!a && b`, `a || b && c`, `if c then 1 else 2 + 3` takes `2 + 3` as the else branch) and `crates/uni-expr/src/check.rs` (types of each node kind; variables resolved to their declaration index).
 
 ### Implementation
 
-- [ ] T008 [US1] Implement the lexer in `crates/uni-expr/src/lex.rs` per research R2: decimal literals (kept as text until the parser folds a leading `-`), names with `char::is_alphabetic` / `is_alphanumeric` / `_`, keywords, operators (`|| && == != <= >= < > + - * / % ! ( )`), whitespace by `char::is_whitespace`, positions in characters from 1:1; anything else is `InvalidCharacter`.
-- [ ] T009 [US1] Implement the parser in `crates/uni-expr/src/parse.rs` per the contract's grammar: recursive descent, left-associative loops for `||`, `&&`, `+ -`, `* / %`; at most one comparison per `cmp` (a second is `ChainedComparison`); `if` as an atom; a unary `-` directly before a literal folded into it; literals outside `i64` refused; every node with its start position and operator position; the tree depth and the parser's own recursion counted against `MAX_DEPTH` (research R4), refusing with `TooDeep`.
-- [ ] T010 [US1] Implement `Expr::check`, `source`, `ty` and `vars` in `crates/uni-expr/src/check.rs` per research R3: check declarations first ("A valid name … not a keyword, unique among the declarations", data-model.md); resolve names to indices; type each node by the rules in R3, reporting `TypeMismatch` at the start of the offending operand; require the requested result type (context "result" at 1:1). Work until T006 and T007 pass.
+- [x] T008 [US1] Implement the lexer in `crates/uni-expr/src/lex.rs` per research R2: decimal literals (kept as text until the parser folds a leading `-`), names with `char::is_alphabetic` / `is_alphanumeric` / `_`, keywords, operators (`|| && == != <= >= < > + - * / % ! ( )`), whitespace by `char::is_whitespace`, positions in characters from 1:1; anything else is `InvalidCharacter`.
+- [x] T009 [US1] Implement the parser in `crates/uni-expr/src/parse.rs` per the contract's grammar: recursive descent, left-associative loops for `||`, `&&`, `+ -`, `* / %`; at most one comparison per `cmp` (a second is `ChainedComparison`); `if` as an atom; a unary `-` directly before a literal folded into it; literals outside `i64` refused; every node with its start position and operator position; the tree depth and the parser's own recursion counted against `MAX_DEPTH` (research R4), refusing with `TooDeep`.
+- [x] T010 [US1] Implement `Expr::check`, `source`, `ty` and `vars` in `crates/uni-expr/src/check.rs` per research R3: check declarations first ("A valid name … not a keyword, unique among the declarations", data-model.md); resolve names to indices; type each node by the rules in R3, reporting `TypeMismatch` at the start of the offending operand; require the requested result type (context "result" at 1:1). Work until T006 and T007 pass.
 
 **Checkpoint**: Story 1 works on its own.
 
