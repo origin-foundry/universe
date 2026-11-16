@@ -4,6 +4,11 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
+publish = false
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+num-bigint = "0.4.8"
+proptest = "1.12.0"
