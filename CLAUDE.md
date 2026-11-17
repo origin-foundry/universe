@@ -76,6 +76,7 @@ Notes here are public: keep them general. Anything true only of a particular mac
 
 - The bot's token can't run GraphQL queries that read `login`, `name` or `slug` on some objects (it lacks `read:org`). Use REST (`gh api repos/...`) for those.
 - The ready gate assigns the owner only when every check passes. Dependabot PRs whose checks fail just sit there; look for them.
+- An advisory can be published or widened overnight and fail every PR's `npm audit` step at once, whatever the PR changes. Read the `ui` job's last step before suspecting the PR; with no patched version, a fast-lane PR can narrow the audit temporarily, with a maintenance issue to restore it (as #54).
 - During GitHub incidents (check https://www.githubstatus.com):
   - pushes can be refused with "Internal Server Error": retry later, always naming the branch (`git push origin <branch>:<branch>`), never a bare `git push` from a background job while switching branches;
   - a PR can stop following its branch: closing and reopening it (as the bot) makes GitHub re-read it;

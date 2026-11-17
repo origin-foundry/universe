@@ -116,7 +116,10 @@ jobs:
       - run: npm run lint
       - run: npm run format:check
       - run: npm test
-      - run: npm audit --audit-level=high
+      # Split until picomatch fixes GHSA-fc5q-39xc-vjpf (dev tools only); then go back to one
+      # `npm audit --audit-level=high` (issue #54).
+      - run: npm audit --omit=dev --audit-level=high
+      - run: npm audit --audit-level=critical
 
   app-build:
     name: app-build (windows)
