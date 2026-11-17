@@ -344,9 +344,201 @@ pub fn problem(record: &CalendarRecord) -> Option<String> {
 
 /// Where in `record` (normalised, so in the same order as the form) a refusal belongs
 /// (contract, "Where each DefinitionError is placed").
+///
+/// The engine names units and members; this finds them in the form. A name that matches
+/// nothing (which can't happen for a form the engine has just read) falls back to the
+/// calendar's name rather than panicking. The match has no catch-all arm, so a new engine
+/// error doesn't compile until it has a place.
 pub fn locate(error: &DefinitionError, record: &CalendarRecord) -> Location {
-    let _ = (error, record);
-    Location::CalendarName
+    use DefinitionError as E;
+    let at = |r: &str| record.groupings.iter().position(|g| g.name == r);
+    let member = |unit: &str, label: &str, field: Field| {
+        let g = at(unit)?;
+        let j = (0..record.groupings[g].members.len())
+            .find(|&j| member_label(&record.groupings[g], j) == label)?;
+        Some(Location::Member {
+            grouping: g,
+            index: j,
+            field: Some(field),
+        })
+    };
+    let rule = |unit: &str, rule: usize, field: Field| {
+        let g = at(unit)?;
+        (1..=record.groupings[g].rules.len())
+            .contains(&rule)
+            .then_some(Location::Rule {
+                grouping: g,
+                index: rule - 1,
+                field: Some(field),
+            })
+    };
+    let grouping = |unit: &str, field: Option<Field>| {
+        at(unit).map(|index| Location::Grouping { index, field })
+    };
+    let fundamental = |field: Field| Some(Location::Fundamental { field: Some(field) });
+    let era = |field: Field| Some(Location::Era { field });
+
+    let found = match error {
+        E::EmptyName { what } => match *what {
+            "calendar" => Some(Location::CalendarName),
+            "era" => era(Field::Name),
+            "unit" => chain(record)
+                .into_iter()
+                .find(|(_, name)| name.is_empty())
+                .map(|(unit, _)| unit.name_location()),
+            "member" => record
+                .groupings
+                .iter()
+                .enumerate()
+                .find_map(|(g, grouping)| {
+                    let j = grouping
+                        .members
+                        .iter()
+                        .position(|m| m.name.as_deref() == Some(""))?;
+                    Some(Location::Member {
+                        grouping: g,
+                        index: j,
+                        field: Some(Field::Name),
+                    })
+                }),
+            _ => None,
+        },
+        E::NonPositiveLength { .. } => fundamental(Field::Length),
+        E::NoMembers { unit } => grouping(unit, None),
+        E::NonPositiveCount { unit, member: m }
+        | E::MemberTooShort {
+            unit, member: m, ..
+        } => member(unit, m, Field::Count),
+        E::MembersNeedUnit { unit } => grouping(unit, Some(Field::MemberUnit)),
+        E::TooFewParts { unit } => record
+            .subdivisions
+            .iter()
+            .position(|s| &s.name == unit)
+            .map(|index| Location::Subdivision {
+                index,
+                field: Some(Field::Parts),
+            }),
+        E::DuplicateUnit { name } => chain(record)
+            .into_iter()
+            .filter(|(_, n)| n == name)
+            .nth(1)
+            .map(|(unit, _)| unit.name_location()),
+        E::DuplicateMember { unit, name } => at(unit).and_then(|g| {
+            let j = record.groupings[g]
+                .members
+                .iter()
+                .enumerate()
+                .filter(|(_, m)| m.name.as_ref() == Some(name))
+                .nth(1)?
+                .0;
+            Some(Location::Member {
+                grouping: g,
+                index: j,
+                field: Some(Field::Name),
+            })
+        }),
+        E::EraUnitUnknown { .. } | E::EraUnitBelowFundamental { .. } => era(Field::Unit),
+        E::FirstNumberNotAllowed { unit } => find_unit(record, unit).map(|u| match u {
+            Place::Grouping(index) => Location::Grouping {
+                index,
+                field: Some(Field::FirstNumber),
+            },
+            Place::MemberUnit(index) => Location::Grouping {
+                index,
+                field: Some(Field::MemberUnit),
+            },
+            Place::Fundamental => Location::Fundamental {
+                field: Some(Field::FirstNumber),
+            },
+            Place::Subdivision(index) => Location::Subdivision {
+                index,
+                field: Some(Field::FirstNumber),
+            },
+        }),
+        E::BeyondLimits { unit, .. } => find_unit(record, unit).map(|u| match u {
+            Place::Grouping(index) => Location::Grouping { index, field: None },
+            Place::MemberUnit(index) => Location::Grouping {
+                index,
+                field: Some(Field::MemberUnit),
+            },
+            Place::Fundamental => Location::Fundamental {
+                field: Some(Field::Length),
+            },
+            Place::Subdivision(index) => Location::Subdivision { index, field: None },
+        }),
+        E::RulesNotOnEraUnit { unit } | E::RulesPeriodOverLimit { unit, .. } => {
+            grouping(unit, None)
+        }
+        E::RuleCondition { unit, rule: k, .. }
+        | E::RulePeriod { unit, rule: k, .. }
+        | E::RuleFails { unit, rule: k, .. } => rule(unit, *k, Field::Condition),
+        E::RuleUnknownMember { unit, rule: k, .. } => rule(unit, *k, Field::Member),
+        E::RuleZeroChange { unit, rule: k } => rule(unit, *k, Field::Change),
+    };
+    found.unwrap_or(Location::CalendarName)
+}
+
+/// Where the form holds a unit of the chain.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Place {
+    Grouping(usize),
+    MemberUnit(usize),
+    Fundamental,
+    Subdivision(usize),
+}
+
+impl Place {
+    /// Where the unit's name is entered.
+    fn name_location(self) -> Location {
+        match self {
+            Place::Grouping(index) => Location::Grouping {
+                index,
+                field: Some(Field::Name),
+            },
+            Place::MemberUnit(index) => Location::Grouping {
+                index,
+                field: Some(Field::MemberUnit),
+            },
+            Place::Fundamental => Location::Fundamental {
+                field: Some(Field::Name),
+            },
+            Place::Subdivision(index) => Location::Subdivision {
+                index,
+                field: Some(Field::Name),
+            },
+        }
+    }
+}
+
+/// The chain, top to bottom, member units included, as the engine walks it.
+fn chain(record: &CalendarRecord) -> Vec<(Place, &str)> {
+    let mut units = Vec::new();
+    for (i, g) in record.groupings.iter().enumerate() {
+        units.push((Place::Grouping(i), g.name.as_str()));
+        if let Some(m) = &g.member_unit {
+            units.push((Place::MemberUnit(i), m.name.as_str()));
+        }
+    }
+    units.push((Place::Fundamental, record.fundamental.name.as_str()));
+    for (i, s) in record.subdivisions.iter().enumerate() {
+        units.push((Place::Subdivision(i), s.name.as_str()));
+    }
+    units
+}
+
+fn find_unit(record: &CalendarRecord, name: &str) -> Option<Place> {
+    chain(record)
+        .into_iter()
+        .find(|(_, n)| *n == name)
+        .map(|(unit, _)| unit)
+}
+
+/// A member's label in the engine's messages: its name, or its number from 1.
+fn member_label(grouping: &GroupingDef, j: usize) -> String {
+    grouping.members[j]
+        .name
+        .clone()
+        .unwrap_or_else(|| (j + 1).to_string())
 }
 
 fn store_error(error: StoreError) -> PutError {
@@ -843,5 +1035,398 @@ mod tests {
             session.get_calendar(id).unwrap_err(),
             "That calendar no longer exists."
         );
+    }
+}
+
+/// One test per `DefinitionError` variant: entered through the form, refused with the
+/// engine's own message, placed as the contract's table says, and nothing stored (SC-003).
+#[cfg(test)]
+mod locations {
+    use super::tests::{aster, open_session, refusal};
+    use super::*;
+    use uni_calendar::Limit;
+
+    fn grouping(index: usize, field: Option<Field>) -> Location {
+        Location::Grouping { index, field }
+    }
+    fn member(grouping: usize, index: usize, field: Field) -> Location {
+        Location::Member {
+            grouping,
+            index,
+            field: Some(field),
+        }
+    }
+    fn rule(index: usize, field: Field) -> Location {
+        Location::Rule {
+            grouping: 2,
+            index,
+            field: Some(field),
+        }
+    }
+    fn fundamental(field: Field) -> Location {
+        Location::Fundamental { field: Some(field) }
+    }
+    fn subdivision(index: usize, field: Option<Field>) -> Location {
+        Location::Subdivision { index, field }
+    }
+
+    /// Puts `form`, checks the refusal is the engine's message at `at` and that nothing was
+    /// stored, and returns the engine's error so the test can check its variant.
+    fn refused_at(form: &CalendarForm, at: Location) -> DefinitionError {
+        let session = open_session();
+        let record = form.to_record().unwrap().normalised();
+        let engine = Calendar::new(record.to_def().unwrap()).unwrap_err();
+        assert_eq!(
+            refusal(&session, form),
+            FieldError {
+                message: engine.to_string(),
+                at
+            },
+            "{engine:?}"
+        );
+        assert!(session.list_calendars().unwrap().is_empty());
+        engine
+    }
+
+    fn with_rule(condition: &str, member: &str, change: i64) -> CalendarForm {
+        let mut form = aster();
+        form.groupings[2].rules = vec![RuleForm {
+            condition: condition.to_owned(),
+            member: member.to_owned(),
+            change: Some(change),
+        }];
+        form
+    }
+
+    #[test]
+    fn empty_names() {
+        let mut form = aster();
+        form.era.name = "  ".to_owned();
+        let e = refused_at(&form, Location::Era { field: Field::Name });
+        assert_eq!(e, DefinitionError::EmptyName { what: "era" });
+
+        let mut form = aster();
+        form.groupings[1].name = " ".to_owned();
+        let e = refused_at(&form, grouping(1, Some(Field::Name)));
+        assert_eq!(e, DefinitionError::EmptyName { what: "unit" });
+
+        let mut form = aster();
+        form.groupings[2].member_unit.as_mut().unwrap().name = String::new();
+        refused_at(&form, grouping(2, Some(Field::MemberUnit)));
+
+        let mut form = aster();
+        form.fundamental.name = String::new();
+        refused_at(&form, fundamental(Field::Name));
+
+        let mut form = aster();
+        form.subdivisions[1].name = String::new();
+        refused_at(&form, subdivision(1, Some(Field::Name)));
+    }
+
+    #[test]
+    fn empty_calendar_and_member_names_are_placed_too() {
+        // The form never reaches the engine with these (the name is checked first, and blank
+        // member names become none), but the placement is still total.
+        let mut record = aster().to_record().unwrap();
+        let calendar = DefinitionError::EmptyName { what: "calendar" };
+        assert_eq!(locate(&calendar, &record), Location::CalendarName);
+        record.groupings[2].members[4].name = Some(String::new());
+        let empty_member = DefinitionError::EmptyName { what: "member" };
+        assert_eq!(locate(&empty_member, &record), member(2, 4, Field::Name));
+    }
+
+    #[test]
+    fn non_positive_length() {
+        let mut form = aster();
+        form.fundamental.length = "-1".to_owned();
+        let e = refused_at(&form, fundamental(Field::Length));
+        assert!(matches!(e, DefinitionError::NonPositiveLength { .. }));
+    }
+
+    #[test]
+    fn no_members() {
+        let mut form = aster();
+        form.groupings[1].members.clear();
+        let e = refused_at(&form, grouping(1, None));
+        assert!(matches!(e, DefinitionError::NoMembers { .. }));
+    }
+
+    #[test]
+    fn non_positive_count() {
+        let mut form = aster();
+        form.groupings[2].members[2].count = Some(0);
+        let e = refused_at(&form, member(2, 2, Field::Count));
+        assert!(matches!(e, DefinitionError::NonPositiveCount { .. }));
+        // An unnamed member is named by its number.
+        let mut form = aster();
+        form.groupings[0].members[0].count = Some(-3);
+        refused_at(&form, member(0, 0, Field::Count));
+    }
+
+    #[test]
+    fn members_need_a_unit() {
+        let mut form = aster();
+        form.groupings[2].member_unit = None;
+        let e = refused_at(&form, grouping(2, Some(Field::MemberUnit)));
+        assert!(matches!(e, DefinitionError::MembersNeedUnit { .. }));
+    }
+
+    #[test]
+    fn too_few_parts() {
+        let mut form = aster();
+        form.subdivisions[0].parts = Some(0);
+        let e = refused_at(&form, subdivision(0, Some(Field::Parts)));
+        assert!(matches!(e, DefinitionError::TooFewParts { .. }));
+    }
+
+    #[test]
+    fn duplicate_units_are_placed_at_the_second() {
+        let mut form = aster();
+        form.subdivisions[1].name = "bell".to_owned();
+        let e = refused_at(&form, subdivision(1, Some(Field::Name)));
+        assert!(matches!(e, DefinitionError::DuplicateUnit { .. }));
+
+        let mut form = aster();
+        form.groupings[1].name = "age".to_owned();
+        refused_at(&form, grouping(1, Some(Field::Name)));
+
+        // A member unit named like the grouping above it.
+        let mut form = aster();
+        form.groupings[2].member_unit.as_mut().unwrap().name = "cohort".to_owned();
+        refused_at(&form, grouping(2, Some(Field::MemberUnit)));
+
+        let mut form = aster();
+        form.fundamental.name = "span".to_owned();
+        refused_at(&form, fundamental(Field::Name));
+    }
+
+    #[test]
+    fn duplicate_members_are_placed_at_the_second() {
+        let mut form = aster();
+        form.groupings[2].members[6].name = Some("Third".to_owned());
+        let e = refused_at(&form, member(2, 6, Field::Name));
+        assert!(matches!(e, DefinitionError::DuplicateMember { .. }));
+    }
+
+    #[test]
+    fn era_units_that_dont_exist_or_are_subdivisions() {
+        let mut form = aster();
+        form.era.unit = "nothing".to_owned();
+        let e = refused_at(&form, Location::Era { field: Field::Unit });
+        assert!(matches!(e, DefinitionError::EraUnitUnknown { .. }));
+        form.era.unit = "bell".to_owned();
+        let e = refused_at(&form, Location::Era { field: Field::Unit });
+        assert!(matches!(e, DefinitionError::EraUnitBelowFundamental { .. }));
+    }
+
+    #[test]
+    fn first_numbers_the_era_numbers() {
+        let mut form = aster();
+        form.groupings[0].first_number = Some(0);
+        let e = refused_at(&form, grouping(0, Some(Field::FirstNumber)));
+        assert!(matches!(e, DefinitionError::FirstNumberNotAllowed { .. }));
+
+        let mut form = aster();
+        form.groupings[2].rules.clear();
+        form.era.unit = "span".to_owned();
+        form.groupings[2].member_unit.as_mut().unwrap().first_number = Some(0);
+        refused_at(&form, grouping(2, Some(Field::MemberUnit)));
+
+        let mut form = aster();
+        form.groupings[2].rules.clear();
+        form.era.unit = "sol".to_owned();
+        form.fundamental.first_number = Some(0);
+        refused_at(&form, fundamental(Field::FirstNumber));
+    }
+
+    #[test]
+    fn beyond_the_engines_limits() {
+        // The fundamental unit: too many ticks, and a length finer than a nanosecond allows.
+        let mut form = aster();
+        form.fundamental.length = "1000000000000000000000000000000".to_owned();
+        let e = refused_at(&form, fundamental(Field::Length));
+        assert!(matches!(
+            e,
+            DefinitionError::BeyondLimits {
+                limit: Limit::TooManyTicks,
+                ..
+            }
+        ));
+        form.fundamental.length = "1/3000000000000000000".to_owned();
+        refused_at(&form, fundamental(Field::Length));
+
+        // The smallest subdivision is shorter than a nanosecond.
+        let mut form = aster();
+        form.fundamental.length = "1".to_owned();
+        form.subdivisions[1].parts = Some(1_000_000_000);
+        let e = refused_at(&form, subdivision(1, None));
+        assert!(matches!(
+            e,
+            DefinitionError::BeyondLimits {
+                limit: Limit::ShorterThanNanosecond,
+                ..
+            }
+        ));
+
+        // A grouping too long to count in fundamental units.
+        let mut form = aster();
+        form.groupings[0].members[0].count = Some(i64::MAX / 2);
+        let e = refused_at(&form, grouping(0, None));
+        assert!(matches!(
+            e,
+            DefinitionError::BeyondLimits {
+                limit: Limit::GroupingTooLong,
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn rules_off_the_eras_unit() {
+        let mut form = aster();
+        form.groupings[1].rules = vec![RuleForm {
+            condition: "cohort % 2 == 0".to_owned(),
+            member: "1".to_owned(),
+            change: Some(1),
+        }];
+        let e = refused_at(&form, grouping(1, None));
+        assert!(matches!(e, DefinitionError::RulesNotOnEraUnit { .. }));
+    }
+
+    #[test]
+    fn rule_conditions_keep_their_position() {
+        let e = refused_at(
+            &with_rule("orbit %", "Twelfth", 1),
+            rule(0, Field::Condition),
+        );
+        assert!(matches!(e, DefinitionError::RuleCondition { .. }));
+        assert!(e.to_string().contains("1:8"), "{e}");
+
+        let e = refused_at(
+            &with_rule("orbit > 100", "Twelfth", 1),
+            rule(0, Field::Condition),
+        );
+        assert!(matches!(e, DefinitionError::RulePeriod { .. }));
+
+        let e = refused_at(
+            &with_rule("100 / (orbit % 7) == 3", "Twelfth", 1),
+            rule(0, Field::Condition),
+        );
+        assert!(matches!(e, DefinitionError::RuleFails { .. }));
+    }
+
+    #[test]
+    fn rule_members_and_changes() {
+        let e = refused_at(
+            &with_rule("orbit % 4 == 0", "Thirteenth", 1),
+            rule(0, Field::Member),
+        );
+        assert!(matches!(e, DefinitionError::RuleUnknownMember { .. }));
+        let e = refused_at(
+            &with_rule("orbit % 4 == 0", "Twelfth", 0),
+            rule(0, Field::Change),
+        );
+        assert!(matches!(e, DefinitionError::RuleZeroChange { .. }));
+    }
+
+    #[test]
+    fn the_second_rule_is_placed_at_index_1() {
+        let mut form = aster();
+        form.groupings[2].rules.push(RuleForm {
+            condition: "orbit %".to_owned(),
+            member: "Prime".to_owned(),
+            change: Some(1),
+        });
+        refused_at(&form, rule(1, Field::Condition));
+    }
+
+    #[test]
+    fn rules_that_repeat_too_rarely_together() {
+        let mut form = aster();
+        form.groupings[2].rules = ["97", "89", "83"]
+            .iter()
+            .map(|k| RuleForm {
+                condition: format!("orbit % {k} == 0"),
+                member: "Twelfth".to_owned(),
+                change: Some(1),
+            })
+            .collect();
+        let e = refused_at(&form, grouping(2, None));
+        assert!(matches!(e, DefinitionError::RulesPeriodOverLimit { .. }));
+    }
+
+    #[test]
+    fn members_made_too_short() {
+        let e = refused_at(
+            &with_rule("orbit % 4 == 0", "Third", -55),
+            member(2, 2, Field::Count),
+        );
+        assert!(matches!(e, DefinitionError::MemberTooShort { .. }));
+    }
+
+    #[test]
+    fn a_name_matching_no_unit_falls_back_to_the_calendar_name() {
+        let record = aster().to_record().unwrap();
+        let ghost = |s: &str| s.to_owned();
+        for error in [
+            DefinitionError::NoMembers { unit: ghost("x") },
+            DefinitionError::DuplicateUnit { name: ghost("x") },
+            DefinitionError::DuplicateMember {
+                unit: ghost("orbit"),
+                name: ghost("x"),
+            },
+            DefinitionError::NonPositiveCount {
+                unit: ghost("orbit"),
+                member: ghost("x"),
+            },
+            DefinitionError::RuleZeroChange {
+                unit: ghost("x"),
+                rule: 1,
+            },
+            DefinitionError::RuleZeroChange {
+                unit: ghost("orbit"),
+                rule: 9,
+            },
+            DefinitionError::EmptyName { what: "other" },
+        ] {
+            assert_eq!(locate(&error, &record), Location::CalendarName, "{error:?}");
+        }
+    }
+
+    #[test]
+    fn calendar_name_and_length_faults_come_before_the_engine() {
+        let session = open_session();
+        session.put_calendar(None, &aster()).unwrap();
+        let mut form = aster();
+        assert_eq!(
+            refusal(&session, &form),
+            FieldError {
+                message: "This universe already has a calendar called Aster.".to_owned(),
+                at: Location::CalendarName
+            }
+        );
+        for name in ["", "   ", &"x".repeat(201)] {
+            form.name = name.to_owned();
+            assert_eq!(
+                refusal(&session, &form),
+                FieldError {
+                    message: "A calendar needs a name of 1 to 200 characters.".to_owned(),
+                    at: Location::CalendarName
+                }
+            );
+        }
+        form.name = "Other".to_owned();
+        form.fundamental.length = "88775.244s".to_owned();
+        form.groupings[0].name = String::new(); // the engine would refuse this too, later
+        assert_eq!(
+            refusal(&session, &form),
+            FieldError {
+                message: "the fundamental unit's length \"88775.244s\" is not a whole number, \
+                          decimal or fraction"
+                    .to_owned(),
+                at: fundamental(Field::Length)
+            }
+        );
+        assert_eq!(session.list_calendars().unwrap().len(), 1);
     }
 }
