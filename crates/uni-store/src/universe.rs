@@ -37,11 +37,11 @@ use crate::{StoreError, UniverseName};
 /// [`save`]: OpenUniverse::save
 /// [`save_as`]: OpenUniverse::save_as
 pub struct OpenUniverse {
-    db: Connection,
+    pub(crate) db: Connection,
     app_version: String,
     /// The file and the locked handle on it, once the universe has been saved or opened.
     file: Option<(PathBuf, File)>,
-    dirty: bool,
+    pub(crate) dirty: bool,
     fail_before_rename: bool,
 }
 
@@ -49,7 +49,8 @@ impl OpenUniverse {
     /// A new universe called `name`, not yet saved anywhere.
     pub fn new(name: UniverseName, app_version: &str) -> Result<OpenUniverse, StoreError> {
         let mut db = Connection::open_in_memory()?;
-        schema::create_v1(&mut db, &name, app_version, now_unix())?;
+        schema::enable_foreign_keys(&db)?;
+        schema::create_current(&mut db, &name, app_version, now_unix())?;
         Ok(OpenUniverse {
             db,
             app_version: app_version.to_owned(),
@@ -82,6 +83,7 @@ impl OpenUniverse {
 
         let mut db = Connection::open_in_memory()?;
         db.deserialize_read_exact(MAIN_DB, bytes.as_slice(), bytes.len(), false)?;
+        schema::enable_foreign_keys(&db)?;
 
         let id: i32 = db.pragma_query_value(None, "application_id", |r| r.get(0))?;
         if id != APPLICATION_ID {
@@ -110,13 +112,17 @@ impl OpenUniverse {
             dirty = true;
         }
 
-        Ok(OpenUniverse {
+        let universe = OpenUniverse {
             db,
             app_version: app_version.to_owned(),
             file: Some((path.to_owned(), handle)),
             dirty,
             fail_before_rename: false,
-        })
+        };
+        // Calendar rows in the wrong shape make the file damaged; a calendar the engine
+        // refuses is still opened, and listed with its problem (spec 007, FR-015).
+        universe.calendars()?;
+        Ok(universe)
     }
 
     /// Saves to the universe's file.
@@ -247,7 +253,7 @@ fn lock(handle: &File, path: &Path) -> Result<(), StoreError> {
     }
 }
 
-fn not_ours(reason: &str) -> StoreError {
+pub(crate) fn not_ours(reason: &str) -> StoreError {
     StoreError::NotAUniverseFile {
         reason: reason.to_owned(),
     }
@@ -300,4 +306,27 @@ fn now_unix() -> i64 {
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_secs() as i64)
         .unwrap_or(0)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn foreign_keys(universe: &OpenUniverse) -> bool {
+        universe
+            .db
+            .pragma_query_value(None, "foreign_keys", |r| r.get(0))
+            .unwrap()
+    }
+
+    #[test]
+    fn foreign_keys_are_on_for_new_and_opened_universes() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("aster.universe");
+        let mut universe = OpenUniverse::new(UniverseName::new("Aster").unwrap(), "0.1.0").unwrap();
+        assert!(foreign_keys(&universe));
+        universe.save_as(&path).unwrap();
+        drop(universe);
+        assert!(foreign_keys(&OpenUniverse::open(&path, "0.1.0").unwrap()));
+    }
 }

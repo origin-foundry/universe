@@ -9,6 +9,8 @@ pub enum TimeError {
     DivisionByZero,
     /// An exact fraction result doesn't fit in 128 bits.
     Overflow,
+    /// Text that should hold an exact number is not a whole number, decimal or fraction.
+    NotANumber,
 }
 
 impl fmt::Display for TimeError {
@@ -17,6 +19,7 @@ impl fmt::Display for TimeError {
             TimeError::OutOfRange => "time is out of range",
             TimeError::DivisionByZero => "division by zero",
             TimeError::Overflow => "fraction too large to represent exactly",
+            TimeError::NotANumber => "not a whole number, decimal or fraction",
         })
     }
 }
@@ -34,6 +37,10 @@ mod tests {
         assert_eq!(
             TimeError::Overflow.to_string(),
             "fraction too large to represent exactly"
+        );
+        assert_eq!(
+            TimeError::NotANumber.to_string(),
+            "not a whole number, decimal or fraction"
         );
     }
 }

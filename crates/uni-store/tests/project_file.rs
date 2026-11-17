@@ -37,7 +37,7 @@ fn save_as_writes_a_marked_file_and_the_universe_becomes_clean() {
 
     let (id, version, app, created) = read_meta(&path);
     assert_eq!(id, APPLICATION_ID);
-    assert_eq!(version, 1);
+    assert_eq!(version, uni_store::SCHEMA_VERSION);
     assert_eq!(app, APP_VERSION);
     assert!(
         (now_unix() - created).abs() <= 5,
@@ -206,9 +206,9 @@ fn a_file_from_a_newer_version_is_refused() {
     let dir = tempfile::tempdir().unwrap();
     let (universe, path) = saved(dir.path(), "aster.universe", "Aster");
     drop(universe);
-    set_schema_version(&path, 2);
+    set_schema_version(&path, 3);
     assert_refused_and_unchanged(&path, |e| {
-        *e == StoreError::NewerVersion { file: 2, app: 1 }
+        *e == StoreError::NewerVersion { file: 3, app: 2 }
     });
     assert_eq!(files_in(dir.path()), ["aster.universe"]);
 }

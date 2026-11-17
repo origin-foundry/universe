@@ -3934,6 +3934,7 @@ dependencies = [
  "tauri-build",
  "tauri-plugin-dialog",
  "tempfile",
+ "uni-calendar",
  "uni-store",
 ]
 
@@ -3972,8 +3973,11 @@ version = "0.1.0"
 name = "uni-store"
 version = "0.1.0"
 dependencies = [
+ "proptest",
  "rusqlite",
  "tempfile",
+ "uni-calendar",
+ "uni-time",
 ]
 
 [[package]]

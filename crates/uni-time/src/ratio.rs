@@ -38,6 +38,52 @@ impl Ratio {
         )
     }
 
+    /// Reads an exact number from text: a whole number (`88775`), a decimal (`88775.244`) or a
+    /// fraction (`355/113`), with an optional sign. There are no spaces, exponents or
+    /// thousands separators; anything else is [`TimeError::NotANumber`]. The result is never
+    /// rounded: a value that doesn't fit is [`TimeError::Overflow`], and a zero denominator
+    /// [`TimeError::DivisionByZero`].
+    ///
+    /// ```
+    /// use uni_time::{Ratio, TimeError};
+    /// assert_eq!(Ratio::parse("88775.244"), Ratio::new(88_775_244, 1000));
+    /// assert_eq!(Ratio::parse("-355/113"), Ratio::new(-355, 113));
+    /// assert_eq!(Ratio::parse("1e3"), Err(TimeError::NotANumber));
+    /// ```
+    pub fn parse(text: &str) -> R<Ratio> {
+        let (negative, rest) = match text.as_bytes().first() {
+            Some(b'-') => (true, &text[1..]),
+            Some(b'+') => (false, &text[1..]),
+            _ => (false, text),
+        };
+        // The shape first, so text that isn't a number is never reported as too large.
+        let (left, sep, right) = match rest.find(['.', '/']) {
+            Some(i) => (&rest[..i], Some(rest.as_bytes()[i]), &rest[i + 1..]),
+            None => (rest, None, ""),
+        };
+        let is_digits = |s: &str| !s.is_empty() && s.bytes().all(|b| b.is_ascii_digit());
+        if !is_digits(left) || (sep.is_some() && !is_digits(right)) {
+            return Err(TimeError::NotANumber);
+        }
+        let (num, den) = match sep {
+            None => (digits(left)?, 1),
+            Some(b'/') => (digits(left)?, digits(right)?),
+            Some(_) => {
+                // whole.frac = (whole × 10^len(frac) + frac) / 10^len(frac)
+                let mut scale: i128 = 1;
+                for _ in 0..right.len() {
+                    scale = scale.checked_mul(10).ok_or(TimeError::Overflow)?;
+                }
+                let num = digits(left)?
+                    .checked_mul(scale)
+                    .and_then(|n| n.checked_add(digits(right).ok()?))
+                    .ok_or(TimeError::Overflow)?;
+                (num, scale)
+            }
+        };
+        Ratio::new(if negative { -num } else { num }, den)
+    }
+
     pub fn from_int(n: i128) -> R<Ratio> {
         Ratio::new(n, 1)
     }
@@ -139,6 +185,15 @@ impl Ratio {
             den,
         })
     }
+}
+
+/// The value of a run of ASCII digits (already checked), or `Overflow` if it doesn't fit.
+fn digits(s: &str) -> R<i128> {
+    s.bytes().try_fold(0i128, |acc, b| {
+        acc.checked_mul(10)
+            .and_then(|n| n.checked_add(i128::from(b - b'0')))
+            .ok_or(TimeError::Overflow)
+    })
 }
 
 impl PartialOrd for Ratio {
@@ -260,6 +315,51 @@ mod tests {
         assert!(r(i128::MAX - 1, i128::MAX) < r(i128::MAX, i128::MAX - 1));
         assert!(r(-i128::MAX, 1) < r(i128::MAX, 1));
         assert_eq!(r(2, 4).cmp(&r(1, 2)), std::cmp::Ordering::Equal);
+    }
+
+    #[test]
+    fn parse_accepts_whole_numbers_decimals_and_fractions_exactly() {
+        let cases = [
+            ("88775", r(88775, 1)),
+            ("88775.244", r(88_775_244, 1000)),
+            ("355/113", r(355, 113)),
+            ("-3", r(-3, 1)),
+            ("+0.5", r(1, 2)),
+            ("007", r(7, 1)),
+            ("-0", Ratio::ZERO),
+            ("0.000000001", r(1, 1_000_000_000)),
+            ("6/4", r(3, 2)),
+            ("-1/3", r(-1, 3)),
+        ];
+        for (text, expected) in cases {
+            assert_eq!(Ratio::parse(text), Ok(expected), "{text}");
+        }
+    }
+
+    #[test]
+    fn parse_refuses_anything_else() {
+        for text in [
+            "", " 1", "1 ", "1e3", "1,000", "1.2.3", "1/", "/2", "1.5/2", "abc", "-", "+", ".5",
+            "5.", "1/-2", "--1", "1 /2", "½", "١",
+        ] {
+            assert_eq!(Ratio::parse(text), Err(TimeError::NotANumber), "{text:?}");
+        }
+    }
+
+    #[test]
+    fn parse_reports_division_by_zero_and_overflow() {
+        assert_eq!(Ratio::parse("1/0"), Err(TimeError::DivisionByZero));
+        assert_eq!(
+            Ratio::parse("1234567890123456789012345678901234567890"),
+            Err(TimeError::Overflow)
+        );
+        assert_eq!(
+            Ratio::parse("1.0000000000000000000000000000000000000001"),
+            Err(TimeError::Overflow)
+        );
+        let max = i128::MAX.to_string();
+        assert_eq!(Ratio::parse(&max), Ok(r(i128::MAX, 1)));
+        assert_eq!(Ratio::parse(&format!("-{max}")), Ok(r(-i128::MAX, 1)));
     }
 
     #[test]
