@@ -1,6 +1,7 @@
 # Bundle update log
 
 ## 2026-11-17
+* **Verification**: human:origin-foundry re-verified the spec 007 changes to the [storage schema](/storage/schema.md), [display units](/time/display-units.md) and [UI views](/product/ui-views.md) in conversation during review of #53. All three are stable again.
 * **Update**: Spec 007 (calendars in the project file):
   - The [storage schema](/storage/schema.md) gains schema version 2 as built: `calendar`, `unit`, `unit_member`, `rule` and `era` tables cut to what the engine supports, foreign keys switched on, and expressions stored as source text until something needs AST JSON.
   - [Display units](/time/display-units.md) says SI is the physics' measuring stick, always labelled as such and never presented as a calendar unit (the owner's clarification).

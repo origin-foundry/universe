@@ -3,8 +3,9 @@ type: Design
 title: Display units
 description: SI internally; the UI shows only the user's own units.
 tags: [time, units, ui]
-status: draft
+status: stable
 generated: { by: claude-code/claude-opus-5-5, at: 2026-10-30T08:24:17Z }
+verified: { by: human:origin-foundry, at: 2026-11-17T20:13:00Z }
 ---
 
 # Rule
