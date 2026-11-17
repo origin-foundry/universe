@@ -20,7 +20,7 @@
 
 ## User Scenarios & Testing *(mandatory)*
 
-The examples use the Aster test calendar from specs 004 and 006: a sol of 88,775 seconds split into 20 bells of 100 pulses, an orbit of twelve spans counted in sols, and an adjustment rule that makes one span a sol longer in some orbits.
+The examples use the Aster test calendar from specs 004 and 006: a sol of 88,775.244 seconds split into 20 bells of 100 pulses, an orbit of twelve spans counted in sols, and an adjustment rule that makes one span a sol longer in some orbits.
 
 ### User Story 1 - Define a calendar and keep it (Priority: P1)
 

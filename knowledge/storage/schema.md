@@ -3,9 +3,8 @@ type: Data Model
 title: Storage schema
 description: The SQLite project file - definition tables and disposable cache tables.
 tags: [storage, sqlite, schema]
-status: stable
+status: draft
 generated: { by: claude-code/claude-opus-5-5, at: 2026-10-30T08:24:17Z }
-verified: { by: human:origin-foundry, at: 2026-11-16T18:19:49Z }
 ---
 
 # File
@@ -16,7 +15,30 @@ One `.universe` file per project (SQLite, with `PRAGMA application_id = 0x554E49
 - **Working copy**: an open universe is held in an in-memory database; changes reach the file only when the owner saves (document model, spec 003).
 - **Crash-safe saves**: a save writes a temporary file in the same folder and atomically renames it over the original, so the file is always the complete old or the complete new version.
 - **One writer**: the app holds an exclusive lock on the file while it's open; a second open reports the file as in use.
-- **Built so far**: schema version 1 has `meta` and `universe(id, name)` only. The tables below are the target design, added by the features that use them.
+- **Foreign keys**: switched on for every connection, so deleting a row deletes what belongs to it (`ON DELETE CASCADE`).
+- **Built so far**:
+  - Schema version 1 (spec 003) has `meta` and `universe(id, name)`.
+  - Version 2 (spec 007) adds the calendar tables under "Calendar tables as built" below.
+  - The other tables are the target design, added by the features that use them.
+
+## Calendar tables as built (version 2)
+
+```
+calendar(id, seq, name)                          -- seq orders the universe's list; name unique
+unit(id, calendar_id, seq, kind, name, first_number,
+     member_unit_name, member_unit_first_number, -- groupings only
+     length,                                     -- the fundamental unit only: SI seconds as the text typed, exact
+     parts)                                      -- subdivisions only
+unit_member(id, unit_id, seq, name, count)
+rule(id, unit_id, seq, condition_src, member, change)
+era(id, calendar_id, seq, name, unit_name)
+```
+
+- `unit.kind` is `grouping`, `fundamental` or `subdivision`. `seq` orders the single chain from top to bottom; `parent_id` will replace or join it when units can branch.
+- A grouping's member unit is two columns on its row, not a row of its own.
+- An adjustment rule is stored as its condition's source text, the member it changes and the change; `modification_json` will replace the last two when changes other than lengthening or shortening exist.
+- There are no clock, epoch or pre-epoch columns yet: every calendar counts the absolute timeline and its epoch is the hidden point until epoch anchoring arrives.
+- A calendar keeps its `id` across edits, so later features can refer to it.
 
 # Schema
 
@@ -49,7 +71,7 @@ format(id, calendar_id, name, kind, template, inverse_overrides_json)
 event(id, name, gct_instant, end_instant, notes, tags)
 ```
 
-Expressions are stored as both **source text** (what the user wrote) and **AST JSON** (validated, versioned). See the [expression language](/language/expression-language.md).
+Expressions are stored as **source text** (what the user wrote), re-checked when the file is opened. **AST JSON** (validated, versioned) will be stored alongside it once something needs to read an expression without parsing it. See the [expression language](/language/expression-language.md).
 
 ## Cache tables (disposable)
 
