@@ -777,4 +777,71 @@ mod tests {
         session.put_calendar(Some(refused_id), &fixed).unwrap();
         assert_eq!(session.list_calendars().unwrap()[1].problem, None);
     }
+
+    // ---- Editing and deleting (T014) ----
+
+    fn saved_with_aster(dir: &std::path::Path) -> (Session, i64) {
+        let session = open_session();
+        let id = session.put_calendar(None, &aster()).unwrap().id;
+        session
+            .save_as(dir.join("t.universe").to_str().unwrap())
+            .unwrap();
+        (session, id)
+    }
+
+    #[test]
+    fn put_with_an_id_replaces_that_calendar() {
+        let dir = tempfile::tempdir().unwrap();
+        let (session, id) = saved_with_aster(dir.path());
+        let mut form = aster();
+        form.groupings[2].members[0].count = Some(57);
+        form.groupings[2].members[0].name = Some("First".to_owned());
+        let put = session.put_calendar(Some(id), &form).unwrap();
+        assert_eq!(put.id, id);
+        assert!(put.state.dirty);
+        assert_eq!(session.get_calendar(id).unwrap(), form);
+        assert_eq!(session.list_calendars().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn a_refused_replacement_leaves_the_stored_calendar_unchanged() {
+        let dir = tempfile::tempdir().unwrap();
+        let (session, id) = saved_with_aster(dir.path());
+        let mut form = aster();
+        form.groupings[2].members[0].count = Some(0);
+        assert!(matches!(
+            session.put_calendar(Some(id), &form),
+            Err(PutError::Field(_))
+        ));
+        assert_eq!(session.get_calendar(id).unwrap(), aster());
+        assert!(!session.state().dirty);
+    }
+
+    #[test]
+    fn replacing_or_deleting_a_missing_calendar_is_a_store_error() {
+        let session = open_session();
+        assert_eq!(
+            session.put_calendar(Some(9), &aster()),
+            Err(PutError::Store(
+                "That calendar no longer exists.".to_owned()
+            ))
+        );
+        assert_eq!(
+            session.delete_calendar(9).unwrap_err(),
+            "That calendar no longer exists."
+        );
+    }
+
+    #[test]
+    fn delete_removes_the_calendar_and_marks_the_universe_dirty() {
+        let dir = tempfile::tempdir().unwrap();
+        let (session, id) = saved_with_aster(dir.path());
+        let state = session.delete_calendar(id).unwrap();
+        assert!(state.dirty);
+        assert!(session.list_calendars().unwrap().is_empty());
+        assert_eq!(
+            session.get_calendar(id).unwrap_err(),
+            "That calendar no longer exists."
+        );
+    }
 }

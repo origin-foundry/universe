@@ -1137,4 +1137,135 @@ pub(crate) mod tests {
             proptest::prop_assert_eq!(records(&reopen(universe, &path)), vec![record]);
         }
     }
+
+    // ---- Calendars the engine refuses (T012, FR-015) ----
+
+    #[test]
+    fn stored_calendars_the_engine_refuses_still_read_back_as_records() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("odd.universe");
+        let mut universe = universe();
+        let bad_length = universe.add_calendar(&small("Bad length")).unwrap();
+        let refused = universe.add_calendar(&aster()).unwrap();
+        universe.save_as(&path).unwrap();
+        drop(universe);
+        {
+            let conn = Connection::open(&path).unwrap();
+            conn.execute(
+                "UPDATE unit SET length = 'about a thousand' WHERE calendar_id = ?1",
+                [bad_length],
+            )
+            .unwrap();
+            conn.execute("UPDATE unit_member SET count = 0 WHERE name = 'Third'", [])
+                .unwrap();
+        }
+        let universe = OpenUniverse::open(&path, APP).unwrap();
+        let first = universe.calendar(bad_length).unwrap().record;
+        assert_eq!(first.fundamental.length, "about a thousand");
+        assert!(matches!(first.to_def(), Err(RecordError::Length { .. })));
+        let second = universe.calendar(refused).unwrap().record;
+        assert_eq!(second.groupings[2].members[2].count, 0);
+        assert!(Calendar::new(second.to_def().unwrap()).is_err());
+        assert_eq!(universe.calendars().unwrap().len(), 2);
+    }
+
+    // ---- Replacing and deleting (T013) ----
+
+    fn row_counts(universe: &OpenUniverse) -> [i64; 5] {
+        ["calendar", "unit", "unit_member", "rule", "era"].map(|t| count(universe, t))
+    }
+
+    #[test]
+    fn replacing_keeps_the_id_and_place_and_every_row_is_replaced() {
+        let mut universe = universe();
+        let first = universe.add_calendar(&small("First")).unwrap();
+        let id = universe.add_calendar(&aster()).unwrap();
+        let last = universe.add_calendar(&small("Last")).unwrap();
+        // Aster has 6 unit rows (a member unit is part of its grouping's row), 1 + 1 + 12
+        // members and 1 rule; each small calendar has 1 unit row.
+        assert_eq!(row_counts(&universe), [3, 6 + 2, 14, 1, 3]);
+
+        let mut changed = small("Aster renamed");
+        changed.subdivisions = vec![subdivision("tick", 10)];
+        universe.replace_calendar(id, &changed).unwrap();
+        assert_eq!(row_counts(&universe), [3, 2 + 2, 0, 0, 3], "no orphan rows");
+        let listed = universe.calendars().unwrap();
+        assert_eq!(
+            listed.iter().map(|c| c.id).collect::<Vec<_>>(),
+            [first, id, last]
+        );
+        assert_eq!(listed[1].record, changed);
+    }
+
+    #[test]
+    fn a_calendar_may_keep_its_own_name_but_not_take_anothers() {
+        let mut universe = universe();
+        let id = universe.add_calendar(&aster()).unwrap();
+        universe.add_calendar(&small("Bell")).unwrap();
+        let mut record = aster();
+        record.groupings[2].members[0].count = 57;
+        universe.replace_calendar(id, &record).unwrap();
+        assert_eq!(universe.calendar(id).unwrap().record, record);
+        record.name = " Bell".to_owned();
+        assert_eq!(
+            universe.replace_calendar(id, &record),
+            Err(StoreError::CalendarNameTaken {
+                name: "Bell".to_owned()
+            })
+        );
+        record.name = String::new();
+        assert_eq!(
+            universe.replace_calendar(id, &record),
+            Err(StoreError::CalendarName)
+        );
+        assert_eq!(universe.calendar(id).unwrap().record.name, "Aster");
+    }
+
+    #[test]
+    fn deleting_removes_the_calendar_and_all_its_rows() {
+        let mut universe = universe();
+        let id = universe.add_calendar(&aster()).unwrap();
+        let other = universe.add_calendar(&small("Other")).unwrap();
+        universe.delete_calendar(id).unwrap();
+        assert_eq!(row_counts(&universe), [1, 1, 0, 0, 1]);
+        assert_eq!(
+            universe.calendar(id),
+            Err(StoreError::NoSuchCalendar { id })
+        );
+        assert_eq!(universe.calendars().unwrap()[0].id, other);
+        assert_eq!(
+            universe.delete_calendar(id),
+            Err(StoreError::NoSuchCalendar { id })
+        );
+        assert_eq!(
+            universe.replace_calendar(id, &aster()),
+            Err(StoreError::NoSuchCalendar { id })
+        );
+    }
+
+    #[test]
+    fn replacing_and_deleting_mark_the_universe_dirty() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut universe = universe();
+        let id = universe.add_calendar(&aster()).unwrap();
+        universe.save_as(&dir.path().join("t.universe")).unwrap();
+        universe.replace_calendar(id, &aster()).unwrap();
+        assert!(universe.is_dirty());
+        universe.save().unwrap();
+        universe.delete_calendar(id).unwrap();
+        assert!(universe.is_dirty());
+    }
+
+    #[test]
+    fn a_deletion_reaches_the_file_only_when_saved() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("aster.universe");
+        let mut universe = universe();
+        let id = universe.add_calendar(&aster()).unwrap();
+        universe.save_as(&path).unwrap();
+        universe.delete_calendar(id).unwrap();
+        // Closing without saving (Story 2, scenario 5).
+        let reopened = reopen(universe, &path);
+        assert_eq!(records(&reopened), [aster()]);
+    }
 }
