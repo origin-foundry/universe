@@ -69,7 +69,7 @@ Notes here are public: keep them general. Anything true only of a particular mac
 - If incremental builds fail with "Access is denied" on their session directories, build with `CARGO_INCREMENTAL=0`.
 - Long paths (such as Claude's scratchpad) can exceed the Windows path limit for some tools. Put generated or temporary files under `target/` (gitignored) instead.
 - File locks (`File::try_lock`) are mandatory on Windows: while one handle holds the lock, no other handle can read the file, not even SQLite's in the same process (renaming a file over it still works). See the comments in `crates/uni-store/src/universe.rs`.
-- Python's `open(..., "w")` writes Windows line endings: pass `newline="\n"`. When reading `gh` or Python output into shell variables, strip carriage returns (`| tr -d '\r'`). Backslash escapes like these can get turned into real control characters when a file is edited through a shell heredoc, so write such lines with an editor tool and check them afterwards.
+- Python's `open(..., "w")` writes Windows line endings: pass `newline="\n"`. When reading `gh` or Python output into shell variables, strip carriage returns (`| tr -d '\r'`). Backslash escapes like these can get turned into real control characters when a file is edited through a shell heredoc, so write such lines with an editor tool and check them afterwards. Claude's shell tool can also refuse a quoted heredoc whose body contains apostrophes ("unexpected EOF while looking for matching"), and nothing is written; write such files (Rust or TypeScript with `'` in comments or strings) with the editor tool instead.
 - Don't chain checks through `| tail`: it hides the exit code. Check `$?` or `${PIPESTATUS[0]}`, which is how a failing test was once committed and pushed.
 
 **GitHub**
