@@ -3,7 +3,17 @@ import { listen } from "@tauri-apps/api/event";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
+  type CalendarForm,
+  type CalendarSummary,
+  getCalendar,
+  listCalendars,
+  newCalendarForm,
+} from "./calendarApi";
+import CalendarEditor from "./CalendarEditor";
+import CalendarList from "./CalendarList";
+import {
   NO_UNIVERSE,
+  type PendingEdit,
   type UniverseState,
   closeFlow,
   closeWindowFlow,
@@ -25,10 +35,19 @@ interface AppInfo {
 
 type Status = { kind: "loading" } | { kind: "ready"; info: AppInfo } | { kind: "unavailable" };
 
+/** The main area while a universe is open: its calendar list, or one calendar in the editor. */
+type View =
+  { kind: "list" } | { kind: "editor"; id: number | null; initial: CalendarForm; opened: number };
+
 export default function App() {
   const [status, setStatus] = useState<Status>({ kind: "loading" });
   const [universe, setUniverse] = useState<UniverseState>(NO_UNIVERSE);
   const [naming, setNaming] = useState(false);
+  const [calendars, setCalendars] = useState<CalendarSummary[]>([]);
+  const [view, setView] = useState<View>({ kind: "list" });
+  // The calendar edit in progress, if it has changes (FR-012).
+  const pending = useRef<PendingEdit | null>(null);
+  const opened = useRef(0);
 
   // Menu and close events arrive outside React; they read the latest state from here.
   const current = useRef(universe);
@@ -74,13 +93,21 @@ export default function App() {
   useEffect(() => {
     const flows: Record<MenuAction, () => void> = {
       new: () => void startNew(),
-      open: () => void run(openFlow),
+      open: () =>
+        void run(async (state) => {
+          const next = await openFlow(state);
+          if (next !== null) setView({ kind: "list" });
+          return next;
+        }),
       save: () => void run(saveFlow),
       "save-as": () => void run(saveAsFlow),
       close: () =>
         void run(async (state) => {
           const next = await closeFlow(state);
-          if (next !== null) setNaming(false);
+          if (next !== null) {
+            setNaming(false);
+            setView({ kind: "list" });
+          }
           return next;
         }),
     };
@@ -115,6 +142,37 @@ export default function App() {
     document.title = windowTitle(universe);
   }, [universe]);
 
+  // The calendar list follows the open universe.
+  useEffect(() => {
+    let cancelled = false;
+    if (!universe.open) return;
+    listCalendars().then(
+      (list) => !cancelled && setCalendars(list),
+      () => !cancelled && setCalendars([]),
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [universe]);
+
+  const edit = useCallback(async (load: () => Promise<CalendarForm>, id: number | null) => {
+    try {
+      const initial = await load();
+      opened.current += 1;
+      setView({ kind: "editor", id, initial, opened: opened.current });
+    } catch {
+      setView({ kind: "list" });
+    }
+  }, []);
+  const backToList = useCallback(() => setView({ kind: "list" }), []);
+  const onPending = useCallback((p: PendingEdit | null) => {
+    pending.current = p;
+  }, []);
+  const afterChange = useCallback((state: UniverseState) => {
+    setUniverse(state);
+    setView({ kind: "list" });
+  }, []);
+
   const heading = universe.open
     ? universe.name
     : status.kind === "ready"
@@ -122,7 +180,7 @@ export default function App() {
       : "Universe";
 
   return (
-    <main className="app">
+    <main className={universe.open && !naming ? "app workspace" : "app"}>
       <h1>{heading}</h1>
       <p className="version">
         {status.kind === "ready" && status.info.version}
@@ -133,23 +191,40 @@ export default function App() {
           onCreate={async (name) => {
             setUniverse(await createUniverse(name));
             setNaming(false);
+            setView({ kind: "list" });
           }}
           onCancel={() => setNaming(false)}
         />
-      ) : (
-        !universe.open && (
-          <section className="empty">
-            <p>No universe open</p>
-            <div className="actions">
-              <button type="button" onClick={() => void startNew()}>
-                New universe
-              </button>
-              <button type="button" onClick={() => void run(openFlow)}>
-                Open universe…
-              </button>
-            </div>
-          </section>
+      ) : universe.open ? (
+        view.kind === "editor" ? (
+          <CalendarEditor
+            key={view.opened}
+            id={view.id}
+            initial={view.initial}
+            onKept={afterChange}
+            onClose={backToList}
+            onDeleted={afterChange}
+            onPending={onPending}
+          />
+        ) : (
+          <CalendarList
+            calendars={calendars}
+            onAdd={() => void edit(newCalendarForm, null)}
+            onOpen={(id) => void edit(() => getCalendar(id), id)}
+          />
         )
+      ) : (
+        <section className="empty">
+          <p>No universe open</p>
+          <div className="actions">
+            <button type="button" onClick={() => void startNew()}>
+              New universe
+            </button>
+            <button type="button" onClick={() => void run(openFlow)}>
+              Open universe…
+            </button>
+          </div>
+        </section>
       )}
     </main>
   );

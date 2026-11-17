@@ -13,6 +13,15 @@ export interface UniverseState {
   dirty: boolean;
 }
 
+/** A calendar edit in progress, which New, Open, Close and Exit ask about first (FR-012). */
+export interface PendingEdit {
+  /** The calendar's name, for the question. */
+  calendar: string;
+  /** Keeps the edit: the universe's new state, or null if the core refused it. */
+  keep: () => Promise<UniverseState | null>;
+  discard: () => void;
+}
+
 export const NO_UNIVERSE: UniverseState = { open: false, name: null, path: null, dirty: false };
 
 export const UNIVERSE_FILTER = { name: "Universe project", extensions: ["universe"] };
