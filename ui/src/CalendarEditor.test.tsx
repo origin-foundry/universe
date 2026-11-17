@@ -6,7 +6,8 @@ const dialog = vi.hoisted(() => ({ open: vi.fn(), save: vi.fn(), message: vi.fn(
 vi.mock("@tauri-apps/api/core", () => ({ invoke }));
 vi.mock("@tauri-apps/plugin-dialog", () => dialog);
 
-import type { CalendarForm } from "./calendarApi";
+import type { CalendarForm, FieldError, Location } from "./calendarApi";
+import { fieldKey } from "./calendarDraft";
 import CalendarEditor from "./CalendarEditor";
 import { ASTER_RULE, SPANS, asterForm, startingForm } from "./calendarFixtures";
 import type { UniverseState } from "./fileFlows";
@@ -190,5 +191,103 @@ describe("CalendarEditor: lists (FR-006)", () => {
     expect(within(orbit).getByText("Adjustment rules")).toBeInTheDocument();
     const age = screen.getByRole("group", { name: "Grouping 1" });
     expect(within(age).queryByText("Adjustment rules")).not.toBeInTheDocument();
+  });
+});
+
+describe("CalendarEditor: refusals are shown where they belong (Story 3)", () => {
+  const cases: Location[] = [
+    { kind: "calendarName" },
+    { kind: "era", field: "name" },
+    { kind: "era", field: "unit" },
+    { kind: "grouping", index: 1 },
+    { kind: "grouping", index: 2, field: "name" },
+    { kind: "grouping", index: 2, field: "firstNumber" },
+    { kind: "grouping", index: 2, field: "memberUnit" },
+    { kind: "member", grouping: 2, index: 3 },
+    { kind: "member", grouping: 2, index: 3, field: "name" },
+    { kind: "member", grouping: 2, index: 3, field: "count" },
+    { kind: "rule", grouping: 2, index: 0 },
+    { kind: "rule", grouping: 2, index: 0, field: "condition" },
+    { kind: "rule", grouping: 2, index: 0, field: "member" },
+    { kind: "rule", grouping: 2, index: 0, field: "change" },
+    { kind: "fundamental" },
+    { kind: "fundamental", field: "name" },
+    { kind: "fundamental", field: "length" },
+    { kind: "fundamental", field: "firstNumber" },
+    { kind: "subdivision", index: 1 },
+    { kind: "subdivision", index: 1, field: "name" },
+    { kind: "subdivision", index: 1, field: "parts" },
+    { kind: "subdivision", index: 1, field: "firstNumber" },
+  ];
+
+  it.each(cases)("shows a refusal at %o next to it, focused", async (at) => {
+    const refusal: FieldError = { message: "the engine says no", at };
+    invoke.mockRejectedValueOnce(refusal);
+    editor(asterForm(), 1);
+    keep();
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("the engine says no");
+    const target = document.querySelector<HTMLElement>(`[data-field="${fieldKey(at)}"]`)!;
+    expect(target).not.toBeNull();
+    await waitFor(() => expect(target).toHaveFocus());
+    const isInput = at.kind === "calendarName" || ("field" in at && at.field !== undefined);
+    if (isInput) {
+      expect(target).toHaveAttribute("aria-invalid", "true");
+      expect(target.closest("li, fieldset, form")).toContainElement(alert);
+    } else {
+      expect(target).toContainElement(alert);
+    }
+  });
+
+  it("keeps everything typed, and keeping again after a fix succeeds", async () => {
+    invoke.mockRejectedValueOnce({
+      message: "two units are named bell",
+      at: { kind: "subdivision", index: 1, field: "name" },
+    });
+    invoke.mockResolvedValueOnce({ state: dirty, id: 1 });
+    const { onKept } = editor(asterForm(), 1);
+    type("Subdivision 2 name", "bell");
+    type("Grouping 3 member 1 count", "57");
+    keep();
+    expect(await screen.findByRole("alert")).toHaveTextContent("two units are named bell");
+    expect(screen.getByLabelText("Subdivision 2 name")).toHaveValue("bell");
+    expect(screen.getByLabelText("Grouping 3 member 1 count")).toHaveValue("57");
+    expect(screen.getByLabelText("Grouping 3 rule 1 condition")).toHaveValue(ASTER_RULE);
+    expect(onKept).not.toHaveBeenCalled();
+
+    type("Subdivision 2 name", "pulse");
+    keep();
+    await waitFor(() => expect(onKept).toHaveBeenCalledWith(dirty, 1));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("shows an expression error with its position", async () => {
+    invoke.mockRejectedValueOnce({
+      message: "rule 1 of orbit: expected a value at 1:8",
+      at: { kind: "rule", grouping: 2, index: 0, field: "condition" },
+    });
+    editor(asterForm(), 1);
+    type("Grouping 3 rule 1 condition", "orbit %");
+    keep();
+    expect(await screen.findByRole("alert")).toHaveTextContent("at 1:8");
+    expect(screen.getByLabelText("Grouping 3 rule 1 condition")).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
+  });
+
+  it("shows a missing length at the length field", async () => {
+    invoke.mockRejectedValueOnce({
+      message: "the fundamental unit's length is missing",
+      at: { kind: "fundamental", field: "length" },
+    });
+    editor();
+    keep();
+    const length = screen.getByLabelText("Length, in SI seconds (physical)");
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "the fundamental unit's length is missing",
+    );
+    expect(length).toHaveAttribute("aria-invalid", "true");
+    expect(length).toHaveAttribute("aria-describedby", screen.getByRole("alert").id);
   });
 });

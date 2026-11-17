@@ -151,7 +151,6 @@ export default function CalendarEditor({
       }}
     >
       <h2>{id === null ? "New calendar" : initial.name}</h2>
-      <SectionError at={{ kind: "calendarName" }} error={error} />
       {input("Calendar name", "Calendar name", { kind: "calendarName" }, draft.name, (d, v) => {
         d.name = v;
       })}
