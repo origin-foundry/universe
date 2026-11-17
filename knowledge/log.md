@@ -1,5 +1,14 @@
 # Bundle update log
 
+## 2026-11-17
+* **Verification**: human:origin-foundry re-verified the spec 007 changes to the [storage schema](/storage/schema.md), [display units](/time/display-units.md) and [UI views](/product/ui-views.md) in conversation during review of #53. All three are stable again.
+* **Update**: Spec 007 (calendars in the project file):
+  - The [storage schema](/storage/schema.md) gains schema version 2 as built: `calendar`, `unit`, `unit_member`, `rule` and `era` tables cut to what the engine supports, foreign keys switched on, and expressions stored as source text until something needs AST JSON.
+  - [Display units](/time/display-units.md) says SI is the physics' measuring stick, always labelled as such and never presented as a calendar unit (the owner's clarification).
+  - [UI views](/product/ui-views.md) says the calendar editor starts as a plain form.
+
+  All three are back to draft until re-verified by human:origin-foundry.
+
 ## 2026-11-16
 * **Verification**: human:origin-foundry verified [ADR 0009](/decisions/0009-earth-neutral-names.md) and re-verified the 25 concepts it changed, in conversation during review of #50. All are stable.
 * **Creation**: Added [ADR 0009: Earth-neutral names](/decisions/0009-earth-neutral-names.md) (draft): code and design use the calendar model's own terms, Earth words only where the subject is Earth, enforced in code by `scripts/check_earth_terms.py`.
