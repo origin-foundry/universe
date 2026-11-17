@@ -4,7 +4,7 @@
 
 **Created**: 2026-11-16
 
-**Status**: Draft
+**Status**: Approved by the owner, 2026-11-17
 
 **Input**: User description: "Calendars in the project file (issue #52, Phase 1. Calendar core). The user can create, edit, delete and reopen their own calendars in the app. A minimal editor form defines a calendar with what the engine (uni-calendar, specs 004-006) already supports: its name, the fundamental unit's length, the single chain of groupings and subdivisions with their members' names and lengths, the era's unit, and adjustment rules typed as expressions (uni-expr, spec 005). The editor refuses an invalid calendar with the engine's reason. Calendars are saved in the project file (uni-store, spec 003; schema in /storage/schema.md) and come back unchanged when the project is reopened. This is the first time a calendar can be made and looked at in the app rather than only in tests. Agreed with the owner: this is the first of two specs for the 'first usable calendar' slice; spec 008 adds epoch anchoring (first calendar's epoch at a fixed hidden point on the timeline; later calendars anchor by equating one of their dates with a date in an existing calendar) and the converter screen. Out of scope here: epoch anchoring and the converter, formats, calendar grid, live preview and drift statistics, rule builder, multiple eras and pre-epoch labelling, parallel cycles, intercalary members, inserting or removing members, locales, presets, JSON import/export. Use the calendar model's own terms (ADR 0009)."
 
