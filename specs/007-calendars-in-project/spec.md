@@ -8,6 +8,14 @@
 
 **Input**: User description: "Calendars in the project file (issue #52, Phase 1. Calendar core). The user can create, edit, delete and reopen their own calendars in the app. A minimal editor form defines a calendar with what the engine (uni-calendar, specs 004-006) already supports: its name, the fundamental unit's length, the single chain of groupings and subdivisions with their members' names and lengths, the era's unit, and adjustment rules typed as expressions (uni-expr, spec 005). The editor refuses an invalid calendar with the engine's reason. Calendars are saved in the project file (uni-store, spec 003; schema in /storage/schema.md) and come back unchanged when the project is reopened. This is the first time a calendar can be made and looked at in the app rather than only in tests. Agreed with the owner: this is the first of two specs for the 'first usable calendar' slice; spec 008 adds epoch anchoring (first calendar's epoch at a fixed hidden point on the timeline; later calendars anchor by equating one of their dates with a date in an existing calendar) and the converter screen. Out of scope here: epoch anchoring and the converter, formats, calendar grid, live preview and drift statistics, rule builder, multiple eras and pre-epoch labelling, parallel cycles, intercalary members, inserting or removing members, locales, presets, JSON import/export. Use the calendar model's own terms (ADR 0009)."
 
+## Clarifications
+
+### Session 2026-11-16
+
+- Q: When the owner adds a new calendar, what does the editor form start with? → A: The smallest calendar the engine accepts: a fundamental unit and one era numbering it, with placeholder names; only the fundamental unit's length is left for the owner to enter. No groupings, subdivisions or rules, and nothing Earth-shaped.
+- Q: Can an invalid calendar be kept as an unfinished draft? → A: No. Only calendars the engine accepts enter the universe; an invalid edit is fixed or discarded, and the last valid version stays. The file only ever holds valid calendars (an invalid one found on open is the edge case in FR-015).
+- Q: How is the fundamental unit's length entered, given the UI never shows Earth units unless asked? → A: In SI seconds, clearly labelled as an SI physical input. SI is the physics' measuring stick, not part of any calendar: a field that takes SI says so, and SI is never presented as a calendar unit. The same rule will cover other physical inputs such as mass when bodies arrive.
+
 **Issue**: #52 · **Depends on**: spec 003 (project file), spec 004 (calendar engine basics), spec 005 (expression language), spec 006 (adjustment rules) · **Followed by**: spec 008 (epoch anchoring and the converter) · **Phase**: 1. Calendar core · **Knowledge**: [/storage/schema.md](../../knowledge/storage/schema.md), [/calendar/calendar-model.md](../../knowledge/calendar/calendar-model.md), [/calendar/unit-kinds.md](../../knowledge/calendar/unit-kinds.md), [/calendar/adjustment-rules.md](../../knowledge/calendar/adjustment-rules.md), [/calendar/eras-and-epoch.md](../../knowledge/calendar/eras-and-epoch.md), [/language/expression-language.md](../../knowledge/language/expression-language.md), [/product/ui-views.md](../../knowledge/product/ui-views.md), [/time/display-units.md](../../knowledge/time/display-units.md), [/architecture/crate-layout.md](../../knowledge/architecture/crate-layout.md), [ADR 0002](../../knowledge/decisions/0002-hidden-absolute-timeline.md), [ADR 0008](../../knowledge/decisions/0008-physical-time-and-calendar-time.md), [ADR 0009](../../knowledge/decisions/0009-earth-neutral-names.md)
 
 ## User Scenarios & Testing *(mandatory)*
@@ -86,6 +94,7 @@ When the definition the owner enters can't become a calendar (a duplicate unit n
 
 - **FR-001**: A universe MUST hold an ordered list of zero or more calendars, shown as a list when the universe is open.
 - **FR-002**: The owner MUST be able to add a calendar, open any listed calendar in the editor, and delete a calendar after confirming.
+- **FR-002a**: Adding a calendar MUST open the editor on the smallest calendar the engine accepts: a fundamental unit and one era numbering it, with placeholder names that use the model's terms, and the fundamental unit's length left empty for the owner to enter. It MUST have no groupings, subdivisions or adjustment rules.
 - **FR-003**: Calendar names MUST be unique within a universe and follow the engine's rule for a calendar's name.
 - **FR-004**: Adding, changing or deleting a calendar MUST mark the universe as having unsaved changes, and MUST reach the file only when the owner saves the universe (the document model of spec 003).
 
@@ -94,14 +103,14 @@ When the definition the owner enters can't become a calendar (a duplicate unit n
 - **FR-005**: The editor MUST let the owner enter everything a calendar definition holds today: the calendar's name; the fundamental unit's name, length in seconds and first number; the chain of groupings above it from top to bottom, each with its name, first number, member unit (name and first number) and ordered members (optional name and count); the chain of subdivisions below it, each with its name, parts and first number; the era's name and the unit it numbers; and the adjustment rules on the era's unit, each with its condition, the member it changes and the change.
 - **FR-006**: The owner MUST be able to add, remove and reorder groupings, members, subdivisions and adjustment rules in the form.
 - **FR-007**: Optional fields (first numbers, member names, a member unit when a grouping has a single member) MUST show the engine's default when left empty, and the stored calendar MUST keep them empty, not filled with the default.
-- **FR-008**: The fundamental unit's length MUST be entered in seconds as a whole number, exact decimal or fraction, and kept exactly. Seconds are a physical input in SI, which `/time/display-units.md` allows; no other Earth unit is shown.
+- **FR-008**: The fundamental unit's length MUST be entered in seconds as a whole number, exact decimal or fraction, and kept exactly. The field MUST be labelled as an SI physical input (for example "Length, in SI seconds (physical)"), which `/time/display-units.md` allows: SI is the physics' measuring stick, never presented as a calendar unit. This is the only place the editor shows seconds, and no other Earth unit is shown.
 - **FR-009**: The editor MUST NOT show the calendar's epoch or any absolute-timeline value. Every calendar's epoch is the fixed hidden point until spec 008 adds anchoring.
 
 **Checking**
 
 - **FR-010**: Confirming an edit MUST check the whole definition with the calendar engine. A definition the engine refuses MUST NOT be saved into the universe.
 - **FR-011**: Every refusal MUST be shown with the engine's message, placed at the field, unit, member or rule it concerns, and the form MUST keep everything the owner typed.
-- **FR-012**: Abandoning an edit MUST leave the stored calendar unchanged. Leaving the editor, closing the universe or closing the app with an edit in progress MUST ask whether to keep or discard the edit.
+- **FR-012**: Abandoning an edit MUST leave the stored calendar unchanged. Leaving the editor, closing the universe or closing the app with an edit in progress MUST ask whether to keep or discard the edit; keeping an invalid edit is refused as in FR-010, so the owner fixes it or discards it, and the last valid version stays. Unfinished drafts are never stored.
 
 **Storage**
 
@@ -142,5 +151,5 @@ When the definition the owner enters can't become a calendar (a duplicate unit n
 - **Checked on confirm**: the definition is checked as a whole when the owner confirms it. Checking while typing can come later; it isn't needed for correctness.
 - **Expressions stored as source text**: `/storage/schema.md` plans both source text and AST JSON for expressions. Whether the AST is stored now, or only the source text (which the engine re-parses on open), is a planning decision; the source text is always kept exactly.
 - **Physical time and calendar time** (ADR 0008): the fundamental unit's length is the definer's choice, never checked against physics.
-- **Knowledge update**: the design PR updates `/storage/schema.md` (the calendar tables actually built, schema version 2), `/architecture/crate-layout.md` (storage depending on the calendar engine, if the plan needs it) and `/product/ui-views.md` (the minimal editor as the first step towards the calendar editor), for the owner to re-verify.
+- **Knowledge update**: the design PR updates `/storage/schema.md` (the calendar tables actually built, schema version 2), `/time/display-units.md` (SI inputs are labelled as SI physical inputs and never presented as calendar units), `/architecture/crate-layout.md` (storage depending on the calendar engine, if the plan needs it) and `/product/ui-views.md` (the minimal editor as the first step towards the calendar editor), for the owner to re-verify.
 - **Scope check (principle VIII)**: if planning shows the build PR would exceed about 30 minutes of review, the spec is split again (for example, storage first, then the editor) before the design PR is opened.
