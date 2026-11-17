@@ -81,7 +81,7 @@ When the definition the owner enters can't become a calendar (a duplicate unit n
 - **Fundamental length forms**: the length can be a whole number or an exact decimal or fraction of seconds (for example `88775`, `88775.244` or `355/113`); it is stored and shown back exactly as the same value, never rounded.
 - **Names that look alike**: unit names differing only in case ("Sol" and "sol") follow the engine's rule for uniqueness; the editor adds no rule of its own.
 - **Two calendars with the same name**: refused within one universe, with a message naming the existing calendar.
-- **Expressions with extra spaces or comments**: stored and shown back exactly as typed.
+- **Expressions with extra spaces or line breaks**: stored and shown back exactly as typed.
 - **A file whose stored calendar the current engine refuses** (written by hand or by a future bug): the universe still opens; that calendar is listed as unusable with the engine's reason and can be opened in the editor to be fixed or deleted. Nothing is silently dropped.
 - **Very large definitions**: a calendar with many members (for example a grouping of 1,000 members) can be entered, saved and reopened.
 - **Earth's calendar words**: the app adds no Earth calendar words of its own to the editor (its labels use the model's terms: grouping, member, fundamental unit, subdivision, era's unit, adjustment rule); the owner's own names can be anything.
