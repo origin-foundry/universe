@@ -223,16 +223,14 @@ mod tests {
             [],
         )
         .unwrap();
-        let insert = |kind: &str,
-                      member_unit: Option<&str>,
-                      length: Option<&str>,
-                      parts: Option<i64>| {
-            conn.execute(
+        let insert =
+            |kind: &str, member_unit: Option<&str>, length: Option<&str>, parts: Option<i64>| {
+                conn.execute(
                 "INSERT INTO unit (calendar_id, seq, kind, name, member_unit_name, length, parts)
                      VALUES (1, (SELECT COUNT(*) FROM unit) + 1, ?1, 'u', ?2, ?3, ?4)",
                 rusqlite::params![kind, member_unit, length, parts],
             )
-        };
+            };
         assert!(insert("fundamental", None, Some("1"), None).is_ok());
         assert!(
             insert("fundamental", None, None, None).is_err(),

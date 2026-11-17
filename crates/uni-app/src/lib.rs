@@ -1,5 +1,7 @@
 //! The Universe desktop app: Tauri commands, background jobs and progress events.
 
+mod calendars;
+
 use std::path::Path;
 use std::sync::{Mutex, MutexGuard};
 
@@ -7,6 +9,10 @@ use serde::Serialize;
 use tauri::menu::{Menu, MenuBuilder, MenuItem, MenuItemBuilder, SubmenuBuilder};
 use tauri::{AppHandle, Emitter, Manager, State, WindowEvent, Wry};
 use uni_store::{OpenUniverse, UniverseName};
+
+pub use calendars::{
+    CalendarForm, CalendarSummary, Field, FieldError, Location, PutError, PutResult,
+};
 
 const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -209,6 +215,44 @@ fn close_universe(app: AppHandle, session: State<'_, Session>) -> UniverseState 
     reflect(&app, session.close())
 }
 
+#[tauri::command]
+fn list_calendars(session: State<'_, Session>) -> Result<Vec<CalendarSummary>, String> {
+    session.list_calendars()
+}
+
+#[tauri::command]
+fn get_calendar(session: State<'_, Session>, id: i64) -> Result<CalendarForm, String> {
+    session.get_calendar(id)
+}
+
+#[tauri::command]
+fn new_calendar_form(session: State<'_, Session>) -> Result<CalendarForm, String> {
+    session.new_calendar_form()
+}
+
+#[tauri::command]
+fn put_calendar(
+    app: AppHandle,
+    session: State<'_, Session>,
+    id: Option<i64>,
+    form: CalendarForm,
+) -> Result<PutResult, PutError> {
+    let put = session.put_calendar(id, &form)?;
+    Ok(PutResult {
+        state: reflect(&app, put.state),
+        id: put.id,
+    })
+}
+
+#[tauri::command]
+fn delete_calendar(
+    app: AppHandle,
+    session: State<'_, Session>,
+    id: i64,
+) -> Result<UniverseState, String> {
+    reflect_result(&app, session.delete_calendar(id))
+}
+
 /// Ends the app once the UI has finished the unsaved-changes prompt on closing the window.
 ///
 /// A command rather than the window-close permission, so the UI's capabilities stay at the
@@ -289,7 +333,12 @@ pub fn run() {
             save_universe,
             save_universe_as,
             close_universe,
-            exit_app
+            exit_app,
+            list_calendars,
+            get_calendar,
+            new_calendar_form,
+            put_calendar,
+            delete_calendar
         ])
         .run(tauri::generate_context!())
         .expect("Universe failed to start");

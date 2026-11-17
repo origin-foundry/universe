@@ -864,4 +864,277 @@ pub(crate) mod tests {
             assert_eq!(universe.calendars(), Err(damaged()), "{sql}");
         }
     }
+
+    // ---- Saving and reopening files (T007) ----
+
+    const APP: &str = "0.1.0";
+
+    fn reopen(universe: OpenUniverse, path: &std::path::Path) -> OpenUniverse {
+        drop(universe);
+        OpenUniverse::open(path, APP).unwrap()
+    }
+
+    fn records(universe: &OpenUniverse) -> Vec<CalendarRecord> {
+        universe
+            .calendars()
+            .unwrap()
+            .into_iter()
+            .map(|c| c.record)
+            .collect()
+    }
+
+    #[test]
+    fn calendars_survive_save_and_reopen_unchanged_and_in_order() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("aster.universe");
+        let mut universe = universe();
+        let expected = vec![small("Cairn"), aster(), small("Bell")];
+        for record in &expected {
+            universe.add_calendar(record).unwrap();
+        }
+        let ids: Vec<i64> = universe.calendars().unwrap().iter().map(|c| c.id).collect();
+        universe.save_as(&path).unwrap();
+        let reopened = reopen(universe, &path);
+        assert_eq!(records(&reopened), expected);
+        let reopened_ids: Vec<i64> = reopened.calendars().unwrap().iter().map(|c| c.id).collect();
+        assert_eq!(reopened_ids, ids, "ids are stable");
+        assert!(!reopened.is_dirty());
+    }
+
+    #[test]
+    fn a_version_1_file_opens_with_no_calendars_after_keeping_a_copy() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("old.universe");
+        {
+            let conn = Connection::open(&path).unwrap();
+            crate::schema::create_v0(&conn, "0.0.1", 1_700_000_000).unwrap();
+            conn.execute_batch(crate::MIGRATIONS[0]).unwrap();
+            conn.execute_batch(
+                "UPDATE universe SET name = 'Old Aster'; UPDATE meta SET schema_version = 1;",
+            )
+            .unwrap();
+        }
+        let original = std::fs::read(&path).unwrap();
+        let universe = OpenUniverse::open(&path, APP).unwrap();
+        assert_eq!(universe.name().unwrap().as_str(), "Old Aster");
+        assert_eq!(universe.created_at_unix().unwrap(), 1_700_000_000);
+        assert!(universe.calendars().unwrap().is_empty());
+        assert!(universe.is_dirty());
+        drop(universe);
+        assert_eq!(
+            std::fs::read(dir.path().join("old.v1.universe")).unwrap(),
+            original
+        );
+    }
+
+    #[test]
+    fn a_file_with_calendar_rows_in_the_wrong_shape_is_refused_as_damaged() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("aster.universe");
+        let mut universe = universe();
+        universe.add_calendar(&aster()).unwrap();
+        universe.save_as(&path).unwrap();
+        drop(universe);
+        Connection::open(&path)
+            .unwrap()
+            .execute("DELETE FROM era", [])
+            .unwrap();
+        assert_eq!(OpenUniverse::open(&path, APP).err(), Some(damaged()));
+    }
+
+    #[test]
+    fn a_thousand_member_grouping_survives_save_and_reopen() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("big.universe");
+        let mut universe = universe();
+        let record = big("Big");
+        Calendar::new(record.to_def().unwrap()).unwrap();
+        universe.add_calendar(&record).unwrap();
+        universe.save_as(&path).unwrap();
+        assert_eq!(records(&reopen(universe, &path)), [record]);
+    }
+
+    /// A calendar whose one grouping has 1,000 members.
+    pub(crate) fn big(name: &str) -> CalendarRecord {
+        let mut record = small(name);
+        record.groupings = vec![GroupingDef {
+            name: "orbit".to_owned(),
+            member_unit: Some(MemberUnitDef {
+                name: "span".to_owned(),
+                first_number: None,
+            }),
+            members: (1..=1000)
+                .map(|j| MemberDef {
+                    name: (j % 3 != 0).then(|| format!("Member {j}")),
+                    count: 1 + j % 7,
+                })
+                .collect(),
+            first_number: None,
+            rules: vec![],
+        }];
+        record.era.unit = "orbit".to_owned();
+        record
+    }
+
+    /// A small deterministic generator, so one proptest seed makes one whole record.
+    struct Rng(u64);
+
+    impl Rng {
+        fn next(&mut self) -> u64 {
+            // xorshift64*
+            self.0 ^= self.0 >> 12;
+            self.0 ^= self.0 << 25;
+            self.0 ^= self.0 >> 27;
+            self.0.wrapping_mul(0x2545_F491_4F6C_DD1D)
+        }
+        fn range(&mut self, lo: i64, hi: i64) -> i64 {
+            lo + (self.next() % (hi - lo + 1) as u64) as i64
+        }
+        fn coin(&mut self) -> bool {
+            self.next() % 2 == 0
+        }
+        /// Up to `max` letters from a small alphabet, Unicode included.
+        fn word(&mut self, alphabet: &[char], max: i64) -> String {
+            (0..self.range(0, max))
+                .map(|_| alphabet[self.range(0, alphabet.len() as i64 - 1) as usize])
+                .collect()
+        }
+        fn maybe(&mut self, lo: i64, hi: i64) -> Option<i64> {
+            self.coin().then(|| self.range(lo, hi))
+        }
+    }
+
+    const IDENT: [char; 6] = ['a', 'b', 'q', 'x', 'z', '_'];
+    const TEXT: [char; 8] = ['a', 'k', 'r', 'é', '✶', 'Ñ', ' ', '-'];
+
+    /// A random record the engine accepts (research R11): 1–4 groupings of 1–20 members,
+    /// optional names and first numbers, 0–3 subdivisions, an era on a random grouping, member
+    /// unit or the fundamental unit, 0–2 rules on the era's unit when it's a grouping, and a
+    /// length written as a whole number, decimal or fraction. Names are already trimmed.
+    fn random_record(seed: u64) -> CalendarRecord {
+        let r = &mut Rng(seed | 1);
+        let text = |r: &mut Rng, prefix: String| {
+            let word = r.word(&TEXT, 6);
+            format!("{prefix}{}", word.trim_end())
+        };
+        let mut groupings: Vec<GroupingDef> = (0..r.range(1, 4))
+            .map(|i| {
+                let members: Vec<MemberDef> = (0..r.range(1, 20))
+                    .map(|j| MemberDef {
+                        name: r.coin().then(|| text(r, format!("M{j}"))),
+                        count: r.range(1, 200),
+                    })
+                    .collect();
+                let member_unit = (members.len() > 1 || r.coin()).then(|| MemberUnitDef {
+                    name: format!("m{i}{}", r.word(&IDENT, 4)),
+                    first_number: None,
+                });
+                GroupingDef {
+                    name: format!("g{i}{}", r.word(&IDENT, 4)),
+                    member_unit,
+                    members,
+                    first_number: None,
+                    rules: vec![],
+                }
+            })
+            .collect();
+        let length = match r.range(0, 2) {
+            0 => r.range(1, 100_000).to_string(),
+            1 => {
+                let digits = r.range(1, 3) as usize;
+                let frac = r.range(0, 10_i64.pow(digits as u32) - 1);
+                format!("{}.{frac:0digits$}", r.range(1, 100_000))
+            }
+            _ => {
+                let den = r.range(1, 1000);
+                format!("{}/{den}", r.range(den, 100_000 * den))
+            }
+        };
+        let subdivisions = (0..r.range(0, 3))
+            .map(|i| SubdivisionDef {
+                name: format!("s{i}{}", r.word(&IDENT, 4)),
+                parts: r.range(1, 100),
+                first_number: r.maybe(-100, 100),
+            })
+            .collect();
+
+        // The chain above and at the fundamental unit, as (grouping, is member unit).
+        let mut chain: Vec<(Option<usize>, bool)> = Vec::new();
+        for (i, g) in groupings.iter().enumerate() {
+            chain.push((Some(i), false));
+            if g.member_unit.is_some() {
+                chain.push((Some(i), true));
+            }
+        }
+        chain.push((None, false));
+        let era = r.range(0, chain.len() as i64 - 1) as usize;
+        let mut fundamental_first = None;
+        // First numbers only below the era's unit, which numbers everything at or above it.
+        for &(at, is_member_unit) in &chain[era + 1..] {
+            let first = r.maybe(-100, 100);
+            match (at, is_member_unit) {
+                (Some(i), false) => groupings[i].first_number = first,
+                (Some(i), true) => {
+                    groupings[i].member_unit.as_mut().unwrap().first_number = first;
+                }
+                (None, _) => fundamental_first = first,
+            }
+        }
+        let fundamental_name = format!("f{}", r.word(&IDENT, 4));
+        let era_unit = match chain[era] {
+            (Some(i), false) => {
+                let g = &mut groupings[i];
+                for _ in 0..r.range(0, 2) {
+                    let k = r.range(2, 10);
+                    let j = r.range(0, g.members.len() as i64 - 1) as usize;
+                    let member = g.members[j]
+                        .name
+                        .clone()
+                        .unwrap_or_else(|| (j + 1).to_string());
+                    let condition = format!("{} % {k} == {}", g.name, r.range(0, k - 1));
+                    let change = r.range(1, 3);
+                    g.rules.push(AdjustmentRuleDef {
+                        condition,
+                        member,
+                        change,
+                    });
+                }
+                g.name.clone()
+            }
+            (Some(i), true) => groupings[i].member_unit.as_ref().unwrap().name.clone(),
+            (None, _) => fundamental_name.clone(),
+        };
+        CalendarRecord {
+            name: text(r, "C".to_owned()),
+            groupings,
+            fundamental: FundamentalRecord {
+                name: fundamental_name,
+                length,
+                first_number: fundamental_first,
+            },
+            subdivisions,
+            era: EraRecord {
+                name: text(r, "E".to_owned()),
+                unit: era_unit,
+            },
+        }
+    }
+
+    proptest::proptest! {
+        #![proptest_config(proptest::prelude::ProptestConfig::with_cases(1000))]
+
+        /// SC-002: store, save to a file, reopen: the same record, field for field.
+        #[test]
+        fn random_valid_calendars_survive_save_and_reopen(seed in proptest::prelude::any::<u64>()) {
+            let record = random_record(seed);
+            let def = record.to_def().unwrap();
+            proptest::prop_assert!(Calendar::new(def).is_ok(), "{record:?}");
+            let dir = tempfile::tempdir().unwrap();
+            let path = dir.path().join("p.universe");
+            let mut universe = universe();
+            universe.add_calendar(&record).unwrap();
+            universe.save_as(&path).unwrap();
+            proptest::prop_assert_eq!(records(&reopen(universe, &path)), vec![record]);
+        }
+    }
 }
