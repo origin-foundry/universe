@@ -317,12 +317,11 @@ pub fn run() {
         })
         .on_window_event(|window, event| {
             if let WindowEvent::CloseRequested { api, .. } = event {
-                let dirty = window.state::<Session>().state().dirty;
-                if dirty {
-                    // The UI asks Save / Don't save / Cancel, then calls `exit_app`.
-                    api.prevent_close();
-                    let _ = window.emit("close-requested", ());
-                }
+                // Only the UI knows whether a calendar edit is in progress (spec 007, FR-012),
+                // so it always decides: it asks about the edit and any unsaved changes, then
+                // calls `exit_app`.
+                api.prevent_close();
+                let _ = window.emit("close-requested", ());
             }
         })
         .invoke_handler(tauri::generate_handler![

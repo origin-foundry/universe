@@ -69,7 +69,7 @@ export default function App() {
     if (busy.current) return;
     busy.current = true;
     try {
-      if (await newFlow(current.current)) setNaming(true);
+      if (await newFlow(current.current, pending.current)) setNaming(true);
     } finally {
       busy.current = false;
     }
@@ -95,7 +95,7 @@ export default function App() {
       new: () => void startNew(),
       open: () =>
         void run(async (state) => {
-          const next = await openFlow(state);
+          const next = await openFlow(state, pending.current);
           if (next !== null) setView({ kind: "list" });
           return next;
         }),
@@ -103,7 +103,7 @@ export default function App() {
       "save-as": () => void run(saveAsFlow),
       close: () =>
         void run(async (state) => {
-          const next = await closeFlow(state);
+          const next = await closeFlow(state, pending.current);
           if (next !== null) {
             setNaming(false);
             setView({ kind: "list" });
@@ -113,7 +113,7 @@ export default function App() {
     };
     const unlisten = [
       listen<string>("menu", (event) => flows[event.payload as MenuAction]?.()),
-      listen("close-requested", () => void closeWindowFlow(current.current)),
+      listen("close-requested", () => void closeWindowFlow(current.current, pending.current)),
     ];
     // The native menu never sees its shortcuts while the web view has the focus
     // (see shortcuts.ts), so they're handled here.

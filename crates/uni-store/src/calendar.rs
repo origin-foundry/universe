@@ -991,7 +991,7 @@ pub(crate) mod tests {
             lo + (self.next() % (hi - lo + 1) as u64) as i64
         }
         fn coin(&mut self) -> bool {
-            self.next() % 2 == 0
+            self.next().is_multiple_of(2)
         }
         /// Up to `max` letters from a small alphabet, Unicode included.
         fn word(&mut self, alphabet: &[char], max: i64) -> String {
