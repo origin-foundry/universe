@@ -1268,4 +1268,42 @@ pub(crate) mod tests {
         let reopened = reopen(universe, &path);
         assert_eq!(records(&reopened), [aster()]);
     }
+
+    // ---- Timing (T021, SC-004) ----
+
+    /// Run by hand, in release mode:
+    /// `cargo test -p uni-store --release -- --ignored list_twenty_calendars_timing --nocapture`.
+    #[test]
+    #[ignore = "timing check; run by hand with --release -- --ignored --nocapture"]
+    fn list_twenty_calendars_timing() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("twenty.universe");
+        let mut universe = universe();
+        universe.add_calendar(&big("Big")).unwrap();
+        for n in 2..=20 {
+            let mut record = aster();
+            record.name = format!("Aster {n}");
+            universe.add_calendar(&record).unwrap();
+        }
+        universe.save_as(&path).unwrap();
+        drop(universe);
+
+        // What opening a universe and showing its list does: open, read every calendar and
+        // check each with the engine, as `list_calendars` does.
+        let start = std::time::Instant::now();
+        let universe = OpenUniverse::open(&path, APP).unwrap();
+        let calendars = universe.calendars().unwrap();
+        let usable = calendars
+            .iter()
+            .filter(|c| Calendar::new(c.record.to_def().unwrap()).is_ok())
+            .count();
+        let elapsed = start.elapsed();
+
+        assert_eq!((calendars.len(), usable), (20, 20));
+        println!("open + list + check 20 calendars (one of 1,000 members): {elapsed:?}");
+        assert!(
+            elapsed < std::time::Duration::from_secs(1),
+            "took {elapsed:?}"
+        );
+    }
 }

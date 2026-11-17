@@ -83,8 +83,9 @@ description: "Task list for spec 007, calendars in the project file"
 
 ## Phase 6: Polish and verification
 
-- [ ] T021 [P] Add an `#[ignore]` timing test `list_twenty_calendars_timing` in `crates/uni-store/src/calendar.rs`: 20 calendars, one with a 1,000-member grouping, saved, reopened and listed with every calendar checked by the engine (as `list_calendars` does), printing the time. Run it in release and record the result here (SC-004: under 1 s).
-- [ ] T022 [P] Update doc comments and the crate docs in `crates/uni-store/src/lib.rs` (calendars are stored from schema version 2) and `crates/uni-time/src/ratio.rs` (`Ratio::parse` with examples), and spec 003's contract note in `crates/uni-store` if it says version 1.
+- [X] T021 [P] Add an `#[ignore]` timing test `list_twenty_calendars_timing` in `crates/uni-store/src/calendar.rs`: 20 calendars, one with a 1,000-member grouping, saved, reopened and listed with every calendar checked by the engine (as `list_calendars` does), printing the time. Run it in release and record the result here (SC-004: under 1 s).
+  - Result (2026-11-17, release build, on the development machine): open, list and check of 20 calendars, one of 1,000 members, took 15 ms. SC-004 met.
+- [X] T022 [P] Update doc comments and the crate docs in `crates/uni-store/src/lib.rs` (calendars are stored from schema version 2) and `crates/uni-time/src/ratio.rs` (`Ratio::parse` with examples), and spec 003's contract note in `crates/uni-store` if it says version 1.
 - [ ] T023 Run the app by hand through every step of [quickstart.md](quickstart.md) and record the result here, including how long step 4 (defining Aster) took (SC-001: under 5 minutes) and that native menu shortcuts and the window's close button pass through the pending-edit guard (Vitest can't check this, see `CLAUDE.md`, Tauri).
 - [ ] T024 Run the full local verification and record the results in the build PR description:
   - `cargo fmt --all --check`
