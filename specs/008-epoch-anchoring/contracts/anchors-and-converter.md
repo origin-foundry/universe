@@ -91,6 +91,8 @@ Messages (`Display`), in the model's terms, never naming seconds or the timeline
 | `new_calendar_form` | none | `CalendarForm` with its anchor (research R7) | string |
 | `put_calendar` | `id \| null`, `form` | unchanged | `FieldError`, now also at `anchor` (research R8), or string |
 | `delete_calendar` | `id` | unchanged; research R6 | string |
+| `anchor_bases` | `id: number \| null` | `AnchorBase[]` (new; research R7, R9) | string |
+| `read_date` | `source: { id: number } \| { form: CalendarForm }`, `date: (number \| null)[]` | `DateReading`, `DateError` or `{ definition: string }` (new) | string |
 | `calendar_followers` | `id` | `string[]`: the calendars that follow it directly (new) | string |
 | `converter_calendars` | none | `ConverterCalendar[]` (new) | string |
 | `convert` | `from: number`, `date: (number \| null)[]` | `Conversion` (new) | `DateError`, or string for a store failure or an unusable source calendar |

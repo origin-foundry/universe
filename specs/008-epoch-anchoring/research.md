@@ -124,8 +124,9 @@ Deleting the reference calendar leaves no reference calendar. The others keep th
 
 - For a calendar with no anchor (the reference calendar, a term the app doesn't show): "Not anchored." and, when the universe has another calendar that can be placed, an **Anchor to a base calendar** button that opens the inputs below, starting as for a new calendar (FR-001a). No explanation of the hidden zero.
 - Otherwise, or once that button is pressed:
-  - **Base calendar**: a choice of the universe's other calendars (by name);
-  - **Anchor date** and **Base date**: one whole-number field per unit from the era's unit down, labelled with the unit's name. Smaller units may be left empty (they take their first value, as the engine does). The anchor date's units come from the draft as it's being edited; the base date's come from the core (R9's `converter_calendars`);
+  - **Base calendar**: a choice from a list, never typed (FR-002a). It holds every other calendar in list order, from `anchor_bases(id)` (R9). A calendar that can't be the base is shown greyed out and can't be chosen, with its reason after its name: "follows this calendar" (it follows the anchored calendar, R5 step 7) or "can't be placed" (R4). This is the same check `put_calendar` makes, so a choosable base is never refused as a loop on keep; the check on keep stays, for a universe that changed in between;
+  - **Anchor date** and **Base date**: one whole-number field per unit from the era's unit down, labelled with the unit's name. Smaller units may be left empty (they take their first value, as the engine does). The anchor date's units come from the draft as it's being edited; the base date's come from the core (R9's `converter_calendars`). Each date is checked as it's typed (FR-002b) with `read_date` (R9): the base date against the stored base calendar, the anchor date against the draft's definition. A refused value is flagged at its field with the engine's message, as the converter does. If the draft's definition isn't valid yet, the anchor date shows "Checked once the calendar's definition is valid." instead;
+  - **Read-back**: under the dates, a sentence built from the two `read_date` results: "Tallow's cycle 1, round 1, watch 1 began at the start of Aster's orbit 412, span 3 (Third), sol 9." Member names come in brackets after the number when the member has one. Values left empty are filled in with the unit's first value in the sentence, so it says exactly what the anchor means. There's no sentence while either date has a fault;
   - **Kind**: two choices, "Fix the moment: stays put if <base> is edited" (the default) and "Keep the equation: follows <base>".
   - There's no way to remove an anchor once kept (FR-002); discarding the edit is the way back before keeping.
   - When the base date starts between two whole nanoseconds (its `rounded_by`), the sentence "<Aster>'s date starts between two of the timeline's finest steps; this calendar is placed from the next one." (`CalendarDetails.rounded`, the spec's edge case on moments between whole nanoseconds). The epoch itself is always a whole nanosecond (R1), so this is the only rounding an anchor has.
@@ -147,11 +148,13 @@ Anchor values are part of the draft, so the keep-or-discard guard of spec 007 co
 
 **Decision**: two commands.
 
+- `anchor_bases(id | null) → AnchorBase[]`: every calendar except `id`, in list order, each with `ineligible: null | "follows" | "unplaceable"` (FR-002a). The UI words them "follows this calendar" and "can't be placed".
+- `read_date(source, date) → DateReading | DateError`, where `source` is `{ id }` (a stored calendar, placed or not) or `{ form }` (an editor draft). It checks the date as `convert` does and returns its values with unit names and member names, filled in to the smallest unit. For a draft whose definition is refused, it returns `{ definition: <message> }` instead (FR-002b).
 - `converter_calendars() → ConverterCalendar[]`: every calendar in list order with its id, name, its units from the era's unit down (the fields to fill in), and its problem if it can't be placed.
 - `convert(from: id, date: (number | null)[]) → Conversion | DateError`:
   - The date is checked like an anchor's date (no gap; at least one value). The source calendar's `date_to_instant` gives the instant; a refusal is a `DateError { message, index }` at the value it concerns (FR-011).
   - For every other placed calendar, `instant_base_date(instant)` gives the date.
-  - The result lists each target's units **above** the era's unit (Aster's age and cohort) and its date values, each with its unit's name (FR-009), and how far into the smallest unit the moment falls (R10).
+  - The result lists each target's units **above** the era's unit (Aster's age and cohort) and its date values, each with its unit's name and, for a member, its name if it has one (FR-009, as in the anchor's read-back), and how far into the smallest unit the moment falls (R10).
   - `Conversion` also lists every unusable calendar with its problem, so the screen can say why it isn't shown (FR-006), and `rounded: true` when the source date's exact start lay between two whole nanoseconds (the engine's `rounded_by`), so the screen can say so (edge case). The rounding is never given as an amount in seconds.
 
 The screen: **Converter** is a button beside **Add calendar** on the calendar list, and the converter has **Back to calendars**. It holds a choice of calendar, the date's fields, the precision switch and the results. It converts as the owner types, whenever every filled field holds a whole number, so there's no button to press. A field holding anything else shows "must be a whole number" without calling the core, as in the editor. With one calendar, the results say "There's no other calendar to convert into." (Story 2, scenario 6). The converter has no unsaved state, so it doesn't take part in the keep-or-discard guard.
@@ -201,13 +204,13 @@ The editor's FR-005a note uses the partway form.
 
 ## R12. Size (principle VIII)
 
-**Estimate**: about 3,000 changed lines.
+**Estimate**: about 3,300 changed lines.
 
-- Rust code, about 900: `uni-calendar` and `uni-time` 120, store tables, anchors and placing 380, commands, locations and conversion 400.
-- Rust tests, about 1,000.
-- UI code and tests, about 1,100: the Place in time section 250, the converter 300, tests 550.
+- Rust code, about 1,000: `uni-calendar` and `uni-time` 120, store tables, anchors and placing 380, commands, locations, conversion, base list and date reading 500.
+- Rust tests, about 1,050.
+- UI code and tests, about 1,250: the Place in time section 350 (with the base list, live checks and read-back), the converter 300, tests 600.
 
-That's a little more than spec 007's build (about 2,600, reviewed in one sitting) and within specs 004–006's (3,000–6,000). Tasks put anchoring (Stories 1 and 3) before the converter (Story 2), so if review shows it's too much, the converter can become its own build PR. No split now.
+That's more than spec 007's build (about 2,600, reviewed in one sitting) and within specs 004–006's (3,000–6,000). Tasks put anchoring (Stories 1 and 3) before the converter (Story 2), so if review shows it's too much, the converter can become its own build PR. No split now.
 
 ## R13. Knowledge changes
 

@@ -33,7 +33,7 @@ No command or screen gives a timeline value. Details are in [research.md](resear
 
 **Constraints**: exact arithmetic only in `uni-time` and `uni-calendar`, and no floating point in the UI's handling of dates or fractions; no timeline value outside the file; no Earth calendar words in code (the Earth-terms check).
 
-**Scale/Scope**: about 3,000 changed lines (research R12).
+**Scale/Scope**: about 3,300 changed lines (research R12).
 
 ## Constitution Check
 
@@ -48,7 +48,7 @@ No command or screen gives a timeline value. Details are in [research.md](resear
 | V. Layering | No new crate or edge: `uni-store` → `uni-calendar`, `uni-time` and `uni-app` → all three exist since spec 007. No Tauri in core crates. Placement lives in `uni-store`, below the app (FR-017). |
 | VI. Test-first | Each task writes its tests first: `to_decimal`, `epoch_for` with a 1,000-case property test, the migration, placements, a 1,000-case property test of anchor chains, every anchor refusal's location, the converter commands, UI tests. No presets. |
 | VII. No silent ambiguity | Loops, unusable calendars, dates that no longer exist and nanosecond rounding are all reported; a fixed anchor whose base calendar changed shows where its moment now falls; deleting a calendar names the calendars it affects. |
-| VIII. Small changes | About 3,000 lines, in the range of specs 004–007's builds, each reviewed in one sitting. Tasks put anchoring before the converter, so a split stays possible. |
+| VIII. Small changes | About 3,300 lines, in the range of specs 004–007's builds, each reviewed in one sitting. Tasks put anchoring before the converter, so a split stays possible. |
 
 ## Project Structure
 

@@ -99,6 +99,15 @@ CalendarDetails {
 
 `{ kind: "anchor", field?: "base" | "kind" | "date" | "baseDate", index?: number }`. `index` is the value's position in that date, from 0 (research R8).
 
+## Anchor helpers (`uni-app`, JSON)
+
+```text
+AnchorBase { id: number, name: string, ineligible: null | "follows" | "unplaceable" }
+DateValue { unit: string, value: number, name: string | null }   -- name: the member's, if it has one
+DateReading { values: DateValue[] }   -- from the era's unit to the smallest unit, empty values filled in
+read_date result: DateReading | DateError | { definition: string }
+```
+
 ## Converter shapes (`uni-app`, JSON)
 
 ```text
@@ -112,8 +121,8 @@ Conversion {
 }
 ConvertedCalendar { id: number, name: string, date: ConvertedDate }
 ConvertedDate {
-  above: { unit: string, value: number }[]   -- units above the era's unit
-  values: { unit: string, value: number }[]  -- from the era's unit to the smallest unit
+  above: DateValue[]                  -- units above the era's unit
+  values: DateValue[]                 -- from the era's unit to the smallest unit
   partway: null | { decimal: string, decimalExact: boolean, exact: string }
 }
 
