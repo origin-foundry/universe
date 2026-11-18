@@ -3,8 +3,9 @@ type: Design
 title: UI views
 description: The app's editors and views and what each is for.
 tags: [ui, product]
-status: draft
+status: stable
 generated: { by: claude-code/claude-opus-5-5, at: 2026-10-30T08:24:17Z }
+verified: { by: human:origin-foundry, at: 2026-11-18T22:06:50Z }
 ---
 
 # Views
