@@ -3,9 +3,8 @@ type: Data Model
 title: Storage schema
 description: The SQLite project file - definition tables and disposable cache tables.
 tags: [storage, sqlite, schema]
-status: stable
+status: draft
 generated: { by: claude-code/claude-opus-5-5, at: 2026-10-30T08:24:17Z }
-verified: { by: human:origin-foundry, at: 2026-11-17T20:13:00Z }
 ---
 
 # File
@@ -20,6 +19,7 @@ One `.universe` file per project (SQLite, with `PRAGMA application_id = 0x554E49
 - **Built so far**:
   - Schema version 1 (spec 003) has `meta` and `universe(id, name)`.
   - Version 2 (spec 007) adds the calendar tables under "Calendar tables as built" below.
+  - Version 3 (spec 008) adds the `anchor` table, also below.
   - The other tables are the target design, added by the features that use them.
 
 ## Calendar tables as built (version 2)
@@ -38,8 +38,21 @@ era(id, calendar_id, seq, name, unit_name)
 - `unit.kind` is `grouping`, `fundamental` or `subdivision`. `seq` orders the single chain from top to bottom; `parent_id` will replace or join it when units can branch.
 - A grouping's member unit is two columns on its row, not a row of its own.
 - An adjustment rule is stored as its condition's source text, the member it changes and the change; `modification_json` will replace the last two when changes other than lengthening or shortening exist.
-- There are no clock, epoch or pre-epoch columns yet: every calendar counts the absolute timeline and its epoch is the hidden point until epoch anchoring arrives.
-- A calendar keeps its `id` across edits, so later features can refer to it.
+- There are no clock or pre-epoch columns yet: every calendar counts the absolute timeline.
+- A calendar keeps its `id` across edits, so anchors can refer to it.
+
+```
+anchor(calendar_id,                -- the anchored calendar; one row at most per calendar
+       kind,                       -- 'fixed' (fix the moment) or 'equation' (keep the equation)
+       to_calendar_id,             -- the calendar it's equated with; NULL once that's deleted
+       to_name,                    -- that calendar's name, written only when it's deleted
+       date, to_date,              -- the two dates as entered: [412,3,9], from the era's unit down
+       at_secs, at_nanos)          -- 'fixed' only: the instant both dates started at
+```
+
+- The one calendar with no `anchor` row is the universe's **reference calendar**, at the hidden zero. At most one calendar has no row; after the reference calendar is deleted, none may.
+- The epoch itself is never stored: it's worked out from the anchor whenever calendars are placed. A fixed anchor keeps `at`, the moment its own date starts at; an equation anchor works it out from the other calendar each time (see [eras and epoch](/calendar/eras-and-epoch.md)).
+- `at_secs` and `at_nanos` are a value on the hidden timeline. They stay in the file: no screen or command shows them ([ADR 0002](/decisions/0002-hidden-absolute-timeline.md)).
 
 # Schema
 
@@ -54,7 +67,7 @@ body_elements(body_id, a, e, i, raan, argp, mean_anomaly, epoch)  -- or state ve
 spin_model(body_id, period, period_drift, obliquity, pole_ra, pole_dec, precession_rate, tidally_locked)
 observer(id, kind, body_id, lat, lon, alt, name)
 ship_segment(id, observer_id, seq, kind, params_json)
-calendar(id, name, clock_observer_id, clock_kind, epoch_anchor_json, pre_epoch_mode)
+calendar(id, name, clock_observer_id, clock_kind, pre_epoch_mode)   -- anchors: the anchor table above
 zone_scheme(id, body_id, kind, prime_meridian_lon)
 zone(id, scheme_id, name, abbr, base_offset, lon_min, lon_max)
 zone_transition(id, zone_id, seq, kind, effective_from, offset, recurrence_src, recurrence_ast)
