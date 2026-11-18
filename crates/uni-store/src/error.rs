@@ -29,6 +29,12 @@ pub enum StoreError {
     },
     /// An unexpected SQLite error.
     Database { reason: String },
+    /// A calendar's name is empty, only spaces, or longer than 200 characters.
+    CalendarName,
+    /// Another calendar in the universe already has this name.
+    CalendarNameTaken { name: String },
+    /// No calendar has this id (it was deleted, or never existed).
+    NoSuchCalendar { id: i64 },
 }
 
 impl fmt::Display for StoreError {
@@ -62,6 +68,13 @@ impl fmt::Display for StoreError {
             StoreError::Database { reason } => {
                 write!(f, "Something went wrong with the project file: {reason}.")
             }
+            StoreError::CalendarName => {
+                write!(f, "A calendar needs a name of 1 to 200 characters.")
+            }
+            StoreError::CalendarNameTaken { name } => {
+                write!(f, "This universe already has a calendar called {name}.")
+            }
+            StoreError::NoSuchCalendar { .. } => write!(f, "That calendar no longer exists."),
         }
     }
 }
@@ -154,6 +167,20 @@ mod tests {
                     reason: "oops".into(),
                 },
                 "Something went wrong with the project file: oops.",
+            ),
+            (
+                StoreError::CalendarName,
+                "A calendar needs a name of 1 to 200 characters.",
+            ),
+            (
+                StoreError::CalendarNameTaken {
+                    name: "Aster".into(),
+                },
+                "This universe already has a calendar called Aster.",
+            ),
+            (
+                StoreError::NoSuchCalendar { id: 7 },
+                "That calendar no longer exists.",
             ),
         ];
         for (error, message) in cases {

@@ -6,7 +6,9 @@ vi.mock("@tauri-apps/api/core", () => ({ invoke }));
 vi.mock("@tauri-apps/plugin-dialog", () => dialog);
 
 import {
+  type PendingEdit,
   type UniverseState,
+  closeFlow,
   closeWindowFlow,
   newFlow,
   openFlow,
@@ -160,5 +162,77 @@ describe("Closing the window", () => {
     invoke.mockRejectedValue("Couldn't write C:\\a\\Aster.universe: disk full.");
     await closeWindowFlow(dirty);
     expect(invoke).not.toHaveBeenCalledWith("exit_app");
+  });
+});
+
+describe("A calendar edit in progress (FR-012)", () => {
+  /** An edit of Aster whose Keep gives `kept` (null: the core refused it). */
+  function pending(kept: UniverseState | null): PendingEdit {
+    return { calendar: "Aster", keep: vi.fn(async () => kept), discard: vi.fn() };
+  }
+  const QUESTION = "Keep or discard your changes to Aster?";
+
+  it("is asked about first, with Keep / Discard / Cancel", async () => {
+    dialog.message.mockResolvedValue("Cancel");
+    const edit = pending(dirty);
+    expect(await closeFlow(clean, edit)).toBeNull();
+    expect(dialog.message).toHaveBeenCalledTimes(1);
+    const [text, options] = dialog.message.mock.calls[0]!;
+    expect(text).toBe(QUESTION);
+    expect(options.buttons).toEqual({ yes: "Keep", no: "Discard", cancel: "Cancel" });
+    expect(edit.keep).not.toHaveBeenCalled();
+    expect(edit.discard).not.toHaveBeenCalled();
+    expect(invoke).not.toHaveBeenCalled();
+  });
+
+  it("is kept, then the unsaved universe is asked about with the kept state", async () => {
+    dialog.message.mockResolvedValueOnce("Keep").mockResolvedValueOnce("Cancel");
+    const edit = pending(dirty);
+    expect(await closeFlow(clean, edit)).toBeNull();
+    expect(edit.keep).toHaveBeenCalled();
+    expect(dialog.message).toHaveBeenCalledTimes(2);
+    expect(dialog.message.mock.calls[1]![0]).toBe("Save changes to Aster?");
+  });
+
+  it("stops the flow when keeping is refused", async () => {
+    dialog.message.mockResolvedValue("Keep");
+    const edit = pending(null);
+    expect(await closeFlow(dirty, edit)).toBeNull();
+    expect(dialog.message).toHaveBeenCalledTimes(1);
+    expect(invoke).not.toHaveBeenCalled();
+  });
+
+  it("is discarded, then the flow goes on as before", async () => {
+    dialog.message.mockResolvedValue("Discard");
+    invoke.mockResolvedValue(none);
+    const edit = pending(dirty);
+    expect(await closeFlow(clean, edit)).toEqual(none);
+    expect(edit.discard).toHaveBeenCalled();
+    expect(edit.keep).not.toHaveBeenCalled();
+    expect(invoke).toHaveBeenCalledWith("close_universe");
+  });
+
+  it("is asked about by New, Open and the window's close button too", async () => {
+    dialog.message.mockResolvedValue("Cancel");
+    expect(await newFlow(clean, pending(dirty))).toBe(false);
+    expect(await openFlow(clean, pending(dirty))).toBeNull();
+    await closeWindowFlow(clean, pending(dirty));
+    expect(dialog.message.mock.calls.map((c) => c[0])).toEqual([QUESTION, QUESTION, QUESTION]);
+    expect(dialog.open).not.toHaveBeenCalled();
+    expect(invoke).not.toHaveBeenCalled();
+  });
+
+  it("lets the window close once discarded, with nothing else unsaved", async () => {
+    dialog.message.mockResolvedValue("Discard");
+    await closeWindowFlow(clean, pending(dirty));
+    expect(invoke).toHaveBeenCalledWith("exit_app");
+  });
+
+  it("isn't asked about when there is none", async () => {
+    invoke.mockResolvedValue(none);
+    expect(await closeFlow(clean, null)).toEqual(none);
+    await closeWindowFlow(clean);
+    expect(dialog.message).not.toHaveBeenCalled();
+    expect(invoke).toHaveBeenCalledWith("exit_app");
   });
 });
