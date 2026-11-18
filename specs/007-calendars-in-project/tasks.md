@@ -86,8 +86,9 @@ description: "Task list for spec 007, calendars in the project file"
 - [X] T021 [P] Add an `#[ignore]` timing test `list_twenty_calendars_timing` in `crates/uni-store/src/calendar.rs`: 20 calendars, one with a 1,000-member grouping, saved, reopened and listed with every calendar checked by the engine (as `list_calendars` does), printing the time. Run it in release and record the result here (SC-004: under 1 s).
   - Result (2026-11-17, release build, on the development machine): open, list and check of 20 calendars, one of 1,000 members, took 15 ms. SC-004 met.
 - [X] T022 [P] Update doc comments and the crate docs in `crates/uni-store/src/lib.rs` (calendars are stored from schema version 2) and `crates/uni-time/src/ratio.rs` (`Ratio::parse` with examples), and spec 003's contract note in `crates/uni-store` if it says version 1.
-- [ ] T023 Run the app by hand through every step of [quickstart.md](quickstart.md) and record the result here, including how long step 4 (defining Aster) took (SC-001: under 5 minutes) and that native menu shortcuts and the window's close button pass through the pending-edit guard (Vitest can't check this, see `CLAUDE.md`, Tauri).
-- [ ] T024 Run the full local verification and record the results in the build PR description:
+- [X] T023 Run the app by hand through every step of [quickstart.md](quickstart.md) and record the result here, including how long step 4 (defining Aster) took (SC-001: under 5 minutes) and that native menu shortcuts and the window's close button pass through the pending-edit guard (Vitest can't check this, see `CLAUDE.md`, Tauri).
+  - Result (2026-11-18, owner's hand run of `npm run dev`): quickstart steps 1 to 9 all behaved as described. Step 4 (entering Aster) took under 5 minutes (SC-001 met). Ctrl+W, File > Close, the window's close button and File > Exit each asked "Keep or discard your changes to Aster?" first; Keep then led to the unsaved-universe question. A version-1 file opened with no calendars and its `.v1.universe` copy beside it.
+- [X] T024 Run the full local verification and record the results in the build PR description:
   - `cargo fmt --all --check`
   - `cargo clippy --workspace --all-targets -- -D warnings`
   - `cargo test --workspace`
@@ -98,7 +99,7 @@ description: "Task list for spec 007, calendars in the project file"
   - `python scripts/check_okf.py knowledge`
   - `python scripts/check_privacy.py`
   - `python scripts/check_earth_terms.py`
-- [ ] T025 Open the build PR as the bot from `build/007-calendars-in-project`: label `build`, body with `Design: #<design PR>` and `Closes #52`. Move card #52 to **PR review** with `python scripts/board.py move 52 "PR review"` only if it is in Building.
+- [X] T025 Open the build PR as the bot from `build/007-calendars-in-project`: label `build`, body with `Design: #<design PR>` and `Closes #52`. Move card #52 to **PR review** with `python scripts/board.py move 52 "PR review"` only if it is in Building.
 
 ---
 
