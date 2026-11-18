@@ -6,7 +6,7 @@
 
 ## Summary
 
-Calendars in a universe get places in time. The first calendar is the **reference calendar**, at the hidden zero, as every calendar is today. Every other calendar has an **anchor**: one of its dates equated with a date in another calendar, either **fixing the moment** (the default: the instant is worked out on confirm and kept) or **keeping the equation** (worked out again from the other calendar each time).
+Calendars in a universe get places in time. The first calendar is the **reference calendar**, silently at the hidden zero, as every calendar is today; it can be anchored later. Every other calendar has an **anchor** that places it, the **anchored calendar**, from a **base calendar**: its **anchor date** equated with a **base date**, either **fixing the moment** (the default: the instant is worked out on confirm and kept) or **keeping the equation** (worked out again from the base each time, so the anchored calendar **follows** its base). A calendar can't be anchored to one that follows it.
 
 - `uni-calendar` gains `epoch_for`, which gives the epoch that puts a date at an instant exactly, to the nanosecond.
 - `uni-store` stores anchors in a new `anchor` table (schema version 3) and places every calendar through one function, which reports loops, unusable calendars and dates that no longer exist.
@@ -47,7 +47,7 @@ No command or screen gives a timeline value. Details are in [research.md](resear
 | IV. Hidden absolute timeline | A fixed anchor's instant is stored in the file but never returned by a command; anchors and results are dates only. Rounding is reported as a fact, not an amount (research R9). |
 | V. Layering | No new crate or edge: `uni-store` → `uni-calendar`, `uni-time` and `uni-app` → all three exist since spec 007. No Tauri in core crates. Placement lives in `uni-store`, below the app (FR-017). |
 | VI. Test-first | Each task writes its tests first: `to_decimal`, `epoch_for` with a 1,000-case property test, the migration, placements, a 1,000-case property test of anchor chains, every anchor refusal's location, the converter commands, UI tests. No presets. |
-| VII. No silent ambiguity | Loops, unusable calendars, dates that no longer exist and nanosecond rounding are all reported; a fixed anchor whose other calendar changed shows where its moment now falls; deleting a calendar names the calendars it affects. |
+| VII. No silent ambiguity | Loops, unusable calendars, dates that no longer exist and nanosecond rounding are all reported; a fixed anchor whose base calendar changed shows where its moment now falls; deleting a calendar names the calendars it affects. |
 | VIII. Small changes | About 3,000 lines, in the range of specs 004–007's builds, each reviewed in one sitting. Tasks put anchoring before the converter, so a split stays possible. |
 
 ## Project Structure

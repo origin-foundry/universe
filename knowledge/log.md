@@ -2,7 +2,7 @@
 
 ## 2026-11-18
 * **Update**: Spec 008 (epoch anchoring and the converter):
-  - [Eras and epoch](/calendar/eras-and-epoch.md) gains the first implementation of anchoring: the reference calendar at the hidden zero, anchors by calendar dates that fix the moment (the default) or keep the equation, and what deleting a calendar does to anchors.
+  - [Eras and epoch](/calendar/eras-and-epoch.md) gains the first implementation of anchoring: the reference calendar at the hidden zero, the terms (anchored and base calendars, anchor and base dates, following), the reference calendar at the hidden zero and anchoring it later, anchors by calendar dates that fix the moment (the default) or keep the equation, no loops, and what deleting a calendar does to anchors.
   - The [storage schema](/storage/schema.md) gains schema version 3 as built: the `anchor` table replaces the planned `epoch_anchor_json` column, and the epoch itself is never stored.
   - [UI views](/product/ui-views.md) says the converter starts as a date in one calendar shown in every other, with a partway, decimal or exact switch, and that the calendar editor gains epoch anchoring.
 

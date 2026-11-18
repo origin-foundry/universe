@@ -36,10 +36,10 @@ pub struct CalendarRecord { /* spec 007's fields, plus: */ pub anchor: Option<An
 pub enum AnchorKind { Fixed, Equation }
 pub struct Anchor {
     pub kind: AnchorKind,
-    pub to: Option<i64>,
-    pub to_name: Option<String>,
+    pub base: Option<i64>,
+    pub base_name: Option<String>,
     pub date: Vec<i64>,
-    pub to_date: Vec<i64>,
+    pub base_date: Vec<i64>,
     pub at: Option<uni_time::Instant>,
 }
 
@@ -47,17 +47,17 @@ pub struct Placement { pub stored: StoredCalendar, pub placed: Result<uni_calend
 pub enum PlacementProblem {
     Length(RecordError), Definition(uni_calendar::DefinitionError),
     Date { error: uni_calendar::CalendarError },
-    ToDate { name: String, error: uni_calendar::CalendarError },
-    ToUnusable { name: String }, Loop { names: Vec<String> }, NoMoment, OutOfRange,
+    BaseDate { name: String, error: uni_calendar::CalendarError },
+    BaseUnusable { name: String }, Loop { names: Vec<String> }, NoMoment, OutOfRange,
 }
 
-pub enum AnchorSide { Own, To }
+pub enum AnchorSide { Own, Base }
 pub enum AnchorError {
-    Missing, NotAllowed, ToMissing, ToSelf,
+    Missing, BaseMissing, BaseSelf,
     DateEmpty { side: AnchorSide }, DateGap { side: AnchorSide, index: usize },
-    ToUnusable { name: String, problem: PlacementProblem },
+    BaseUnusable { name: String, problem: PlacementProblem },
     Loop { names: Vec<String> },
-    ToDate(uni_calendar::CalendarError), Date(uni_calendar::CalendarError), OutOfRange,
+    BaseDate(uni_calendar::CalendarError), Date(uni_calendar::CalendarError), OutOfRange,
 }
 
 impl OpenUniverse {
@@ -72,15 +72,14 @@ Messages (`Display`), in the model's terms, never naming seconds or the timeline
 
 | `AnchorError` | Message |
 |---|---|
-| `Missing` | "Choose a calendar to equate this one with." |
-| `NotAllowed` | "The reference calendar isn't anchored: other calendars are placed from it." |
-| `ToMissing` | "Choose a calendar to equate this one with." |
-| `ToSelf` | "A calendar can't be equated with itself." |
+| `Missing` | "Choose a base calendar." |
+| `BaseMissing` | "Choose a base calendar." |
+| `BaseSelf` | "A calendar can't be its own base." |
 | `DateEmpty` | "Enter at least the <era's unit>." |
 | `DateGap` | "Fill in <unit>, or leave every smaller unit empty." |
-| `ToUnusable` | "<name> can't be used: <problem>" |
-| `Loop` | "<A>, <B> and <A> would keep equations with each other in a loop." |
-| `ToDate(e)`, `Date(e)` | the engine's message |
+| `BaseUnusable` | "<name> can't be used: <problem>" |
+| `Loop` | "<Wick> follows <Tallow>, so <Tallow> can't be anchored to it." (with the calendars between, when there are any: "<Wick> follows <Tallow> through <Moss>, …") |
+| `BaseDate(e)`, `Date(e)` | the engine's message |
 | `OutOfRange` | "This anchor would put the calendar beyond the timeline's range." |
 
 ## Tauri commands (`uni-app`)
@@ -92,7 +91,7 @@ Messages (`Display`), in the model's terms, never naming seconds or the timeline
 | `new_calendar_form` | none | `CalendarForm` with its anchor (research R7) | string |
 | `put_calendar` | `id \| null`, `form` | unchanged | `FieldError`, now also at `anchor` (research R8), or string |
 | `delete_calendar` | `id` | unchanged; research R6 | string |
-| `calendar_followers` | `id` | `string[]` (new) | string |
+| `calendar_followers` | `id` | `string[]`: the calendars that follow it directly (new) | string |
 | `converter_calendars` | none | `ConverterCalendar[]` (new) | string |
 | `convert` | `from: number`, `date: (number \| null)[]` | `Conversion` (new) | `DateError`, or string for a store failure or an unusable source calendar |
 
@@ -102,12 +101,10 @@ Every command needs an open universe, except `new_calendar_form` as before; with
 
 | Refusal | Location |
 |---|---|
-| `Missing`, `ToMissing`, `ToSelf`, `ToUnusable` | `{ kind: "anchor", field: "to" }` |
-| `NotAllowed` | `{ kind: "anchor" }` |
-| `DateEmpty { side }` | `field: "date"` or `"toDate"`, `index: 0` |
+| `Missing`, `BaseMissing`, `BaseSelf`, `BaseUnusable`, `Loop` | `{ kind: "anchor", field: "base" }` |
+| `DateEmpty { side }` | `field: "date"` or `"baseDate"`, `index: 0` |
 | `DateGap { side, index }` | that side's field, that `index` |
-| `Loop` | `{ kind: "anchor", field: "kind" }` |
-| `ToDate(InvalidValue { unit, .. })`, `Date(InvalidValue { unit, .. })` | that side's field, `index` = the unit's position from the era's unit |
-| `ToDate`/`Date` with any other `CalendarError`, `OutOfRange` | that side's field (or `{ kind: "anchor" }` for `OutOfRange`), no `index` |
+| `BaseDate(InvalidValue { unit, .. })`, `Date(InvalidValue { unit, .. })` | that side's field, `index` = the unit's position from the era's unit |
+| `BaseDate`/`Date` with any other `CalendarError`, `OutOfRange` | that side's field (or `{ kind: "anchor" }` for `OutOfRange`), no `index` |
 
 The same `CalendarError` placement gives `DateError.index` in `convert`. The match over `CalendarError` is total, with no `_` arm.

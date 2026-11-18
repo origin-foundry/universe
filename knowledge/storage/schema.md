@@ -42,16 +42,16 @@ era(id, calendar_id, seq, name, unit_name)
 - A calendar keeps its `id` across edits, so anchors can refer to it.
 
 ```
-anchor(calendar_id,                -- the anchored calendar; one row at most per calendar
-       kind,                       -- 'fixed' (fix the moment) or 'equation' (keep the equation)
-       to_calendar_id,             -- the calendar it's equated with; NULL once that's deleted
-       to_name,                    -- that calendar's name, written only when it's deleted
-       date, to_date,              -- the two dates as entered: [412,3,9], from the era's unit down
-       at_secs, at_nanos)          -- 'fixed' only: the instant both dates started at
+anchor(calendar_id,              -- the anchored calendar; one row at most per calendar
+       kind,                     -- 'fixed' (fix the moment) or 'equation' (keep the equation)
+       base_calendar_id,         -- the base calendar; NULL once it's deleted
+       base_name,                -- the base calendar's name, written only when it's deleted
+       date, base_date,          -- the anchor date and base date as entered: [412,3,9]
+       at_secs, at_nanos)        -- 'fixed' only: the instant both dates started at
 ```
 
-- The one calendar with no `anchor` row is the universe's **reference calendar**, at the hidden zero. At most one calendar has no row; after the reference calendar is deleted, none may.
-- The epoch itself is never stored: it's worked out from the anchor whenever calendars are placed. A fixed anchor keeps `at`, the moment its own date starts at; an equation anchor works it out from the other calendar each time (see [eras and epoch](/calendar/eras-and-epoch.md)).
+- The one calendar with no `anchor` row is the universe's **reference calendar**, at the hidden zero. At most one calendar has no row; once the reference calendar is anchored or deleted, none does.
+- The epoch itself is never stored: it's worked out from the anchor whenever calendars are placed. A fixed anchor keeps `at`, the moment its own date starts at; an equation anchor works it out from the base calendar each time (see [eras and epoch](/calendar/eras-and-epoch.md)).
 - `at_secs` and `at_nanos` are a value on the hidden timeline. They stay in the file: no screen or command shows them ([ADR 0002](/decisions/0002-hidden-absolute-timeline.md)).
 
 # Schema
