@@ -13,7 +13,7 @@
 
 ## Requirement Completeness
 
-- [ ] No [NEEDS CLARIFICATION] markers remain
+- [x] No [NEEDS CLARIFICATION] markers remain
 - [x] Requirements are testable and unambiguous
 - [x] Success criteria are measurable
 - [x] Success criteria are technology-agnostic (no implementation details)
@@ -32,4 +32,4 @@
 ## Notes
 
 - As in specs 004-006, the spec names the project's own components (the calendar engine, the storage component) and its knowledge concepts, because the constitution's layering rule (principle V) and the knowledge bundle (principle II) are part of what the owner reviews. No languages, frameworks or libraries are named.
-- Open questions for `/speckit-clarify`: whether an anchor is kept as an equation or resolved to a fixed moment (FR-005), what happens when a calendar others are anchored to is deleted (US3), and how the converter shows a moment partway through the smallest unit (FR-010).
+- Settled in `/speckit-clarify` (2026-11-18): whether an anchor is kept as an equation or resolved to a fixed moment (FR-005), what happens when a calendar others are anchored to is deleted (US3), and how the converter shows a moment partway through the smallest unit (FR-010).
