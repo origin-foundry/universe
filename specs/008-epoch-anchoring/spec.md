@@ -4,7 +4,7 @@
 
 **Created**: 2026-11-18
 
-**Status**: Draft, clarified 2026-11-18, awaiting the owner's review
+**Status**: Approved by the owner, 2026-11-18
 
 **Input**: User description: "Epoch anchoring and the converter (issue #58, Phase 1. Calendar core). The second half of the 'first usable calendar' slice, after spec 007 (calendars in the project file). The first calendar's epoch sits at a fixed hidden point on the absolute timeline. Each later calendar is anchored by equating one of its dates with a date in an existing calendar. Then comes a converter screen that turns a date in one calendar into the same moment in another. The absolute timeline stays hidden (ADR 0002, constitution IV). Out of scope: formats, the calendar grid, multiple eras, presets. Use the calendar model's own terms (ADR 0009)."
 
