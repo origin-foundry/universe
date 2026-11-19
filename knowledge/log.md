@@ -1,5 +1,14 @@
 # Bundle update log
 
+## 2026-11-18
+* **Verification**: human:origin-foundry re-verified the spec 008 changes to [eras and epoch](/calendar/eras-and-epoch.md), the [storage schema](/storage/schema.md) and [UI views](/product/ui-views.md) in conversation during review of #59. All three are stable again.
+* **Update**: Spec 008 (epoch anchoring and the converter):
+  - [Eras and epoch](/calendar/eras-and-epoch.md) gains the first implementation of anchoring: the reference calendar at the hidden zero, the terms (anchored and base calendars, anchor and base dates, following), the reference calendar at the hidden zero and anchoring it later, anchors by calendar dates that fix the moment (the default) or keep the equation, no loops, and what deleting a calendar does to anchors.
+  - The [storage schema](/storage/schema.md) gains schema version 3 as built: the `anchor` table replaces the planned `epoch_anchor_json` column, and the epoch itself is never stored.
+  - [UI views](/product/ui-views.md) says the converter starts as a date in one calendar shown in every other, with a partway, decimal or exact switch, and that the calendar editor gains epoch anchoring.
+
+  All three are back to draft until re-verified by human:origin-foundry.
+
 ## 2026-11-17
 * **Verification**: human:origin-foundry re-verified the spec 007 changes to the [storage schema](/storage/schema.md), [display units](/time/display-units.md) and [UI views](/product/ui-views.md) in conversation during review of #53. All three are stable again.
 * **Update**: Spec 007 (calendars in the project file):
