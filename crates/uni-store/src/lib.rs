@@ -17,6 +17,7 @@
 //! to be fixed or deleted. Version-1 files are migrated after a copy is kept beside them. See
 //! `specs/007-calendars-in-project/contracts/calendar-commands.md`.
 
+mod anchor;
 mod calendar;
 mod error;
 mod name;
@@ -26,6 +27,7 @@ mod universe;
 #[cfg(test)]
 mod crash_safety_tests;
 
+pub use anchor::{Anchor, AnchorError, AnchorKind, AnchorSide, Placement, PlacementProblem};
 pub use calendar::{CalendarRecord, EraRecord, FundamentalRecord, RecordError, StoredCalendar};
 pub use error::StoreError;
 pub use name::{MAX_NAME_CHARS, UniverseName};

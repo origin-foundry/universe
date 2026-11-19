@@ -206,9 +206,13 @@ fn a_file_from_a_newer_version_is_refused() {
     let dir = tempfile::tempdir().unwrap();
     let (universe, path) = saved(dir.path(), "aster.universe", "Aster");
     drop(universe);
-    set_schema_version(&path, 3);
+    let newer = uni_store::SCHEMA_VERSION + 1;
+    set_schema_version(&path, newer);
     assert_refused_and_unchanged(&path, |e| {
-        *e == StoreError::NewerVersion { file: 3, app: 2 }
+        *e == StoreError::NewerVersion {
+            file: newer,
+            app: uni_store::SCHEMA_VERSION,
+        }
     });
     assert_eq!(files_in(dir.path()), ["aster.universe"]);
 }

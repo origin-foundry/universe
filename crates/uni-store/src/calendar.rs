@@ -11,6 +11,9 @@ use uni_calendar::{
 };
 use uni_time::{Instant, Ratio, TimeError};
 
+use crate::anchor::{
+    Anchor, before_delete, check_one_reference, read_anchor, stored_base_name, write_anchor,
+};
 use crate::universe::not_ours;
 use crate::{MAX_NAME_CHARS, OpenUniverse, StoreError};
 
@@ -26,6 +29,8 @@ pub struct CalendarRecord {
     /// Top to bottom; may be empty.
     pub subdivisions: Vec<SubdivisionDef>,
     pub era: EraRecord,
+    /// How the calendar is placed in time (spec 008); `None` for the reference calendar.
+    pub anchor: Option<Anchor>,
 }
 
 /// The fundamental unit, with its length in SI seconds as the text typed (`"88775.244"`).
@@ -37,7 +42,8 @@ pub struct FundamentalRecord {
     pub first_number: Option<i64>,
 }
 
-/// The calendar's one era. Its epoch is the fixed hidden point until spec 008.
+/// The calendar's one era. Its epoch isn't stored: it's worked out from the calendar's anchor
+/// ([`OpenUniverse::placements`], spec 008).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct EraRecord {
     pub name: String,
@@ -74,8 +80,9 @@ pub struct StoredCalendar {
 }
 
 impl CalendarRecord {
-    /// The engine's definition: the length read exactly, and the epoch at the fixed hidden
-    /// point (`Instant::ZERO`) until spec 008 adds anchoring. [`uni_calendar::Calendar::new`]
+    /// The engine's definition: the length read exactly, and the epoch at the hidden zero
+    /// (`Instant::ZERO`), where the reference calendar is; [`OpenUniverse::placements`] moves
+    /// it to where the calendar's anchor puts it (spec 008). [`uni_calendar::Calendar::new`]
     /// does the rest of the checking.
     pub fn to_def(&self) -> Result<CalendarDef, RecordError> {
         let length =
@@ -160,6 +167,7 @@ impl CalendarRecord {
                 name: trim(&self.era.name),
                 unit: trim(&self.era.unit),
             },
+            anchor: self.anchor.clone(),
         }
     }
 }
@@ -174,6 +182,7 @@ impl OpenUniverse {
             .query_map([], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, String>(1)?)))?
             .collect::<Result<Vec<_>, _>>()
             .map_err(shape)?;
+        check_one_reference(&self.db)?;
         heads
             .into_iter()
             .map(|(id, name)| {
@@ -195,6 +204,7 @@ impl OpenUniverse {
             .optional()
             .map_err(shape)?
             .ok_or(StoreError::NoSuchCalendar { id })?;
+        check_one_reference(&self.db)?;
         Ok(StoredCalendar {
             id,
             record: read_record(&self.db, id, name)?,
@@ -263,21 +273,32 @@ impl OpenUniverse {
         // Members and rules go with their units, by cascade.
         tx.execute("DELETE FROM unit WHERE calendar_id = ?1", [id])?;
         tx.execute("DELETE FROM era WHERE calendar_id = ?1", [id])?;
+        // An anchor whose base calendar was deleted keeps that calendar's name, which the
+        // editor doesn't send back (research R6).
+        let mut record = record;
+        if let Some(anchor) = &mut record.anchor
+            && anchor.base.is_none()
+            && anchor.base_name.is_none()
+        {
+            anchor.base_name = stored_base_name(&tx, id)?;
+        }
         write_rows(&tx, id, &record)?;
         tx.commit()?;
         self.dirty = true;
         Ok(())
     }
 
-    /// Deletes a calendar and, by cascade, everything stored with it.
+    /// Deletes a calendar and, by cascade, everything stored with it, in one transaction.
+    /// No other calendar moves (spec 008, research R6): the calendars that follow it become
+    /// fixed where they stand, and every anchor based on it keeps its name.
     pub fn delete_calendar(&mut self, id: i64) -> Result<(), StoreError> {
-        if self
-            .db
-            .execute("DELETE FROM calendar WHERE id = ?1", [id])?
-            == 0
-        {
+        let placements = self.placements()?;
+        let tx = self.db.transaction()?;
+        before_delete(&tx, &placements, id)?;
+        if tx.execute("DELETE FROM calendar WHERE id = ?1", [id])? == 0 {
             return Err(StoreError::NoSuchCalendar { id });
         }
+        tx.commit()?;
         self.dirty = true;
         Ok(())
     }
@@ -358,7 +379,7 @@ fn write_rows(db: &Connection, id: i64, record: &CalendarRecord) -> rusqlite::Re
         "INSERT INTO era (calendar_id, seq, name, unit_name) VALUES (?1, 1, ?2, ?3)",
         params![id, record.era.name, record.era.unit],
     )?;
-    Ok(())
+    write_anchor(db, id, record.anchor.as_ref())
 }
 
 /// One stored unit row.
@@ -457,6 +478,7 @@ fn read_record(db: &Connection, id: i64, name: String) -> Result<CalendarRecord,
         fundamental: fundamental.ok_or_else(damaged)?,
         subdivisions,
         era: eras.remove(0),
+        anchor: read_anchor(db, id)?,
     })
 }
 
@@ -582,6 +604,7 @@ pub(crate) mod tests {
                 name: "After Landing".to_owned(),
                 unit: "orbit".to_owned(),
             },
+            anchor: None,
         }
     }
 
@@ -600,6 +623,23 @@ pub(crate) mod tests {
                 name: "Era".to_owned(),
                 unit: "unit".to_owned(),
             },
+            anchor: None,
+        }
+    }
+
+    /// `record` anchored, fixed, to the universe's first calendar (id 1) at their first dates
+    /// and the hidden zero: where a version-2 file's calendars are after migrating.
+    pub(crate) fn later(record: CalendarRecord) -> CalendarRecord {
+        CalendarRecord {
+            anchor: Some(Anchor {
+                kind: crate::AnchorKind::Fixed,
+                base: Some(1),
+                base_name: None,
+                date: vec![1],
+                base_date: vec![1],
+                at: Some(Instant::ZERO),
+            }),
+            ..record
         }
     }
 
@@ -751,7 +791,7 @@ pub(crate) mod tests {
         all_set.subdivisions[0].first_number = Some(1);
         all_set.subdivisions[1].first_number = Some(-2);
         all_set.groupings[2].members[3].name = None;
-        let empty = small("Empty");
+        let empty = later(small("Empty"));
         for record in [all_set, empty] {
             let id = universe.add_calendar(&record).unwrap();
             assert_eq!(universe.calendar(id).unwrap().record, record);
@@ -774,7 +814,15 @@ pub(crate) mod tests {
         let mut universe = universe();
         let ids: Vec<i64> = ["Cairn", "Aster", "Bell"]
             .iter()
-            .map(|name| universe.add_calendar(&small(name)).unwrap())
+            .enumerate()
+            .map(|(i, name)| {
+                let record = if i == 0 {
+                    small(name)
+                } else {
+                    later(small(name))
+                };
+                universe.add_calendar(&record).unwrap()
+            })
             .collect();
         let listed = universe.calendars().unwrap();
         assert_eq!(listed.iter().map(|c| c.id).collect::<Vec<_>>(), ids);
@@ -888,7 +936,7 @@ pub(crate) mod tests {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("aster.universe");
         let mut universe = universe();
-        let expected = vec![small("Cairn"), aster(), small("Bell")];
+        let expected = vec![small("Cairn"), later(aster()), later(small("Bell"))];
         for record in &expected {
             universe.add_calendar(record).unwrap();
         }
@@ -1011,7 +1059,7 @@ pub(crate) mod tests {
     /// optional names and first numbers, 0–3 subdivisions, an era on a random grouping, member
     /// unit or the fundamental unit, 0–2 rules on the era's unit when it's a grouping, and a
     /// length written as a whole number, decimal or fraction. Names are already trimmed.
-    fn random_record(seed: u64) -> CalendarRecord {
+    pub(crate) fn random_record(seed: u64) -> CalendarRecord {
         let r = &mut Rng(seed | 1);
         let text = |r: &mut Rng, prefix: String| {
             let word = r.word(&TEXT, 6);
@@ -1117,6 +1165,7 @@ pub(crate) mod tests {
                 name: text(r, "E".to_owned()),
                 unit: era_unit,
             },
+            anchor: None,
         }
     }
 
@@ -1146,7 +1195,7 @@ pub(crate) mod tests {
         let path = dir.path().join("odd.universe");
         let mut universe = universe();
         let bad_length = universe.add_calendar(&small("Bad length")).unwrap();
-        let refused = universe.add_calendar(&aster()).unwrap();
+        let refused = universe.add_calendar(&later(aster())).unwrap();
         universe.save_as(&path).unwrap();
         drop(universe);
         {
@@ -1179,13 +1228,13 @@ pub(crate) mod tests {
     fn replacing_keeps_the_id_and_place_and_every_row_is_replaced() {
         let mut universe = universe();
         let first = universe.add_calendar(&small("First")).unwrap();
-        let id = universe.add_calendar(&aster()).unwrap();
-        let last = universe.add_calendar(&small("Last")).unwrap();
+        let id = universe.add_calendar(&later(aster())).unwrap();
+        let last = universe.add_calendar(&later(small("Last"))).unwrap();
         // Aster has 6 unit rows (a member unit is part of its grouping's row), 1 + 1 + 12
         // members and 1 rule; each small calendar has 1 unit row.
         assert_eq!(row_counts(&universe), [3, 6 + 2, 14, 1, 3]);
 
-        let mut changed = small("Aster renamed");
+        let mut changed = later(small("Aster renamed"));
         changed.subdivisions = vec![subdivision("tick", 10)];
         universe.replace_calendar(id, &changed).unwrap();
         assert_eq!(row_counts(&universe), [3, 2 + 2, 0, 0, 3], "no orphan rows");
@@ -1201,7 +1250,7 @@ pub(crate) mod tests {
     fn a_calendar_may_keep_its_own_name_but_not_take_anothers() {
         let mut universe = universe();
         let id = universe.add_calendar(&aster()).unwrap();
-        universe.add_calendar(&small("Bell")).unwrap();
+        universe.add_calendar(&later(small("Bell"))).unwrap();
         let mut record = aster();
         record.groupings[2].members[0].count = 57;
         universe.replace_calendar(id, &record).unwrap();
@@ -1225,7 +1274,7 @@ pub(crate) mod tests {
     fn deleting_removes_the_calendar_and_all_its_rows() {
         let mut universe = universe();
         let id = universe.add_calendar(&aster()).unwrap();
-        let other = universe.add_calendar(&small("Other")).unwrap();
+        let other = universe.add_calendar(&later(small("Other"))).unwrap();
         universe.delete_calendar(id).unwrap();
         assert_eq!(row_counts(&universe), [1, 1, 0, 0, 1]);
         assert_eq!(

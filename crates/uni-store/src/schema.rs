@@ -9,7 +9,7 @@ use crate::{StoreError, UniverseName};
 pub const APPLICATION_ID: i32 = 0x554E_4956;
 
 /// The schema version this app writes, and the newest it can read.
-pub const SCHEMA_VERSION: u32 = 2;
+pub const SCHEMA_VERSION: u32 = 3;
 
 /// Migration steps: `MIGRATIONS[n]` takes a file from version `n` to `n + 1`.
 ///
@@ -66,6 +66,29 @@ pub const MIGRATIONS: &[&str] = &[
          unit_name TEXT NOT NULL,
          UNIQUE (calendar_id, seq)
      );",
+    // 2 → 3: anchors (spec 008, research R3). A calendar with no row is the reference
+    // calendar. Every calendar of a version-2 file is at the hidden zero, so anchoring each
+    // after the first to it, fixed at their first dates and the zero, keeps them all in place.
+    "CREATE TABLE anchor (
+         calendar_id INTEGER PRIMARY KEY REFERENCES calendar (id) ON DELETE CASCADE,
+         kind TEXT NOT NULL CHECK (kind IN ('fixed', 'equation')),
+         base_calendar_id INTEGER REFERENCES calendar (id) ON DELETE SET NULL,
+         base_name TEXT,
+         date TEXT NOT NULL,
+         base_date TEXT NOT NULL,
+         at_secs INTEGER,
+         at_nanos INTEGER,
+         CHECK (base_calendar_id IS NULL OR base_calendar_id != calendar_id),
+         CHECK ((at_secs IS NULL) = (at_nanos IS NULL)),
+         CHECK (at_nanos IS NULL OR at_nanos BETWEEN 0 AND 999999999),
+         CHECK (kind = 'fixed' OR base_calendar_id IS NOT NULL)
+     );
+     INSERT INTO anchor (calendar_id, kind, base_calendar_id, base_name, date, base_date,
+                         at_secs, at_nanos)
+         SELECT id, 'fixed', (SELECT id FROM calendar ORDER BY seq LIMIT 1), NULL, '[1]', '[1]',
+                0, 0
+         FROM calendar
+         WHERE seq > (SELECT MIN(seq) FROM calendar);",
 ];
 
 const _: () = assert!(MIGRATIONS.len() == SCHEMA_VERSION as usize);
@@ -170,7 +193,7 @@ mod tests {
                 |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
             )
             .unwrap();
-        assert_eq!(meta, (2, "0.1.0".to_owned(), 1_800_000_000));
+        assert_eq!(meta, (3, "0.1.0".to_owned(), 1_800_000_000));
         let stored: String = conn
             .query_row("SELECT name FROM universe WHERE id = 1", [], |r| r.get(0))
             .unwrap();
@@ -178,11 +201,12 @@ mod tests {
     }
 
     #[test]
-    fn a_new_file_is_version_2_with_the_calendar_tables() {
-        assert_eq!(SCHEMA_VERSION, 2);
+    fn a_new_file_is_version_3_with_the_calendar_and_anchor_tables() {
+        assert_eq!(SCHEMA_VERSION, 3);
         assert_eq!(
             tables(&current("Aster")),
             [
+                "anchor",
                 "calendar",
                 "era",
                 "meta",
@@ -195,7 +219,7 @@ mod tests {
     }
 
     #[test]
-    fn a_version_1_file_migrates_to_2_keeping_its_name() {
+    fn a_version_1_file_migrates_to_the_current_version_keeping_its_name() {
         let mut conn = Connection::open_in_memory().unwrap();
         create_v0(&conn, "0.0.1", 0).unwrap();
         conn.execute_batch(MIGRATIONS[0]).unwrap();
@@ -211,7 +235,7 @@ mod tests {
                 |r| Ok((r.get(0)?, r.get(1)?)),
             )
             .unwrap();
-        assert_eq!((version, name.as_str()), (2, "Old"));
+        assert_eq!((version, name.as_str()), (SCHEMA_VERSION, "Old"));
         assert_eq!(count(&conn, "calendar"), 0);
     }
 
@@ -265,6 +289,159 @@ mod tests {
         for table in ["unit", "unit_member", "rule", "era"] {
             assert_eq!(count(&conn, table), 0, "{table}");
         }
+    }
+
+    /// A version-2 file holding the calendars named, in that order, with `seq` 1, 2, ….
+    fn version_2(names: &[&str]) -> Connection {
+        let mut conn = Connection::open_in_memory().unwrap();
+        enable_foreign_keys(&conn).unwrap();
+        create_v0(&conn, "0.0.1", 0).unwrap();
+        let tx = conn.transaction().unwrap();
+        for step in &MIGRATIONS[..2] {
+            tx.execute_batch(step).unwrap();
+        }
+        tx.execute("UPDATE meta SET schema_version = 2", [])
+            .unwrap();
+        for (seq, name) in (1i64..).zip(names) {
+            // Ids in a different order from seq, so the migration has to go by seq.
+            tx.execute(
+                "INSERT INTO calendar (id, seq, name) VALUES (?1, ?2, ?3)",
+                params![100 - seq, seq, name],
+            )
+            .unwrap();
+        }
+        tx.commit().unwrap();
+        conn
+    }
+
+    type AnchorRow = (
+        i64,
+        String,
+        Option<i64>,
+        Option<String>,
+        String,
+        String,
+        Option<i64>,
+        Option<i64>,
+    );
+
+    fn anchor_rows(conn: &Connection) -> Vec<AnchorRow> {
+        let mut stmt = conn
+            .prepare(
+                "SELECT calendar_id, kind, base_calendar_id, base_name, date, base_date,
+                        at_secs, at_nanos
+                 FROM anchor ORDER BY calendar_id DESC",
+            )
+            .unwrap();
+        stmt.query_map([], |r| {
+            Ok((
+                r.get(0)?,
+                r.get(1)?,
+                r.get(2)?,
+                r.get(3)?,
+                r.get(4)?,
+                r.get(5)?,
+                r.get(6)?,
+                r.get(7)?,
+            ))
+        })
+        .unwrap()
+        .map(Result::unwrap)
+        .collect()
+    }
+
+    #[test]
+    fn a_version_2_file_anchors_every_later_calendar_to_the_first() {
+        let mut conn = version_2(&["Aster", "Tallow", "Wick"]);
+        migrate(&mut conn, 2).unwrap();
+        let fixed = |id| {
+            (
+                id,
+                "fixed".to_owned(),
+                Some(99),
+                None,
+                "[1]".to_owned(),
+                "[1]".to_owned(),
+                Some(0),
+                Some(0),
+            )
+        };
+        // Aster (id 99) is first by seq and has no row: the reference calendar.
+        assert_eq!(anchor_rows(&conn), [fixed(98), fixed(97)]);
+    }
+
+    #[test]
+    fn a_version_2_file_with_no_calendars_migrates_with_no_anchors() {
+        let mut conn = version_2(&[]);
+        migrate(&mut conn, 2).unwrap();
+        assert!(anchor_rows(&conn).is_empty());
+        let version: u32 = conn
+            .query_row("SELECT schema_version FROM meta", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(version, 3);
+    }
+
+    #[test]
+    fn anchor_rows_are_checked() {
+        let conn = current("Aster");
+        conn.execute_batch(
+            "INSERT INTO calendar (id, seq, name) VALUES (1, 1, 'Aster'), (2, 2, 'Tallow');",
+        )
+        .unwrap();
+        let insert = |kind: &str, base: Option<i64>, secs: Option<i64>, nanos: Option<i64>| {
+            conn.execute(
+                "INSERT INTO anchor (calendar_id, kind, base_calendar_id, date, base_date,
+                                     at_secs, at_nanos)
+                 VALUES (2, ?1, ?2, '[1]', '[1]', ?3, ?4)",
+                params![kind, base, secs, nanos],
+            )
+            .map(|_| conn.execute("DELETE FROM anchor", []).unwrap())
+        };
+        assert!(insert("fixed", Some(1), Some(0), Some(0)).is_ok());
+        assert!(insert("equation", Some(1), None, None).is_ok());
+        assert!(
+            insert("fixed", Some(2), Some(0), Some(0)).is_err(),
+            "itself"
+        );
+        assert!(insert("fixed", Some(1), Some(0), None).is_err(), "no nanos");
+        assert!(insert("fixed", Some(1), None, Some(0)).is_err(), "no secs");
+        assert!(
+            insert("fixed", Some(1), Some(0), Some(1_000_000_000)).is_err(),
+            "10⁹ nanos"
+        );
+        assert!(insert("equation", None, None, None).is_err(), "no base");
+        assert!(
+            insert("other", Some(1), None, None).is_err(),
+            "unknown kind"
+        );
+    }
+
+    #[test]
+    fn deleting_calendars_keeps_anchor_rows_right() {
+        let conn = current("Aster");
+        conn.execute_batch(
+            "INSERT INTO calendar (id, seq, name) VALUES (1, 1, 'Aster'), (2, 2, 'Tallow'),
+                                                         (3, 3, 'Wick');
+             INSERT INTO anchor (calendar_id, kind, base_calendar_id, date, base_date)
+                 VALUES (2, 'fixed', 1, '[1]', '[1]'), (3, 'fixed', 2, '[1]', '[1]');
+             DELETE FROM calendar WHERE id = 1;",
+        )
+        .unwrap();
+        let base: Option<i64> = conn
+            .query_row(
+                "SELECT base_calendar_id FROM anchor WHERE calendar_id = 2",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(base, None, "the base is set to NULL");
+        conn.execute("DELETE FROM calendar WHERE id = 3", [])
+            .unwrap();
+        assert_eq!(
+            count(&conn, "anchor"),
+            1,
+            "the anchored calendar's row goes"
+        );
     }
 
     #[test]
