@@ -1,10 +1,13 @@
 import { message } from "@tauri-apps/plugin-dialog";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 
+import AnchorSection from "./AnchorSection";
 import {
+  type CalendarDetails,
   type CalendarForm,
   type FieldError,
   type Location,
+  calendarFollowers,
   deleteCalendar,
   putCalendar,
 } from "./calendarApi";
@@ -26,6 +29,10 @@ interface Props {
   /** The stored calendar's id, or null for a new one. */
   id: number | null;
   initial: CalendarForm;
+  /** What the core says about the stored calendar's anchor (spec 008); null for a new one. */
+  details?: Pick<CalendarDetails, "rounded" | "note"> | null;
+  /** Another calendar can be placed, so an unanchored calendar can be anchored to it. */
+  canAnchor?: boolean;
   /** The calendar was kept: the universe's new state and the calendar's id. */
   onKept: (state: UniverseState, id: number) => void;
   /** Back to the list, keeping nothing. */
@@ -46,6 +53,8 @@ const CANCEL = "Cancel";
 export default function CalendarEditor({
   id,
   initial,
+  details = null,
+  canAnchor = false,
   onKept,
   onClose,
   onDeleted,
@@ -105,7 +114,19 @@ export default function CalendarEditor({
 
   async function remove() {
     if (id === null) return;
-    const answer = await message(`Delete ${initial.name}?`, {
+    // FR-006a: name the calendars that follow this one; they'll be fixed where they stand.
+    let followers: string[] = [];
+    try {
+      const found = await calendarFollowers(id);
+      if (Array.isArray(found)) followers = found;
+    } catch {
+      followers = [];
+    }
+    const question =
+      followers.length === 0
+        ? `Delete ${initial.name}?`
+        : `Delete ${initial.name}?\n\n${followersText(followers, initial.name)}`;
+    const answer = await message(question, {
       title: "Universe",
       kind: "warning",
       buttons: { ok: DELETE, cancel: CANCEL },
@@ -154,6 +175,19 @@ export default function CalendarEditor({
       {input("Calendar name", "Calendar name", { kind: "calendarName" }, draft.name, (d, v) => {
         d.name = v;
       })}
+
+      <AnchorSection
+        id={id}
+        draft={draft}
+        error={error}
+        canAnchor={canAnchor}
+        details={details}
+        onChange={(anchor) =>
+          edit((d) => {
+            d.anchor = anchor;
+          })
+        }
+      />
 
       <fieldset>
         <legend>Groupings, top to bottom</legend>
@@ -455,6 +489,17 @@ export default function CalendarEditor({
       </div>
     </form>
   );
+}
+
+/** "Tallow follows Aster and will be fixed where it stands." */
+function followersText(followers: string[], name: string): string {
+  const names =
+    followers.length === 1
+      ? followers[0]!
+      : `${followers.slice(0, -1).join(", ")} and ${followers.at(-1)!}`;
+  return followers.length === 1
+    ? `${names} follows ${name} and will be fixed where it stands.`
+    : `${names} follow ${name} and will be fixed where they stand.`;
 }
 
 function errorAt(error: FieldError | null, at: Location): string | null {

@@ -32,7 +32,9 @@ function core() {
       case "list_calendars":
         return calendars;
       case "get_calendar":
-        return asterForm();
+        return { form: asterForm(), rounded: false, note: null };
+      case "calendar_followers":
+        return [];
       case "put_calendar":
         state = { ...state, dirty: true };
         return { state, id: 1 };

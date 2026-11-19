@@ -177,3 +177,68 @@ button.link {
 .calendar-editor > .actions {
   justify-content: flex-start;
 }
+
+/* Spec 008: Place in time, and the converter. */
+
+.calendar-editor .date-fields,
+.converter .date-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: start;
+}
+
+.date-fields .field input {
+  min-width: 5rem;
+  width: 6rem;
+}
+
+.anchor [role="radiogroup"] label,
+.converter [role="radiogroup"] label {
+  display: flex;
+  gap: 0.375rem;
+  align-items: center;
+}
+
+.read-back {
+  margin: 0;
+  font-style: italic;
+}
+
+.note {
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  border-left: 3px solid color-mix(in srgb, currentColor 40%, transparent);
+}
+
+.converter {
+  display: grid;
+  gap: 1rem;
+}
+
+.converter h2 {
+  margin: 0;
+}
+
+.converter > .actions {
+  justify-content: flex-start;
+}
+
+.converter fieldset {
+  border: 1px solid color-mix(in srgb, currentColor 25%, transparent);
+  border-radius: 0.375rem;
+  padding: 0.75rem;
+}
+
+.converter [role="radiogroup"] {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.results ul {
+  display: grid;
+  gap: 0.375rem;
+  margin: 0;
+  padding-left: 1.25rem;
+}
