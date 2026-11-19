@@ -672,6 +672,25 @@ fn editing_the_anchored_calendar_keeps_its_fixed_moment() {
 }
 
 #[test]
+fn an_unchanged_fixed_anchor_is_kept_even_when_its_base_cannot_be_placed() {
+    // A fixed anchor doesn't read its base (FR-005b), so editing the calendar still works.
+    let (mut u, a, t) = aster_and_tallow(Fixed);
+    let moment = start(&u, t, &[1, 1, 1]);
+    let mut refused = aster();
+    refused.groupings[0].members[0].count = 0;
+    u.replace_calendar(a, &refused).unwrap();
+    let mut edited = with(tallow(), anchor(Fixed, a, &[1, 1, 1], &[412, 3, 9]));
+    edited.fundamental.length = "31000".to_owned();
+    assert_eq!(u.check_anchor(Some(t), &edited), Ok(Some(moment)));
+    // A changed one needs a usable base.
+    let changed = with(tallow(), anchor(Fixed, a, &[1, 1, 2], &[412, 3, 9]));
+    assert!(matches!(
+        u.check_anchor(Some(t), &changed),
+        Err(AnchorError::BaseUnusable { .. })
+    ));
+}
+
+#[test]
 fn changing_the_anchor_works_the_moment_out_again_from_the_base_as_it_is_now() {
     let (mut u, a, t) = aster_and_tallow(Fixed);
     keep(&mut u, Some(a), aster_with_span(0, 57)).unwrap();

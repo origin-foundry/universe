@@ -285,8 +285,14 @@ impl OpenUniverse {
             return Err(AnchorError::Loop { names });
         }
 
-        // Step 6: the base calendar is placed.
+        // Step 6: the base calendar is placed. An unchanged fixed anchor keeps its moment
+        // without reading its base (FR-005b), so it can be kept even when the base can't be
+        // placed now, as when it has been deleted.
+        let keeps_moment = anchor.kind == AnchorKind::Fixed
+            && unchanged
+            && stored_anchor.is_some_and(|s| s.at.is_some());
         let base_calendar = match base {
+            Some(_) if keeps_moment => None,
             Some(base) => Some(match &base.placed {
                 Ok(calendar) => calendar,
                 Err(problem) => {
@@ -301,14 +307,14 @@ impl OpenUniverse {
 
         // Step 8: the instant.
         let kept = stored_anchor.and_then(|s| s.at);
-        let at = match (anchor.kind, unchanged, kept, base_calendar) {
-            (AnchorKind::Fixed, true, Some(at), _) => at,
-            (_, _, _, Some(base)) => {
+        let at = match (keeps_moment, kept, base_calendar) {
+            (true, Some(at), _) => at,
+            (_, _, Some(base)) => {
                 base.date_to_instant(&date(&anchor.base_date))
                     .map_err(AnchorError::BaseDate)?
                     .instant
             }
-            (_, _, _, None) => return Err(AnchorError::BaseMissing),
+            (_, _, None) => return Err(AnchorError::BaseMissing),
         };
 
         // Step 9: the anchor date at that instant, in the new definition.
@@ -325,6 +331,13 @@ impl OpenUniverse {
             AnchorKind::Equation => None,
         })
     }
+}
+
+/// Whether calendar `follower` follows calendar `base`: keeps an equation with it, directly
+/// or through other calendars that keep equations. The editor's base list greys out such
+/// calendars, as [`OpenUniverse::check_anchor`] would refuse them (research R5, step 7).
+pub fn follows(placements: &[Placement], follower: i64, base: i64) -> bool {
+    following_chain(placements, follower, base).is_some()
 }
 
 /// If calendar `from` follows calendar `target` (through equation anchors), the names from
