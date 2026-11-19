@@ -177,6 +177,19 @@ impl Calendar {
         &self.units[self.era].name
     }
 
+    /// The smallest unit's length in SI seconds, exact: the fundamental unit's length divided
+    /// by every subdivision's parts (spec 008, research R10). `OutOfRange` only for a calendar
+    /// so fine-grained that the length's denominator doesn't fit, and then
+    /// [`Calendar::instant_to_date`] can't give a remainder either.
+    pub fn smallest_unit_length(&self) -> R<Ratio> {
+        let denominator = self
+            .q
+            .checked_mul(self.parts)
+            .and_then(|d| d.checked_mul(NANOS_PER_SEC))
+            .ok_or(CalendarError::OutOfRange)?;
+        Ratio::new(self.p, denominator).map_err(|_| CalendarError::OutOfRange)
+    }
+
     /// The number of instances of the era's unit after which its rules repeat (1 without
     /// rules), worked out from the rules themselves (FR-007).
     ///
@@ -953,6 +966,17 @@ pub(crate) mod tests {
         // A 1 ns fundamental unit, and one of a million orbits.
         assert!(Calendar::new(bare(secs(1, 1_000_000_000))).is_ok());
         assert!(Calendar::new(bare(secs(31_557_600_000_000, 1))).is_ok());
+    }
+
+    #[test]
+    fn smallest_unit_length_is_exact() {
+        let aster = Calendar::new(aster()).unwrap();
+        assert_eq!(
+            aster.smallest_unit_length(),
+            Ok(secs(88_775_244, 2_000_000))
+        );
+        let bare = Calendar::new(bare(secs(355, 113))).unwrap();
+        assert_eq!(bare.smallest_unit_length(), Ok(secs(355, 113)));
     }
 
     #[test]

@@ -825,3 +825,28 @@ proptest! {
         prop_assert_eq!(got.date.values, reference_date(&case.def, number, offset));
     }
 }
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(1_000))]
+
+    /// Spec 008, research R1: for any valid date `X` and instant `t`, the calendar rebuilt with
+    /// `epoch_for(X, t)` has `X` start at exactly `t`.
+    #[test]
+    fn epoch_for_puts_the_date_at_the_instant(
+        case in case(),
+        era_value in -1_000i64..=1_000,
+        seeds in prop::collection::vec(any::<u64>(), MAX_UNITS),
+        len in any::<usize>(),
+        offset in offset_ns(),
+    ) {
+        let cal = engine(&case);
+        let model = Model::new(&instance_def(&case.def, era_value));
+        let (date, _) = valid_date(&model, era_value, &seeds, len);
+        let t = at(&case, offset);
+        let epoch = cal.epoch_for(&date, t).unwrap();
+        let mut def = case.def.clone();
+        def.era.epoch = epoch;
+        let placed = Calendar::new(def).unwrap();
+        prop_assert_eq!(placed.date_to_instant(&date).unwrap().instant, t);
+    }
+}
