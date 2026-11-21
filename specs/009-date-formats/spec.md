@@ -4,11 +4,21 @@
 
 **Created**: 2026-11-21
 
-**Status**: Draft
+**Status**: Draft, clarified 2026-11-21
 
 **Input**: User description: "Date formats (issue #61, Phase 1. Calendar core). Owner-defined patterns for writing a calendar's date as text: which units appear, in what order, separators and literal text, each value as a number (optionally zero-padded) or as its member name; the same pattern parses text back into a date, with unreadable or ambiguous text reported with the reason (principle VII). Formats are saved with their calendar. Used by the converter's results and input and by the anchor's read-back sentence (spec 008). Keep it to one build PR; locales, conditionals, computed values, zone tokens, ordinals/roman/words, duration formats and the full format editor come later. Earth-neutral names (ADR 0009)."
 
 **Issue**: #61 · **Depends on**: spec 004 (calendar engine basics), spec 007 (calendars in the project file), spec 008 (epoch anchoring and the converter) · **Phase**: 1. Calendar core · **Knowledge**: [/formats/templates.md](../../knowledge/formats/templates.md), [/formats/parsing.md](../../knowledge/formats/parsing.md), [/calendar/unit-kinds.md](../../knowledge/calendar/unit-kinds.md), [/calendar/calendar-model.md](../../knowledge/calendar/calendar-model.md), [/calendar/eras-and-epoch.md](../../knowledge/calendar/eras-and-epoch.md), [/storage/schema.md](../../knowledge/storage/schema.md), [/product/ui-views.md](../../knowledge/product/ui-views.md), [ADR 0009](../../knowledge/decisions/0009-earth-neutral-names.md)
+
+## Clarifications
+
+### Session 2026-11-21
+
+- Q: Before the owner writes any format for a calendar, how does the app write its dates? → A: Each calendar gets one generated format, worked out from its definition and reading like today's text ("orbit 412, span 3 (Third), sol 9, bell 0, pulse 0"); it follows the definition by itself and isn't editable, and the owner's own formats can replace it as the main format.
+- Q: What happens to a format that leaves out a unit needed to read it back (no era's unit, or a gap between units)? → A: It is accepted and marked write-only with the reason: it writes dates but can't be used to read them.
+- Q: How does the converter take its input date once formats exist? → A: It keeps today's value-by-value fields for now; formats are used for showing results and the read-back sentence. Typing dates as text comes in a later spec.
+- Q: Should reading text in a format have a place in the app in this spec? → A: No. Reading is built in the formats component and covered by the round-trip property tests; the app uses it once the converter takes text, in a later spec.
+- Q: Can each converter result be switched to another of its calendar's formats? → A: No: each result uses its calendar's main format. A per-result switch can come with the full converter.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -34,21 +44,21 @@ In Aster's editor the owner adds a format called "Short", with the pattern `{orb
 
 ---
 
-### User Story 2 - Type a date in a format (Priority: P1)
+### User Story 2 - Read text back into a date (Priority: P1)
 
-In the converter, the owner picks Aster and one of its formats, and types `412.03.09`. The text is read back into a date in Aster and converted, exactly as if they had entered orbit 412, span 3, sol 9 value by value. Text that can't be read, or that names a date the calendar refuses, is reported with the reason; text that could be read as more than one date offers each reading for the owner to choose.
+The formats component can read text written in a readable format back into a date: `412.03.09` in Aster's "Short" format is orbit 412, span 3, sol 9, exactly as if it had been entered value by value. Text that can't be read, or that names a date the calendar refuses, is reported with the reason; text that could be read as more than one date gives every reading, for the app to offer. Nothing in the app reads text yet (the converter keeps its value-by-value fields); this story makes every format a parser now, so the round trip is tested from the start and the converter can take text in a later spec.
 
 **Why this priority**: A format that can only write dates is half a format: the knowledge bundle requires every format to parse what it writes (`/formats/parsing.md`) and the constitution requires a round-trip test of every format (principle VI).
 
-**Independent Test**: For each of Aster's formats, write a range of dates in it and read each back; every one gives the original date. Then type malformed and ambiguous text and check the reports.
+**Independent Test**: In the formats component's tests, for each test format, write a range of dates in it and read each back; every one gives the original date. Then read malformed and ambiguous text and check the reports.
 
 **Acceptance Scenarios**:
 
-1. **Given** Aster's "Short" format, **When** the owner types `412.03.09` or `412.3.9`, **Then** it is read as orbit 412, span 3, sol 9.
-2. **Given** Aster's "Long" format, **When** the owner types `9 third, orbit 412 after landing`, **Then** the member name and era name are matched regardless of capital letters, and the date is read as orbit 412, span 3, sol 9.
-3. **Given** text that doesn't fit the pattern (`412-03-09` for "Short", or an unknown member name), **When** it is read, **Then** the owner is told where the text stops fitting and what was expected there, and no date is taken.
+1. **Given** Aster's "Short" format, **When** `412.03.09` or `412.3.9` is read, **Then** it is read as orbit 412, span 3, sol 9.
+2. **Given** Aster's "Long" format, **When** `9 third, orbit 412 after landing` is read, **Then** the member name and era name are matched regardless of capital letters, and the date is read as orbit 412, span 3, sol 9.
+3. **Given** text that doesn't fit the pattern (`412-03-09` for "Short", or an unknown member name), **When** it is read, **Then** the report says where the text stops fitting and what was expected there, and no date is taken.
 4. **Given** text that fits the pattern but names a date the calendar refuses (`412.13.01`, span 13), **When** it is read, **Then** the engine's reason is shown, as for a date entered value by value.
-5. **Given** a pattern whose fields touch with no separator, such as `{orbit}{span}`, **When** the owner types `41211`, **Then** both valid readings are offered (orbit 4121, span 1; orbit 412, span 11) and neither is picked silently; readings the calendar refuses (orbit 41, span 211) are not offered; and when there is exactly one valid reading (`4123`: only orbit 412, span 3), it is taken.
+5. **Given** a pattern whose fields touch with no separator, such as `{orbit}{span}`, **When** `41211` is read, **Then** both valid readings are given (orbit 4121, span 1; orbit 412, span 11) and neither is picked silently; readings the calendar refuses (orbit 41, span 211) are not given; and when there is exactly one valid reading (`4123`: only orbit 412, span 3), it is taken.
 6. **Given** a pattern that includes `{cohort}`, **When** the text's cohort doesn't match the cohort the orbit falls in, **Then** the mismatch is reported, not ignored.
 7. **Given** a date before the epoch, **When** it is written and read back, **Then** its negative or zero values (astronomical numbering) survive the round trip, padded after the sign (`-007`).
 
@@ -67,13 +77,13 @@ The converter shows each result in its calendar's main format, and the anchor's 
 1. **Given** Aster's main format is "Long", **When** the converter shows a result in Aster, **Then** it is written in "Long".
 2. **Given** a result partway through the smallest unit the format shows, **When** the converter's precision is partway, decimal or exact (spec 008, FR-010), **Then** the date is written in the format and the precision's mark follows it, naming that unit ("…, 0.370 of the way through the sol"), never in seconds.
 3. **Given** Tallow anchored to Aster, **When** the owner opens Tallow's anchor, **Then** the read-back sentence writes the anchor date in Tallow's main format and the base date in Aster's.
-4. **Given** the converter, **When** the owner switches the result format for a target calendar to another of its formats, **Then** that result is rewritten in it; the choice lasts while the app is open, like the precision switch.
+4. **Given** the converter, **When** the owner enters a date, **Then** they enter it value by value, as in spec 008; only the results are written in formats.
 
 ---
 
 ### Edge Cases
 
-- **Fields left out**: a pattern may leave out units. A pattern that leaves out the era's unit, or a unit between two it includes, can still write dates but can't read them back unambiguously; such a format is marked **write-only** with the reason, offered for results but not for input.
+- **Fields left out**: a pattern may leave out units. A pattern that leaves out the era's unit, or a unit between two it includes, can still write dates but can't read them back unambiguously; such a format is marked **write-only** with the reason. It writes dates, and can be the main format, but can't be used to read text.
 - **Patterns that stop early**: a pattern may stop above the smallest unit (`{orbit}.{span}`); text read in it gives a partial date, whose missing smaller units take their first value, as the engine already does. In results, the precision mark then refers to the last unit the format shows.
 - **Member names and numbers together**: a pattern may show the same unit twice (`{span} ({span:name})`); when reading, the two must agree, or the mismatch is reported.
 - **Members without names**: in a grouping where only some members are named, `{span:name}` writes the number for an unnamed member and reads either.
@@ -108,14 +118,14 @@ The converter shows each result in its calendar's main format, and the anchor's 
 
 - **FR-009**: Reading text in a format that isn't write-only MUST give every date the text can be read as, using the same pattern. Member names, the era's name and literal text MUST match regardless of capital letters; a run of spaces MUST match any run of spaces.
 - **FR-010**: Text that can't be read MUST be reported with where it stops fitting the pattern and what was expected there. No date MUST be taken from it.
-- **FR-011**: Text that can be read as more than one valid date MUST offer every valid reading for the owner to choose; one MUST NOT be picked silently. Readings the calendar refuses MUST be dropped; if none is valid, the engine's reason for the first MUST be shown.
+- **FR-011**: Text that can be read as more than one valid date MUST give every valid reading, for the app to offer the owner; one MUST NOT be picked silently. Readings the calendar refuses MUST be dropped; if none is valid, the engine's reason for the first MUST be shown.
 - **FR-012**: When the text gives a value twice (a number and a member name for the same unit), or gives a unit above the era's unit, the values MUST agree with the date read; a disagreement MUST be reported with both values.
 - **FR-013**: For every format that isn't write-only, reading back what it writes MUST give the original date, for every date of the calendar (principle VI's round trip).
 
 **Where formats are used**
 
-- **FR-014**: The converter MUST take its input as text in a format of the source calendar, chosen from that calendar's readable formats (the main format by default if readable, otherwise the generated one), checked as the owner types.
-- **FR-015**: The converter MUST write each result in its calendar's main format by default, and let the owner switch each target calendar's result to another of its formats; the switch MUST last while the app is open and not be saved in the universe file.
+- **FR-014**: The converter MUST keep taking its input date value by value, as in spec 008. Reading text (FR-009 to FR-013) MUST be available in the formats component, for a later spec's text input, but no screen uses it yet.
+- **FR-015**: The converter MUST write each result in its calendar's main format.
 - **FR-016**: In a result partway through a unit, the precision mark (spec 008, FR-010) MUST follow the formatted date and name the smallest unit the format shows; how far into that unit the moment falls MUST be measured in that unit.
 - **FR-017**: The anchor's read-back sentence (spec 008, FR-002b) MUST write the anchor date and base date in their calendars' main formats.
 
@@ -150,6 +160,7 @@ The converter shows each result in its calendar's main format, and the anchor's 
 - **One era**: calendars still have one era (spec 007), so `{era}` writes its one name; eras' abbreviations come with multiple eras.
 - **Formats live in the calendar editor**: as a section of the calendar's form, checked with it when the calendar is kept (spec 007's model), each with its live sample. There is no separate format editor view yet.
 - **The sample date**: the editor's sample is a fixed date of the calendar chosen so that each field shows something meaningful (for example the calendar's first date, or its anchor date when it has one); planning picks which.
-- **Value-by-value entry stays where it is**: the anchor's date fields stay value by value (spec 008); only the converter's input becomes text.
+- **Value-by-value entry stays where it is**: the anchor's date fields and the converter's input stay value by value (spec 008). Typing dates as text, a "try reading" box per format, and switching a converter result to another format come in later specs.
 - **Knowledge update**: the design PR updates `/formats/templates.md` and `/formats/parsing.md` (what this feature builds, write-only formats, the generated format), `/storage/schema.md` (version 4), and `/product/ui-views.md` (formats in the calendar editor and converter), for the owner to re-verify.
 - **Scope check (principle VIII)**: if planning shows the build PR would exceed about 30 minutes of review, the spec is split (for example, formats and their editing first, then using them in the converter and the read-back) before the design PR is opened.
+- **Main format choice**: the editor offers the calendar's formats and the generated one; deleting the format that is the main format makes the generated one main again.

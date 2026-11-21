@@ -32,4 +32,4 @@
 ## Notes
 
 - As in specs 004-008, the spec names the project's own components (the calendar engine, the formats component, the storage component) and its knowledge concepts, because the layering rule (principle V) and the knowledge bundle (principle II) are part of what the owner reviews. The brace notation in the examples illustrates what a pattern must say; the exact syntax is left to planning. No languages, frameworks or libraries are named.
-- Informed defaults for `/speckit-clarify` to confirm with the owner: the generated main format (FR-005), write-only formats rather than refusing them (FR-004), converter input as text only (FR-014), and how the precision mark combines with a format (FR-016).
+- Settled in `/speckit-clarify` (2026-11-21): the generated main format (FR-005), write-only formats (FR-004), the converter keeping value-by-value input (FR-014), reading living in the formats component only (FR-014), and results in the main format only (FR-015).
