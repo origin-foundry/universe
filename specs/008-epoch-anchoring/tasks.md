@@ -89,7 +89,7 @@ description: "Task list for spec 008, epoch anchoring and the converter"
 - [x] T024 [P] Add an `#[ignore]` timing test `convert_twenty_calendars_timing` in `crates/uni-app/src/converter.rs`: 20 calendars, one with a 1,000-member grouping, anchored in a chain of equations, saved and reopened; time one `convert` from the last calendar. Run it in release and record the result here (SC-005: under 1 s). **Result (2026-11-19, release build): 9.1 ms.**
 - [x] T025 [P] Update doc comments: `crates/uni-store/src/lib.rs` (anchors from schema version 3; the terms anchored calendar, base calendar, follows and reference calendar), the epoch comments in `crates/uni-store/src/calendar.rs` that say "until spec 008", and the crate docs of `uni-calendar` for `epoch_for`.
 - [ ] T026 Run the app by hand through every step of [quickstart.md](quickstart.md) and record the result here, including how long steps 3–4 (anchoring Tallow and converting) took (SC-001: under 3 minutes).
-- [ ] T027 Run the full local verification and record the results in the build PR description:
+- [x] T027 Run the full local verification and record the results in the build PR description:
   - `cargo fmt --all --check`
   - `cargo clippy --workspace --all-targets -- -D warnings`
   - `cargo test --workspace`
