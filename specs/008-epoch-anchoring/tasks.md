@@ -100,7 +100,7 @@ description: "Task list for spec 008, epoch anchoring and the converter"
   - `python scripts/check_okf.py knowledge`
   - `python scripts/check_privacy.py`
   - `python scripts/check_earth_terms.py`
-- [ ] T028 Open the build PR as the bot from `build/008-epoch-anchoring`: label `build`, body with `Design: #<design PR>` and `Closes #58`. Move card #58 to **PR review** with `python scripts/board.py move 58 "PR review"` only if it is in Building.
+- [x] T028 Open the build PR as the bot from `build/008-epoch-anchoring`: label `build`, body with `Design: #<design PR>` and `Closes #58`. Move card #58 to **PR review** with `python scripts/board.py move 58 "PR review"` only if it is in Building.
 
 ---
 
