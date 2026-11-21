@@ -40,12 +40,14 @@ impl Calendar {
     /// The instant fundamental unit number `fixed` starts at (FR-012), rounded up to the next
     /// whole nanosecond if it falls between two (FR-014).
     pub fn start_of_fixed(&self, fixed: i64) -> R<DateStart> {
-        self.start_at(fixed, 0)
+        self.start_at(self.epoch, fixed, 0)
     }
 
     /// The start of fundamental unit `fixed`, plus `ticks` (units of `1/(q × P)` ns, fewer
     /// than one fundamental unit's worth), as the first whole nanosecond at or after it.
-    fn start_at(&self, fixed: i64, ticks: i128) -> R<DateStart> {
+    /// `epoch` is where fixed number 0 starts: this calendar's own, except in
+    /// [`Calendar::epoch_for`].
+    fn start_at(&self, epoch: Instant, fixed: i64, ticks: i128) -> R<DateStart> {
         // fixed × p / q ns, split into whole nanoseconds and a remainder in 1/q ns. If
         // fixed × p overflows i128, the start is over 2⁹⁷ ns away: beyond any instant.
         let scaled = i128::from(fixed)
@@ -54,8 +56,7 @@ impl Calendar {
         let (whole, rest) = floor_div(scaled, self.q);
         let q_parts = self.q * self.parts; // ≤ p < 2¹²⁰, checked in Calendar::new
         let (extra, fraction) = floor_div(rest * self.parts + ticks, q_parts);
-        let mut nanos = self
-            .epoch
+        let mut nanos = epoch
             .as_nanos()
             .checked_add(whole)
             .and_then(|n| n.checked_add(extra))
@@ -259,6 +260,11 @@ impl Calendar {
     /// assert_eq!(bell_ten.unwrap_err().to_string(), "bell 10 is outside 0 to 9");
     /// ```
     pub fn date_to_instant(&self, date: &Date) -> R<DateStart> {
+        self.date_start(self.epoch, date)
+    }
+
+    /// Where `date` starts when fixed number 0 starts at `epoch`.
+    fn date_start(&self, epoch: Instant, date: &Date) -> R<DateStart> {
         let values = &date.values;
         let max = self.units.len() - self.era;
         if values.is_empty() {
@@ -335,7 +341,48 @@ impl Calendar {
                 .and_then(|o| fixed.checked_add(o))
                 .ok_or(CalendarError::OutOfRange)?;
         }
-        self.start_at(fixed, ticks)
+        self.start_at(epoch, fixed, ticks)
+    }
+
+    /// The epoch that makes `date` start at `at`: a calendar built from this one's definition
+    /// with that epoch has `date_to_instant(date).instant == at`, exactly (spec 008, research
+    /// R1). Because an epoch is a whole nanosecond, rounding a date's start up to the next
+    /// whole nanosecond commutes with moving the epoch, so this holds whatever the unit
+    /// lengths. Errors as [`Calendar::date_to_instant`], or `OutOfRange` if the epoch would
+    /// leave the timeline.
+    ///
+    /// ```
+    /// # use uni_calendar::{Calendar, CalendarDef, Clock, Date, EraDef, FundamentalDef, GroupingDef, MemberDef};
+    /// # use uni_time::{Instant, Ratio};
+    /// # let def = CalendarDef {
+    /// #     name: "Plain".to_string(),
+    /// #     clock: Clock::Gct,
+    /// #     groupings: vec![GroupingDef { name: "orbit".to_string(), member_unit: None,
+    /// #         members: vec![MemberDef { name: None, count: 400 }], first_number: None, rules: vec![] }],
+    /// #     fundamental: FundamentalDef { name: "sol".to_string(),
+    /// #         length: Ratio::from_int(90_000).unwrap(), first_number: None },
+    /// #     subdivisions: vec![],
+    /// #     era: EraDef { name: "Plain Era".to_string(), unit: "orbit".to_string(), epoch: Instant::ZERO },
+    /// # };
+    /// // Put orbit 2 of a 400-sol orbit (36,000,000 s after the epoch) at the timeline's zero.
+    /// let cal = Calendar::new(def.clone()).unwrap();
+    /// let orbit_two = Date { values: vec![2] };
+    /// let epoch = cal.epoch_for(&orbit_two, Instant::ZERO).unwrap();
+    /// assert_eq!(epoch, Instant::new(-36_000_000, 0).unwrap());
+    /// let mut moved = def;
+    /// moved.era.epoch = epoch;
+    /// let moved = Calendar::new(moved).unwrap();
+    /// assert_eq!(moved.date_to_instant(&orbit_two).unwrap().instant, Instant::ZERO);
+    /// ```
+    pub fn epoch_for(&self, date: &Date, at: Instant) -> R<Instant> {
+        // The start's offset from the epoch, already rounded up to a whole nanosecond, worked
+        // out with the epoch at zero so this calendar's own epoch can't put it out of range.
+        let offset = self.date_start(Instant::ZERO, date)?.instant.as_nanos();
+        let epoch = at
+            .as_nanos()
+            .checked_sub(offset)
+            .ok_or(CalendarError::OutOfRange)?;
+        Instant::from_nanos(epoch).map_err(out_of_range)
     }
 
     /// Checks `value` for unit `k` (below the era's unit), where `member` is the member of

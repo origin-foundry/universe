@@ -31,6 +31,14 @@
 //!   (the supercycle), in time independent of the distance from the epoch.
 //!   [`Calendar::era_instance`] reports an instance's member lengths and which rules hold.
 //!
+//! # Placing calendars (spec 008)
+//!
+//! - [`Calendar::epoch_for`] gives the epoch that makes a date start at a given instant, so a
+//!   calendar can be anchored by equating one of its dates with a date in another calendar.
+//!   It's exact: with that epoch, the date starts at exactly that instant.
+//! - [`Calendar::smallest_unit_length`] gives the smallest unit's exact length, so a caller
+//!   can say how far into it a moment falls.
+
 //! # What comes later
 //!
 //! Rules on other units and rules that read more than the era's unit's number; inserting or

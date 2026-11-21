@@ -108,7 +108,8 @@ describe("CalendarEditor: entering a calendar", () => {
     keep();
     await waitFor(() => expect(onKept).toHaveBeenCalledWith(dirty, 7));
     expect(invoke).toHaveBeenCalledWith("put_calendar", { id: null, form: asterForm() });
-  });
+    // Typing the whole of Aster takes several seconds when the suite runs in parallel.
+  }, 20_000);
 
   it("sends the length as the text typed, never as a number", async () => {
     invoke.mockResolvedValue({ state: dirty, id: 1 });

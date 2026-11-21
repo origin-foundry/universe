@@ -1,17 +1,28 @@
 //! Calendars for the UI (spec 007): the editor form's shape, checking a form with the engine,
 //! and placing each refusal at the field it concerns
 //! (specs/007-calendars-in-project/contracts/calendar-commands.md).
+//!
+//! Spec 008 adds the calendar's anchor to the form, checks it on keep, and gives the editor's
+//! **Place in time** section its base list and live date checks
+//! (specs/008-epoch-anchoring/contracts/anchors-and-converter.md).
 
 use serde::{Deserialize, Serialize};
 use uni_calendar::{
     AdjustmentRuleDef, Calendar, DefinitionError, GroupingDef, MemberDef, MemberUnitDef,
     SubdivisionDef,
 };
-use uni_store::{CalendarRecord, EraRecord, FundamentalRecord, StoreError};
+use uni_store::{
+    Anchor, AnchorError, AnchorKind, AnchorSide, CalendarRecord, EraRecord, FundamentalRecord,
+    StoreError,
+};
 
+use crate::converter::{
+    ConvertedDate, DateError, DateReading, check_date, converted_date, error_index, gap, given,
+    reading, units_from_era,
+};
 use crate::{Session, UniverseState};
 
-const NO_UNIVERSE: &str = "No universe is open.";
+pub(crate) const NO_UNIVERSE: &str = "No universe is open.";
 
 /// The editor form: a [`CalendarRecord`] as JSON, with whole numbers that may be missing.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -22,6 +33,40 @@ pub struct CalendarForm {
     pub fundamental: FundamentalForm,
     pub subdivisions: Vec<SubdivisionForm>,
     pub era: EraForm,
+    /// `None` for a calendar that isn't anchored: the reference calendar, or the first one
+    /// added to an empty universe (spec 008).
+    #[serde(default)]
+    pub anchor: Option<AnchorForm>,
+}
+
+/// The anchor as the editor holds it: dates value by value, with values that may be empty.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AnchorForm {
+    pub kind: AnchorKindForm,
+    /// `None` only once the base calendar has been deleted.
+    pub base: Option<i64>,
+    /// The anchor date, from the era's unit down. Trailing empty values are dropped; an empty
+    /// value before a given one is a gap.
+    pub date: Vec<Option<i64>>,
+    pub base_date: Vec<Option<i64>>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum AnchorKindForm {
+    Fixed,
+    Equation,
+}
+
+/// An input of the **Place in time** section.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum AnchorField {
+    Base,
+    Kind,
+    Date,
+    BaseDate,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -144,6 +189,13 @@ pub enum Location {
         #[serde(skip_serializing_if = "Option::is_none")]
         field: Option<Field>,
     },
+    /// The anchor (spec 008, research R8): `index` is a value's position within that date.
+    Anchor {
+        #[serde(skip_serializing_if = "Option::is_none")]
+        field: Option<AnchorField>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        index: Option<usize>,
+    },
 }
 
 /// A refused form: the engine's (or the store's) message, and where it belongs.
@@ -229,6 +281,15 @@ impl From<CalendarRecord> for CalendarForm {
                 name: r.era.name,
                 unit: r.era.unit,
             },
+            anchor: r.anchor.map(|a| AnchorForm {
+                kind: match a.kind {
+                    AnchorKind::Fixed => AnchorKindForm::Fixed,
+                    AnchorKind::Equation => AnchorKindForm::Equation,
+                },
+                base: a.base,
+                date: a.date.into_iter().map(Some).collect(),
+                base_date: a.base_date.into_iter().map(Some).collect(),
+            }),
         }
     }
 }
@@ -317,7 +378,7 @@ impl CalendarForm {
                 first_number: s.first_number,
             });
         }
-        Ok(CalendarRecord {
+        let mut record = CalendarRecord {
             name: self.name.clone(),
             groupings,
             fundamental: FundamentalRecord {
@@ -330,16 +391,189 @@ impl CalendarForm {
                 name: self.era.name.clone(),
                 unit: self.era.unit.clone(),
             },
-        })
+            anchor: None,
+        };
+        if let Some(a) = &self.anchor {
+            let own = own_units(&record);
+            let date = anchor_values(&a.date, AnchorSide::Own, Some(&own))
+                .map_err(|e| anchor_field_error(&e, &own, &[]))?;
+            let base_date = anchor_values(&a.base_date, AnchorSide::Base, None)
+                .map_err(|e| anchor_field_error(&e, &own, &[]))?;
+            record.anchor = Some(Anchor {
+                kind: match a.kind {
+                    AnchorKindForm::Fixed => AnchorKind::Fixed,
+                    AnchorKindForm::Equation => AnchorKind::Equation,
+                },
+                base: a.base,
+                base_name: None,
+                date,
+                base_date,
+                at: None,
+            });
+        }
+        Ok(record)
     }
 }
 
-/// The engine's verdict on a stored record: `None` if it's a usable calendar, or the reason.
-pub fn problem(record: &CalendarRecord) -> Option<String> {
-    match record.to_def() {
-        Err(error) => Some(error.to_string()),
-        Ok(def) => Calendar::new(def).err().map(|error| error.to_string()),
+/// The record's units from the era's unit down, by name, as the form has them.
+fn own_units(record: &CalendarRecord) -> Vec<String> {
+    let era = record.era.unit.trim();
+    unit_chain(record)
+        .into_iter()
+        .map(|u| u.name.trim().to_owned())
+        .skip_while(|u| u != era)
+        .collect()
+}
+
+/// A date of the anchor without its trailing empty values, or the gap in it. `units` names
+/// the values, when known.
+fn anchor_values(
+    values: &[Option<i64>],
+    side: AnchorSide,
+    units: Option<&[String]>,
+) -> Result<Vec<i64>, AnchorError> {
+    match gap(values) {
+        Some(index) => Err(AnchorError::DateGap {
+            side,
+            index,
+            unit: units.and_then(|u| u.get(index).cloned()),
+        }),
+        None => Ok(given(values).unwrap_or_default()),
     }
+}
+
+/// One unit of a record's chain, top to bottom: its name, its first number (as the engine
+/// defaults it) and, for a member unit, its members' names.
+pub(crate) struct UnitInfo {
+    pub(crate) name: String,
+    pub(crate) first: i64,
+    pub(crate) members: Option<Vec<Option<String>>>,
+}
+
+/// The record's chain, top to bottom, member units included, as the engine walks it.
+pub(crate) fn unit_chain(record: &CalendarRecord) -> Vec<UnitInfo> {
+    chain(record)
+        .into_iter()
+        .map(|(place, name)| {
+            let (first, members) = match place {
+                Place::Grouping(i) => (record.groupings[i].first_number.unwrap_or(1), None),
+                Place::MemberUnit(i) => {
+                    let g = &record.groupings[i];
+                    let first = g.member_unit.as_ref().and_then(|m| m.first_number);
+                    (
+                        first.unwrap_or(1),
+                        Some(g.members.iter().map(|m| m.name.clone()).collect()),
+                    )
+                }
+                Place::Fundamental => (record.fundamental.first_number.unwrap_or(1), None),
+                Place::Subdivision(i) => (record.subdivisions[i].first_number.unwrap_or(0), None),
+            };
+            UnitInfo {
+                name: name.to_owned(),
+                first,
+                members,
+            }
+        })
+        .collect()
+}
+
+/// Where an anchor refusal belongs (contract, "Where each anchor refusal is placed").
+/// `own` and `base` are the two calendars' units from the era's unit down, to find the value
+/// an engine error names. The match is total, with no catch-all.
+pub fn anchor_location(error: &AnchorError, own: &[String], base: &[String]) -> Location {
+    let at = |field, index| Location::Anchor {
+        field: Some(field),
+        index,
+    };
+    let side = |side: &AnchorSide| match side {
+        AnchorSide::Own => AnchorField::Date,
+        AnchorSide::Base => AnchorField::BaseDate,
+    };
+    match error {
+        AnchorError::Missing
+        | AnchorError::BaseMissing
+        | AnchorError::BaseSelf
+        | AnchorError::BaseUnusable { .. }
+        | AnchorError::Loop { .. } => at(AnchorField::Base, None),
+        AnchorError::DateEmpty { side: s, .. } => at(side(s), Some(0)),
+        AnchorError::DateGap { side: s, index, .. } => at(side(s), Some(*index)),
+        AnchorError::BaseDate(e) => at(AnchorField::BaseDate, error_index(e, base)),
+        AnchorError::Date(e) => at(AnchorField::Date, error_index(e, own)),
+        AnchorError::OutOfRange => Location::Anchor {
+            field: None,
+            index: None,
+        },
+    }
+}
+
+fn anchor_field_error(error: &AnchorError, own: &[String], base: &[String]) -> FieldError {
+    FieldError::new(error.to_string(), anchor_location(error, own, base))
+}
+
+/// The units, from the era's unit down, of stored calendar `id`, when the engine accepts it.
+fn stored_units(universe: &uni_store::OpenUniverse, id: Option<i64>) -> Vec<String> {
+    id.and_then(|b| universe.calendar(b).ok())
+        .and_then(|c| Calendar::new(c.record.to_def().ok()?).ok())
+        .map_or_else(Vec::new, |c| units_from_era(&c))
+}
+
+/// A stored calendar for the editor (spec 008, data-model.md).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct CalendarDetails {
+    pub form: CalendarForm,
+    /// The base date starts between two whole nanoseconds, so this calendar is placed from
+    /// the next one (research R7).
+    pub rounded: bool,
+    pub note: Option<Note>,
+}
+
+/// What the editor says about a fixed anchor whose base calendar has changed or gone
+/// (FR-005a, FR-006a).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub enum Note {
+    /// The moment now falls at `now` in the base calendar, not at the base date.
+    Moved { now: ConvertedDate },
+    /// The base calendar, `name`, has been deleted.
+    Gone { name: String },
+}
+
+/// A calendar the anchor's base list offers (FR-002a).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct AnchorBase {
+    pub id: i64,
+    pub name: String,
+    /// `None` when it can be chosen.
+    pub ineligible: Option<Ineligible>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum Ineligible {
+    /// It follows the anchored calendar, so anchoring to it would make a loop.
+    Follows,
+    /// It can't be placed in time.
+    Unplaceable,
+}
+
+/// The calendar `read_date` checks a date in.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(untagged)]
+pub enum DateSource {
+    /// A stored calendar, placed or not.
+    Id { id: i64 },
+    /// The editor's draft.
+    Form { form: Box<CalendarForm> },
+}
+
+/// What `read_date` gives: the date read back, its fault, or that the draft's definition
+/// isn't valid yet, so its dates can't be checked.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(untagged)]
+pub enum DateCheck {
+    Reading(DateReading),
+    Error(DateError),
+    Definition { definition: String },
 }
 
 /// Where in `record` (normalised, so in the same order as the form) a refusal belongs
@@ -551,28 +785,155 @@ fn store_error(error: StoreError) -> PutError {
 }
 
 impl Session {
-    /// Every calendar in the open universe, in order, each with its problem if the engine
-    /// refuses it.
+    /// Every calendar in the open universe, in order, each with its problem if it can't be
+    /// placed: the engine refuses it, or its anchor can't be resolved (spec 008, FR-006).
     pub fn list_calendars(&self) -> Result<Vec<CalendarSummary>, String> {
         let slot = self.lock();
         let universe = slot.as_ref().ok_or(NO_UNIVERSE)?;
-        let calendars = universe.calendars().map_err(|e| e.to_string())?;
-        Ok(calendars
+        let placements = universe.placements().map_err(|e| e.to_string())?;
+        Ok(placements
             .into_iter()
-            .map(|c| CalendarSummary {
-                id: c.id,
-                problem: problem(&c.record),
-                name: c.record.name,
+            .map(|p| CalendarSummary {
+                id: p.stored.id,
+                problem: p.placed.err().map(|e| e.to_string()),
+                name: p.stored.record.name,
             })
             .collect())
     }
 
-    /// One stored calendar's form, even when the engine refuses it, so it can be fixed.
-    pub fn get_calendar(&self, id: i64) -> Result<CalendarForm, String> {
+    /// One stored calendar's form, even when the engine refuses it, so it can be fixed, with
+    /// what the editor says about its anchor (research R7).
+    pub fn get_calendar(&self, id: i64) -> Result<CalendarDetails, String> {
         let slot = self.lock();
         let universe = slot.as_ref().ok_or(NO_UNIVERSE)?;
-        let stored = universe.calendar(id).map_err(|e| e.to_string())?;
-        Ok(stored.record.into())
+        let placements = universe.placements().map_err(|e| e.to_string())?;
+        let stored = placements
+            .iter()
+            .find(|p| p.stored.id == id)
+            .ok_or_else(|| StoreError::NoSuchCalendar { id }.to_string())?;
+        let record = &stored.stored.record;
+        let mut rounded = false;
+        let mut note = None;
+        if let Some(anchor) = &record.anchor {
+            let base = anchor
+                .base
+                .and_then(|b| placements.iter().find(|p| p.stored.id == b))
+                .and_then(|b| Some((b, b.placed.as_ref().ok()?)));
+            let base_start = base.and_then(|(_, calendar)| {
+                calendar
+                    .date_to_instant(&uni_calendar::Date {
+                        values: anchor.base_date.clone(),
+                    })
+                    .ok()
+            });
+            rounded = base_start.as_ref().is_some_and(|s| s.rounded_by.is_some());
+            if anchor.kind == AnchorKind::Fixed {
+                if anchor.base.is_none() {
+                    note = anchor.base_name.clone().map(|name| Note::Gone { name });
+                } else if let (Some((b, calendar)), Some(at)) = (base, anchor.at)
+                    && base_start.map(|s| s.instant) != Some(at)
+                {
+                    note = converted_date(&b.stored.record, calendar, at)
+                        .ok()
+                        .map(|now| Note::Moved { now });
+                }
+            }
+        }
+        Ok(CalendarDetails {
+            form: record.clone().into(),
+            rounded,
+            note,
+        })
+    }
+
+    /// The other calendars a calendar can be anchored to (`id` = `None` for a new one), in
+    /// list order, with why any can't be chosen (FR-002a).
+    pub fn anchor_bases(&self, id: Option<i64>) -> Result<Vec<AnchorBase>, String> {
+        let slot = self.lock();
+        let universe = slot.as_ref().ok_or(NO_UNIVERSE)?;
+        let placements = universe.placements().map_err(|e| e.to_string())?;
+        Ok(placements
+            .iter()
+            .filter(|p| Some(p.stored.id) != id)
+            .map(|p| {
+                let follows = id.is_some_and(|id| uni_store::follows(&placements, p.stored.id, id));
+                AnchorBase {
+                    id: p.stored.id,
+                    name: p.stored.record.name.clone(),
+                    ineligible: if follows {
+                        Some(Ineligible::Follows)
+                    } else if p.placed.is_err() {
+                        Some(Ineligible::Unplaceable)
+                    } else {
+                        None
+                    },
+                }
+            })
+            .collect())
+    }
+
+    /// Checks `date` in a stored calendar or the editor's draft, and reads it back with unit
+    /// and member names (FR-002b).
+    pub fn read_date(
+        &self,
+        source: &DateSource,
+        date: &[Option<i64>],
+    ) -> Result<DateCheck, String> {
+        let slot = self.lock();
+        let universe = slot.as_ref().ok_or(NO_UNIVERSE)?;
+        let record = match source {
+            DateSource::Id { id } => universe.calendar(*id).map_err(|e| e.to_string())?.record,
+            DateSource::Form { form } => {
+                // The draft's anchor plays no part in its definition.
+                let draft = CalendarForm {
+                    anchor: None,
+                    ..(**form).clone()
+                };
+                match draft.to_record() {
+                    Ok(record) => record.normalised(),
+                    Err(error) => {
+                        return Ok(DateCheck::Definition {
+                            definition: error.message,
+                        });
+                    }
+                }
+            }
+        };
+        let def = match record.to_def() {
+            Ok(def) => def,
+            Err(e) => {
+                return Ok(DateCheck::Definition {
+                    definition: e.to_string(),
+                });
+            }
+        };
+        let calendar = match Calendar::new(def) {
+            Ok(calendar) => calendar,
+            Err(e) => {
+                return Ok(DateCheck::Definition {
+                    definition: e.to_string(),
+                });
+            }
+        };
+        Ok(match check_date(&calendar, date) {
+            Err(error) => DateCheck::Error(error),
+            Ok((_, start)) => {
+                let full = calendar
+                    .instant_to_date(start.instant)
+                    .map_err(|e| e.to_string())?
+                    .date
+                    .values;
+                DateCheck::Reading(reading(&record, &calendar, &full))
+            }
+        })
+    }
+
+    /// The names of the calendars that follow calendar `id` directly, for the delete
+    /// confirmation (FR-006a).
+    pub fn calendar_followers(&self, id: i64) -> Result<Vec<String>, String> {
+        let slot = self.lock();
+        let universe = slot.as_ref().ok_or(NO_UNIVERSE)?;
+        universe.followers(id).map_err(|e| e.to_string())
     }
 
     /// The form a new calendar starts from (research R7, FR-002a): the smallest calendar the
@@ -580,21 +941,30 @@ impl Session {
     /// that's taken).
     pub fn new_calendar_form(&self) -> Result<CalendarForm, String> {
         let slot = self.lock();
-        let taken: Vec<String> = match slot.as_ref() {
+        let calendars = match slot.as_ref() {
             None => vec![],
-            Some(u) => u
-                .calendars()
-                .map_err(|e| e.to_string())?
-                .into_iter()
-                .map(|c| c.record.name)
-                .collect(),
+            Some(u) => u.calendars().map_err(|e| e.to_string())?,
         };
+        let taken: Vec<&str> = calendars.iter().map(|c| c.record.name.as_str()).collect();
+        // FR-007: anchored, fixing the moment, to the reference calendar (or the first one
+        // when there's none), at the first date of each.
+        let base = calendars
+            .iter()
+            .find(|c| c.record.anchor.is_none())
+            .or(calendars.first())
+            .map(|c| c.id);
+        let anchor = base.map(|base| AnchorForm {
+            kind: AnchorKindForm::Fixed,
+            base: Some(base),
+            date: vec![Some(1)],
+            base_date: vec![Some(1)],
+        });
         let name = (1..)
             .map(|n| match n {
                 1 => "Calendar".to_owned(),
                 n => format!("Calendar {n}"),
             })
-            .find(|name| !taken.contains(name))
+            .find(|name| !taken.contains(&name.as_str()))
             .expect("there is always a free name");
         Ok(CalendarForm {
             name,
@@ -609,6 +979,7 @@ impl Session {
                 name: "Era".to_owned(),
                 unit: "unit".to_owned(),
             },
+            anchor,
         })
     }
 
@@ -623,8 +994,20 @@ impl Session {
         let universe = slot
             .as_mut()
             .ok_or_else(|| PutError::Store(NO_UNIVERSE.to_owned()))?;
-        // 1. Every required value is there.
-        let record = form.to_record().map_err(PutError::Field)?.normalised();
+        // 1. Every required value is there, and the anchor's dates have no gap. The base
+        // date's gap is checked first, where the base calendar's units can name it.
+        if let Some(a) = &form.anchor
+            && let Some(index) = gap(&a.base_date)
+        {
+            let units = stored_units(universe, a.base);
+            let error = AnchorError::DateGap {
+                side: AnchorSide::Base,
+                index,
+                unit: units.get(index).cloned(),
+            };
+            return Err(PutError::Field(anchor_field_error(&error, &[], &[])));
+        }
+        let mut record = form.to_record().map_err(PutError::Field)?.normalised();
         // 2. The calendar's name.
         universe
             .check_calendar_name(&record.name, id)
@@ -639,9 +1022,22 @@ impl Session {
             ))
         })?;
         // 4. The engine.
-        Calendar::new(def).map_err(|error| {
+        let calendar = Calendar::new(def).map_err(|error| {
             PutError::Field(FieldError::new(error.to_string(), locate(&error, &record)))
         })?;
+        // 5. The anchor (spec 008, research R5), and the moment a fixed one keeps. A calendar
+        // that no longer exists is reported as such first.
+        if let Some(id) = id {
+            universe.calendar(id).map_err(store_error)?;
+        }
+        let at = universe.check_anchor(id, &record).map_err(|error| {
+            let own = units_from_era(&calendar);
+            let base = stored_units(universe, record.anchor.as_ref().and_then(|a| a.base));
+            PutError::Field(anchor_field_error(&error, &own, &base))
+        })?;
+        if let Some(anchor) = &mut record.anchor {
+            anchor.at = at;
+        }
         let id = match id {
             None => universe.add_calendar(&record),
             Some(id) => universe.replace_calendar(id, &record).map(|()| id),
@@ -663,7 +1059,10 @@ impl Session {
 }
 
 #[cfg(test)]
-mod tests {
+mod anchors;
+
+#[cfg(test)]
+pub(crate) mod tests {
     use super::*;
     use serde_json::json;
     use uni_store::UniverseName;
@@ -708,7 +1107,8 @@ mod tests {
                 { "name": "bell", "parts": 20, "firstNumber": null },
                 { "name": "pulse", "parts": 100, "firstNumber": null }
             ],
-            "era": { "name": "After Landing", "unit": "orbit" }
+            "era": { "name": "After Landing", "unit": "orbit" },
+            "anchor": null
         })
     }
 
@@ -751,15 +1151,17 @@ mod tests {
                 "groupings": [],
                 "fundamental": { "name": "unit", "length": "", "firstNumber": null },
                 "subdivisions": [],
-                "era": { "name": "Era", "unit": "unit" }
+                "era": { "name": "Era", "unit": "unit" },
+                "anchor": null
             })
         );
         let mut filled = form.clone();
         filled.fundamental.length = "1000".to_owned();
         session.put_calendar(None, &filled).unwrap();
         assert_eq!(session.new_calendar_form().unwrap().name, "Calendar 2");
-        filled.name = "Calendar 2".to_owned();
-        session.put_calendar(None, &filled).unwrap();
+        let mut second = session.new_calendar_form().unwrap();
+        second.fundamental.length = "1000".to_owned();
+        session.put_calendar(None, &second).unwrap();
         assert_eq!(session.new_calendar_form().unwrap().name, "Calendar 3");
     }
 
@@ -780,7 +1182,7 @@ mod tests {
                 problem: None
             }]
         );
-        assert_eq!(session.get_calendar(put.id).unwrap(), aster());
+        assert_eq!(session.get_calendar(put.id).unwrap().form, aster());
         assert_eq!(
             serde_json::to_value(&put).unwrap()["id"],
             json!(put.id),
@@ -917,11 +1319,19 @@ mod tests {
         let mut refused = aster().to_record().unwrap();
         refused.name = "Refused".to_owned();
         refused.groupings[2].rules[0].member = "Thirteenth".to_owned();
+        refused.anchor = Some(uni_store::Anchor {
+            kind: uni_store::AnchorKind::Fixed,
+            base: Some(1),
+            base_name: None,
+            date: vec![1],
+            base_date: vec![1],
+            at: Some(uni_time::Instant::ZERO),
+        });
         let bad_length_id = universe.add_calendar(&bad_length).unwrap();
         let refused_id = universe.add_calendar(&refused).unwrap();
-        let good = universe
-            .add_calendar(&aster().to_record().unwrap())
-            .unwrap();
+        let mut good = aster().to_record().unwrap();
+        good.anchor = refused.anchor.clone();
+        let good = universe.add_calendar(&good).unwrap();
         universe.save_as(&path).unwrap();
         drop(universe);
 
@@ -953,12 +1363,13 @@ mod tests {
                 },
             ]
         );
-        let form = session.get_calendar(refused_id).unwrap();
+        let form = session.get_calendar(refused_id).unwrap().form;
         assert_eq!(form.groupings[2].rules[0].member, "Thirteenth");
         assert_eq!(
             session
                 .get_calendar(bad_length_id)
                 .unwrap()
+                .form
                 .fundamental
                 .length,
             "88775,244"
@@ -991,7 +1402,7 @@ mod tests {
         let put = session.put_calendar(Some(id), &form).unwrap();
         assert_eq!(put.id, id);
         assert!(put.state.dirty);
-        assert_eq!(session.get_calendar(id).unwrap(), form);
+        assert_eq!(session.get_calendar(id).unwrap().form, form);
         assert_eq!(session.list_calendars().unwrap().len(), 1);
     }
 
@@ -1005,7 +1416,7 @@ mod tests {
             session.put_calendar(Some(id), &form),
             Err(PutError::Field(_))
         ));
-        assert_eq!(session.get_calendar(id).unwrap(), aster());
+        assert_eq!(session.get_calendar(id).unwrap().form, aster());
         assert!(!session.state().dirty);
     }
 

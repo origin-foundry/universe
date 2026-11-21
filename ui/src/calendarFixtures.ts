@@ -1,5 +1,5 @@
-// Test data shared by the calendar UI tests: the Aster test calendar of specs 004 and 006, as
-// the editor sends it, and the starting form the core serves (research R7).
+// Test data shared by the calendar UI tests: the Aster test calendar of specs 004 and 006 and
+// spec 008's Tallow, as the editor sends them, and the starting form the core serves.
 
 import type { CalendarForm } from "./calendarApi";
 
@@ -48,6 +48,7 @@ export function asterForm(): CalendarForm {
       { name: "pulse", parts: 100, firstNumber: null },
     ],
     era: { name: "After Landing", unit: "orbit" },
+    anchor: null,
   };
 }
 
@@ -58,5 +59,25 @@ export function startingForm(): CalendarForm {
     fundamental: { name: "unit", length: "", firstNumber: null },
     subdivisions: [],
     era: { name: "Era", unit: "unit" },
+    anchor: null,
+  };
+}
+
+/** The spec's Tallow: a cycle of 52 rounds, a round of 7 watches, a watch of 30,000 s. */
+export function tallowForm(anchor: CalendarForm["anchor"] = null): CalendarForm {
+  const one = (name: string, count: number) => ({
+    name,
+    firstNumber: null,
+    memberUnit: null,
+    members: [{ name: null, count }],
+    rules: [],
+  });
+  return {
+    name: "Tallow",
+    groupings: [one("cycle", 52), one("round", 7)],
+    fundamental: { name: "watch", length: "30000", firstNumber: null },
+    subdivisions: [],
+    era: { name: "Count", unit: "cycle" },
+    anchor,
   };
 }

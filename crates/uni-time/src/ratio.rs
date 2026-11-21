@@ -1,7 +1,7 @@
 use std::cmp::Ordering;
 use std::fmt;
 
-use crate::wide::{Signed, gcd, mul_div_round};
+use crate::wide::{Signed, U256, gcd, mul_div_round};
 use crate::{Rounding, TimeError};
 
 type R<T> = Result<T, TimeError>;
@@ -174,6 +174,44 @@ impl Ratio {
     /// The nearest whole number in the chosen direction.
     pub fn round(self, rounding: Rounding) -> i128 {
         mul_div_round(self.num, 1, self.den, rounding).expect("|num / den| ≤ |num| always fits")
+    }
+
+    /// The value written with `places` decimal places, truncated towards zero (never rounded
+    /// up, so a value just under 1 never reads as `1.000`), and whether that is exact.
+    ///
+    /// ```
+    /// use uni_time::Ratio;
+    /// assert_eq!(Ratio::new(37, 100).unwrap().to_decimal(3), ("0.370".to_string(), true));
+    /// assert_eq!(Ratio::new(2, 3).unwrap().to_decimal(3), ("0.666".to_string(), false));
+    /// ```
+    pub fn to_decimal(self, places: u32) -> (String, bool) {
+        let den = self.den.unsigned_abs();
+        let magnitude = self.num.unsigned_abs();
+        let whole = magnitude / den;
+        let mut rest = magnitude % den;
+        let mut digits = String::new();
+        for _ in 0..places {
+            // rest < den ≤ 2¹²⁷, so rest × 10 needs the wide product.
+            let (digit, next) = U256::mul(rest, 10).divrem(den);
+            let digit = digit
+                .to_u128()
+                .expect("rest < den, so the digit is below 10");
+            digits.push(char::from(
+                b'0' + u8::try_from(digit).expect("a digit is below 10"),
+            ));
+            rest = next;
+        }
+        let sign = if self.num < 0 && (whole != 0 || digits.bytes().any(|b| b != b'0')) {
+            "-"
+        } else {
+            ""
+        };
+        let text = if places == 0 {
+            format!("{sign}{whole}")
+        } else {
+            format!("{sign}{whole}.{digits}")
+        };
+        (text, rest == 0)
     }
 
     /// Builds from a sign and coprime magnitudes, rejecting anything that doesn't fit.
@@ -360,6 +398,25 @@ mod tests {
         let max = i128::MAX.to_string();
         assert_eq!(Ratio::parse(&max), Ok(r(i128::MAX, 1)));
         assert_eq!(Ratio::parse(&format!("-{max}")), Ok(r(-i128::MAX, 1)));
+    }
+
+    #[test]
+    fn to_decimal_truncates_and_says_whether_exact() {
+        let d = |n, d, places| r(n, d).to_decimal(places);
+        let s = |text: &str, exact| (text.to_string(), exact);
+        assert_eq!(d(37, 100, 3), s("0.370", true));
+        assert_eq!(d(1, 3, 3), s("0.333", false));
+        assert_eq!(d(2, 3, 3), s("0.666", false)); // truncated, never rounded up
+        assert_eq!(d(0, 1, 3), s("0.000", true));
+        assert_eq!(d(1, 1024, 3), s("0.000", false));
+        assert_eq!(d(5, 1, 3), s("5.000", true));
+        assert_eq!(d(-2, 3, 3), s("-0.666", false)); // towards zero
+        assert_eq!(d(-1, 1024, 3), s("0.000", false));
+        assert_eq!(d(-7, 2, 1), s("-3.5", true));
+        assert_eq!(d(7, 2, 0), s("3", false));
+        assert_eq!(d(999_999, 1_000_000, 3), s("0.999", false));
+        // The widest denominator still works: rest × 10 needs more than 128 bits.
+        assert_eq!(d(i128::MAX - 1, i128::MAX, 3), s("0.999", false));
     }
 
     #[test]

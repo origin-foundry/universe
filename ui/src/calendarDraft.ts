@@ -1,7 +1,7 @@
 // What the editor holds while the owner types: every input as text. A draft becomes a
 // `CalendarForm` only when it's kept; it's never stored (FR-012).
 
-import type { CalendarForm, FieldError, Location } from "./calendarApi";
+import type { AnchorForm, AnchorKind, CalendarForm, FieldError, Location } from "./calendarApi";
 
 export interface MemberDraft {
   name: string;
@@ -29,12 +29,22 @@ export interface SubdivisionDraft {
   firstNumber: string;
 }
 
+/** The anchor while it's edited: each date's values as text, from the era's unit down. */
+export interface AnchorDraft {
+  kind: AnchorKind;
+  base: number | null;
+  date: string[];
+  baseDate: string[];
+}
+
 export interface Draft {
   name: string;
   groupings: GroupingDraft[];
   fundamental: { name: string; length: string; firstNumber: string };
   subdivisions: SubdivisionDraft[];
   era: { name: string; unit: string };
+  /** Null for a calendar that isn't anchored. */
+  anchor: AnchorDraft | null;
 }
 
 export const WHOLE_NUMBER_MESSAGE = "must be a whole number";
@@ -67,7 +77,60 @@ export function draftFromForm(form: CalendarForm): Draft {
       firstNumber: text(s.firstNumber),
     })),
     era: { ...form.era },
+    anchor: form.anchor ? anchorDraft(form.anchor) : null,
   };
+}
+
+function anchorDraft(anchor: AnchorForm): AnchorDraft {
+  return {
+    kind: anchor.kind,
+    base: anchor.base,
+    date: anchor.date.map(text),
+    baseDate: anchor.baseDate.map(text),
+  };
+}
+
+/** A new anchor, as a new calendar starts (FR-007): fixing the moment, both dates at 1. */
+export const startingAnchor = (base: number | null): AnchorDraft => ({
+  kind: "fixed",
+  base,
+  date: ["1"],
+  baseDate: ["1"],
+});
+
+/**
+ * The draft's units from the era's unit down, by name: the fields of its anchor date. Empty
+ * when the era's unit isn't one of the draft's units yet.
+ */
+export function unitsFromEra(draft: Draft): string[] {
+  const chain: string[] = [];
+  for (const g of draft.groupings) {
+    chain.push(g.name.trim());
+    if (g.memberUnitName.trim() !== "") chain.push(g.memberUnitName.trim());
+  }
+  chain.push(draft.fundamental.name.trim());
+  chain.push(...draft.subdivisions.map((s) => s.name.trim()));
+  const era = chain.indexOf(draft.era.unit.trim());
+  return era < 0 || draft.era.unit.trim() === "" ? [] : chain.slice(era);
+}
+
+/**
+ * A date's values as whole numbers (empty ones null, trailing ones left out), or the index of
+ * the first value that isn't a whole number.
+ */
+export function dateValues(
+  values: string[],
+): { values: (number | null)[]; bad: null } | { values: null; bad: number } {
+  const parsed: (number | null)[] = [];
+  for (const [i, value] of values.entries()) {
+    try {
+      parsed.push(whole(value, { kind: "anchor" }));
+    } catch {
+      return { values: null, bad: i };
+    }
+  }
+  while (parsed.length > 0 && parsed.at(-1) === null) parsed.pop();
+  return { values: parsed, bad: null };
 }
 
 export const emptyGrouping = (): GroupingDraft => ({
@@ -146,6 +209,7 @@ export function formFromDraft(
         firstNumber: whole(s.firstNumber, { kind: "subdivision", index, field: "firstNumber" }),
       })),
       era: { ...draft.era },
+      anchor: draft.anchor === null ? null : anchorForm(draft.anchor),
     };
     return { form, error: null };
   } catch (refused) {
@@ -154,6 +218,20 @@ export function formFromDraft(
     }
     throw refused;
   }
+}
+
+function anchorForm(anchor: AnchorDraft): AnchorForm {
+  const date = (values: string[], field: "date" | "baseDate") => {
+    const parsed = dateValues(values);
+    if (parsed.bad !== null) throw new NotWhole({ kind: "anchor", field, index: parsed.bad });
+    return parsed.values;
+  };
+  return {
+    kind: anchor.kind,
+    base: anchor.base,
+    date: date(anchor.date, "date"),
+    baseDate: date(anchor.baseDate, "baseDate"),
+  };
 }
 
 /** A stable key for a location, matching the `data-field` of the input or section it names. */
@@ -172,6 +250,8 @@ export function fieldKey(at: Location): string {
       return `${at.kind}.${at.grouping}.${at.index}${field}`;
     case "fundamental":
       return `fundamental${field}`;
+    case "anchor":
+      return `anchor${field}${at.index === undefined ? "" : `.${at.index}`}`;
   }
 }
 

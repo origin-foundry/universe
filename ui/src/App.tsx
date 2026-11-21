@@ -3,7 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
-  type CalendarForm,
+  type CalendarDetails,
   type CalendarSummary,
   getCalendar,
   listCalendars,
@@ -11,6 +11,8 @@ import {
 } from "./calendarApi";
 import CalendarEditor from "./CalendarEditor";
 import CalendarList from "./CalendarList";
+import type { Precision } from "./convertedDate";
+import Converter from "./Converter";
 import {
   NO_UNIVERSE,
   type PendingEdit,
@@ -35,9 +37,14 @@ interface AppInfo {
 
 type Status = { kind: "loading" } | { kind: "ready"; info: AppInfo } | { kind: "unavailable" };
 
-/** The main area while a universe is open: its calendar list, or one calendar in the editor. */
+/**
+ * The main area while a universe is open: its calendar list, one calendar in the editor, or the
+ * converter.
+ */
 type View =
-  { kind: "list" } | { kind: "editor"; id: number | null; initial: CalendarForm; opened: number };
+  | { kind: "list" }
+  | { kind: "editor"; id: number | null; details: CalendarDetails; opened: number }
+  | { kind: "converter" };
 
 export default function App() {
   const [status, setStatus] = useState<Status>({ kind: "loading" });
@@ -45,6 +52,8 @@ export default function App() {
   const [naming, setNaming] = useState(false);
   const [calendars, setCalendars] = useState<CalendarSummary[]>([]);
   const [view, setView] = useState<View>({ kind: "list" });
+  // The converter's precision switch: kept while the app is open, "partway" at launch (FR-010a).
+  const [precision, setPrecision] = useState<Precision>("partway");
   // The calendar edit in progress, if it has changes (FR-012).
   const pending = useRef<PendingEdit | null>(null);
   const opened = useRef(0);
@@ -155,11 +164,11 @@ export default function App() {
     };
   }, [universe]);
 
-  const edit = useCallback(async (load: () => Promise<CalendarForm>, id: number | null) => {
+  const edit = useCallback(async (load: () => Promise<CalendarDetails>, id: number | null) => {
     try {
-      const initial = await load();
+      const details = await load();
       opened.current += 1;
-      setView({ kind: "editor", id, initial, opened: opened.current });
+      setView({ kind: "editor", id, details, opened: opened.current });
     } catch {
       setView({ kind: "list" });
     }
@@ -200,17 +209,27 @@ export default function App() {
           <CalendarEditor
             key={view.opened}
             id={view.id}
-            initial={view.initial}
+            initial={view.details.form}
+            details={view.details}
+            canAnchor={calendars.some((c) => c.id !== view.id && c.problem === null)}
             onKept={afterChange}
             onClose={backToList}
             onDeleted={afterChange}
             onPending={onPending}
           />
+        ) : view.kind === "converter" ? (
+          <Converter precision={precision} onPrecision={setPrecision} onBack={backToList} />
         ) : (
           <CalendarList
             calendars={calendars}
-            onAdd={() => void edit(newCalendarForm, null)}
+            onAdd={() =>
+              void edit(
+                async () => ({ form: await newCalendarForm(), rounded: false, note: null }),
+                null,
+              )
+            }
             onOpen={(id) => void edit(() => getCalendar(id), id)}
+            onConvert={() => setView({ kind: "converter" })}
           />
         )
       ) : (

@@ -1,6 +1,9 @@
 //! The Universe desktop app: Tauri commands, background jobs and progress events.
 
 mod calendars;
+mod converter;
+#[cfg(test)]
+mod fixtures;
 
 use std::path::Path;
 use std::sync::{Mutex, MutexGuard};
@@ -11,7 +14,13 @@ use tauri::{AppHandle, Emitter, Manager, State, WindowEvent, Wry};
 use uni_store::{OpenUniverse, UniverseName};
 
 pub use calendars::{
-    CalendarForm, CalendarSummary, Field, FieldError, Location, PutError, PutResult,
+    AnchorBase, AnchorField, AnchorForm, AnchorKindForm, CalendarDetails, CalendarForm,
+    CalendarSummary, DateCheck, DateSource, Field, FieldError, Ineligible, Location, Note,
+    PutError, PutResult,
+};
+pub use converter::{
+    Conversion, ConvertError, ConvertedCalendar, ConvertedDate, ConverterCalendar, DateError,
+    DateReading, DateValue, Partway, Unusable,
 };
 
 const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -221,8 +230,41 @@ fn list_calendars(session: State<'_, Session>) -> Result<Vec<CalendarSummary>, S
 }
 
 #[tauri::command]
-fn get_calendar(session: State<'_, Session>, id: i64) -> Result<CalendarForm, String> {
+fn get_calendar(session: State<'_, Session>, id: i64) -> Result<CalendarDetails, String> {
     session.get_calendar(id)
+}
+
+#[tauri::command]
+fn anchor_bases(session: State<'_, Session>, id: Option<i64>) -> Result<Vec<AnchorBase>, String> {
+    session.anchor_bases(id)
+}
+
+#[tauri::command]
+fn read_date(
+    session: State<'_, Session>,
+    source: DateSource,
+    date: Vec<Option<i64>>,
+) -> Result<DateCheck, String> {
+    session.read_date(&source, &date)
+}
+
+#[tauri::command]
+fn calendar_followers(session: State<'_, Session>, id: i64) -> Result<Vec<String>, String> {
+    session.calendar_followers(id)
+}
+
+#[tauri::command]
+fn converter_calendars(session: State<'_, Session>) -> Result<Vec<ConverterCalendar>, String> {
+    session.converter_calendars()
+}
+
+#[tauri::command]
+fn convert(
+    session: State<'_, Session>,
+    from: i64,
+    date: Vec<Option<i64>>,
+) -> Result<Conversion, ConvertError> {
+    session.convert(from, &date)
 }
 
 #[tauri::command]
@@ -337,7 +379,12 @@ pub fn run() {
             get_calendar,
             new_calendar_form,
             put_calendar,
-            delete_calendar
+            delete_calendar,
+            anchor_bases,
+            read_date,
+            calendar_followers,
+            converter_calendars,
+            convert
         ])
         .run(tauri::generate_context!())
         .expect("Universe failed to start");
