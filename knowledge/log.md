@@ -1,5 +1,14 @@
 # Bundle update log
 
+## 2026-11-23
+* **Update**: Spec 009 (date formats):
+  - [Format templates](/formats/templates.md) gains the first implementation: the fields built first (`{unit}`, `{unit:02}`, `{unit:name}`, `{era}`), how patterns are checked, each calendar's main format, and the generated format used when none is chosen.
+  - [Format parsing](/formats/parsing.md) gains write-only formats (patterns that can't say which date they mean) and how the first reader matches text, pads, splits touching fields and reports what it can't read.
+  - The [storage schema](/storage/schema.md) gains schema version 4: the `format` table.
+  - [UI views](/product/ui-views.md) says the calendar editor gains a formats section and the converter writes results in each calendar's main format.
+
+  All four are back to draft until re-verified by human:origin-foundry.
+
 ## 2026-11-18
 * **Verification**: human:origin-foundry re-verified the spec 008 changes to [eras and epoch](/calendar/eras-and-epoch.md), the [storage schema](/storage/schema.md) and [UI views](/product/ui-views.md) in conversation during review of #59. All three are stable again.
 * **Update**: Spec 008 (epoch anchoring and the converter):

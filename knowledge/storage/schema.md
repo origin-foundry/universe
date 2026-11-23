@@ -3,9 +3,8 @@ type: Data Model
 title: Storage schema
 description: The SQLite project file - definition tables and disposable cache tables.
 tags: [storage, sqlite, schema]
-status: stable
+status: draft
 generated: { by: claude-code/claude-opus-5-5, at: 2026-10-30T08:24:17Z }
-verified: { by: human:origin-foundry, at: 2026-11-18T22:06:50Z }
 ---
 
 # File
@@ -21,6 +20,7 @@ One `.universe` file per project (SQLite, with `PRAGMA application_id = 0x554E49
   - Schema version 1 (spec 003) has `meta` and `universe(id, name)`.
   - Version 2 (spec 007) adds the calendar tables under "Calendar tables as built" below.
   - Version 3 (spec 008) adds the `anchor` table, also below.
+  - Version 4 (spec 009) adds the `format` table, also below.
   - The other tables are the target design, added by the features that use them.
 
 ## Calendar tables as built (version 2)
@@ -54,6 +54,16 @@ anchor(calendar_id,              -- the anchored calendar; one row at most per c
 - The one calendar with no `anchor` row is the universe's **reference calendar**, at the hidden zero. At most one calendar has no row; once the reference calendar is anchored or deleted, none does.
 - The epoch itself is never stored: it's worked out from the anchor whenever calendars are placed. A fixed anchor keeps `at`, the moment its own date starts at; an equation anchor works it out from the base calendar each time (see [eras and epoch](/calendar/eras-and-epoch.md)).
 - `at_secs` and `at_nanos` are a value on the hidden timeline. They stay in the file: no screen or command shows them ([ADR 0002](/decisions/0002-hidden-absolute-timeline.md)).
+
+```
+format(id, calendar_id, seq,     -- seq orders the calendar's formats
+       name,                     -- trimmed; unique in the calendar
+       template,                 -- the pattern exactly as typed
+       main)                     -- 1 on the calendar's main format, at most one per calendar
+```
+
+- A calendar with no `main = 1` row uses its generated format, which isn't stored (see [format templates](/formats/templates.md)). A file migrated from version 3 has no formats.
+- `kind` and `inverse_overrides_json` of the target `format` table below come with duration formats and computed values; names per locale with locales.
 
 # Schema
 
