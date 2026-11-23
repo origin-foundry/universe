@@ -95,6 +95,6 @@ No violations.
 
 ## For the owner to confirm in design review
 
-- The generated format names a member unit's members only when all are named (research R3), so a partly named grouping shows numbers only, where today it shows the names it has.
+- The generated format names a member unit's members only when all are named (research R3), so a partly named grouping shows numbers only, where today it shows the names it has. SC-004 now says so (owner's OK, 2026-11-23, after `/speckit-analyze`).
 - With an owner's main format, the converter shows exactly what the format says; units above the era's unit appear only if the format includes them (R3).
 - The read-back sentence writes the full date, not just the values entered (R10).

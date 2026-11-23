@@ -102,7 +102,7 @@ The converter shows each result in its calendar's main format, and the anchor's 
 - **FR-001**: A calendar MUST be able to have any number of named, ordered formats. Format names MUST be unique within the calendar and not empty.
 - **FR-002**: A format's pattern MUST be literal text and fields. A field MUST name a unit of the calendar (from the units above the era's unit down to the smallest unit) or the era, and say how the value is written:
   - a unit's **number**, as is or **padded** with leading zeros to a given width;
-  - a unit's **member name**, for a member unit (or a grouping's single member level) whose members have names;
+  - a unit's **member name**, for a member unit whose members have names;
   - the era's **name**.
 - **FR-003**: A pattern MUST be checked as it is typed, and MUST be refused, with the reason shown at the format, when it has no field, names a unit or modifier that doesn't exist, asks for member names where no member has one, or has an unclosed or stray brace. Keeping the calendar MUST be refused while any of its formats is refused.
 - **FR-004**: A format MUST be marked **write-only**, with the reason, when it can't be read back into a unique date for every date it writes: when it leaves out the era's unit, or a unit between two units it shows. Write-only formats MUST still write dates.
@@ -150,7 +150,7 @@ The converter shows each result in its calendar's main format, and the anchor's 
 - **SC-001**: The owner can add a format to Aster and see a converter result written in it in under 2 minutes.
 - **SC-002**: In a property test of at least 1,000 random dates per format, over the test calendars' generated formats and a set of owner-style patterns (padded, named, separator-free with padding, with units above the era's unit), writing a date and reading it back gives the original date every time.
 - **SC-003**: Every kind of pattern refusal (FR-003), reading failure (FR-010), disagreement (FR-012) and ambiguity (FR-011) is covered by a test, and each is reported with its reason; none is resolved silently.
-- **SC-004**: A version-3 file opens and migrates with its backup made, and every date the app shows in it is written as before (the generated formats match today's text).
+- **SC-004**: A version-3 file opens and migrates with its backup made, and every date the app shows in it is written as before for calendars whose member units are wholly named or wholly unnamed. (Where only some members of a member unit are named, the generated format shows numbers only, because a pattern can't yet say "a name if there is one"; research R3.)
 - **SC-005**: Writing and reading a date takes under 10 milliseconds for a calendar with a 1,000-member grouping, so checking as the owner types feels immediate.
 - **SC-006**: The Earth-terms, architecture and privacy checks pass.
 
