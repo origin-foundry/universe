@@ -4,7 +4,7 @@
 
 **Created**: 2026-11-21
 
-**Status**: Draft, clarified 2026-11-21
+**Status**: Approved by the owner, 2026-11-23 (clarified 2026-11-21)
 
 **Input**: User description: "Date formats (issue #61, Phase 1. Calendar core). Owner-defined patterns for writing a calendar's date as text: which units appear, in what order, separators and literal text, each value as a number (optionally zero-padded) or as its member name; the same pattern parses text back into a date, with unreadable or ambiguous text reported with the reason (principle VII). Formats are saved with their calendar. Used by the converter's results and input and by the anchor's read-back sentence (spec 008). Keep it to one build PR; locales, conditionals, computed values, zone tokens, ordinals/roman/words, duration formats and the full format editor come later. Earth-neutral names (ADR 0009)."
 
