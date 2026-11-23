@@ -73,7 +73,7 @@ crates/uni-format/src/lib.rs          re-exports, crate docs
 crates/uni-format/src/pattern.rs      Format, Part, compile, generated, PatternError (new)
 crates/uni-format/src/write.rs        writing (new)
 crates/uni-format/src/read.rs         reading, ReadError (new)
-crates/uni-format/tests/              round-trip properties, refusals, timing (new)
+crates/uni-format/src/fixtures.rs     test calendars; round_trip.rs, timing.rs (test modules, new)
 crates/uni-store/src/schema.rs        migration 3 → 4
 crates/uni-store/src/format.rs        FormatRecord rows (new)
 crates/uni-store/src/calendar.rs      CalendarRecord.formats, main_format
