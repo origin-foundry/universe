@@ -113,7 +113,7 @@ describe("Editing a stored calendar", () => {
     fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
     expect(await screen.findByRole("list", { name: "Calendars" })).toBeInTheDocument();
     expect(invoke.mock.calls.slice(before).map((c) => c[0])).not.toContain("put_calendar");
-    expect(document.title).toBe("Test — Universe");
+    await waitFor(() => expect(document.title).toBe("Test — Universe"));
   });
 
   it("deletes only after the owner confirms", async () => {
