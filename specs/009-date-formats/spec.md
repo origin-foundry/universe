@@ -20,6 +20,10 @@
 - Q: Should reading text in a format have a place in the app in this spec? → A: No. Reading is built in the formats component and covered by the round-trip property tests; the app uses it once the converter takes text, in a later spec.
 - Q: Can each converter result be switched to another of its calendar's formats? → A: No: each result uses its calendar's main format. A per-result switch can come with the full converter.
 
+### Design review 2026-11-25
+
+- The owner confirmed the three points the plan raised: the generated format names a member unit's members only when all are named (SC-004); with the owner's own main format, the converter shows exactly what the pattern says, so units above the era's unit appear only if it includes them; and the read-back sentence writes the full date in the main format.
+
 ## User Scenarios & Testing *(mandatory)*
 
 The examples use the test calendars of spec 008. **Aster**: an age of 10 cohorts of 10 orbits; an orbit of twelve spans (the third is named Third, and so on) counted in sols; a sol of 20 bells of 100 pulses; bells and pulses numbered from 0. **Tallow**: a cycle of 52 rounds of 7 watches, with no member names.

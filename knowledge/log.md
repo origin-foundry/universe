@@ -1,5 +1,8 @@
 # Bundle update log
 
+## 2026-11-25
+* **Verification**: human:origin-foundry re-verified the spec 009 changes to [format templates](/formats/templates.md), [format parsing](/formats/parsing.md), the [storage schema](/storage/schema.md) and [UI views](/product/ui-views.md) in conversation during review of #64. All four are stable again.
+
 ## 2026-11-23
 * **Update**: Spec 009 (date formats):
   - [Format templates](/formats/templates.md) gains the first implementation: the fields built first (`{unit}`, `{unit:02}`, `{unit:name}`, `{era}`), how patterns are checked, each calendar's main format, and the generated format used when none is chosen.
