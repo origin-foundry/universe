@@ -92,6 +92,10 @@ Notes here are public: keep them general. Anything true only of a particular mac
 
 - Native menu accelerators don't fire on Windows while the web view has the keyboard focus, which is nearly always: WebView2 is a separate child window, so the menu's accelerator table never sees the keys. Handle shortcuts in the UI (`ui/src/shortcuts.ts`) and keep them in step with the menu labels in `crates/uni-app/src/lib.rs`. Vitest can't catch this; only a run of the real app can.
 
+**UI tests**
+
+- `ui/src/setupTests.ts`'s `cleanup` runs after each test file's own `afterEach`, so a file that resets its `invoke` mock there must call `cleanup()` first, or a still-mounted component's pending effect gets `undefined` from the mock (`Cannot read properties of undefined (reading 'then')`). Assert on anything set in an effect, such as `document.title`, with `waitFor`, not straight after a `findBy…`. Both made `App.test.tsx` fail about one run in eight (#66).
+
 **Spec Kit**
 
 - Each Spec Kit command checks `.specify/extensions.yml` for hooks; there is none yet.

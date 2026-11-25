@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const invoke = vi.hoisted(() => vi.fn());
@@ -23,6 +23,8 @@ function core(state: UniverseState, info: unknown = { name: "Universe", version:
         return state;
       case "new_universe":
         return { open: true, name: args?.name ?? null, path: null, dirty: true };
+      case "list_calendars":
+        return [];
       default:
         throw new Error(`unexpected command ${command}`);
     }
@@ -43,6 +45,9 @@ describe("App", () => {
   });
 
   afterEach(() => {
+    // Unmount before resetting the mocks: setupTests' cleanup runs after this hook, and an
+    // App still mounted would call the reset `invoke` and get `undefined`.
+    cleanup();
     invoke.mockReset();
     listen.mockReset();
     handlers.clear();
@@ -71,7 +76,8 @@ describe("App", () => {
     render(<App />);
     expect(await screen.findByRole("heading", { name: "Aster" })).toBeInTheDocument();
     expect(screen.queryByText("No universe open")).not.toBeInTheDocument();
-    expect(document.title).toBe("Aster — Universe");
+    // The title is set in an effect, which can run after the heading is found.
+    await waitFor(() => expect(document.title).toBe("Aster — Universe"));
   });
 
   it("marks unsaved changes in the title", async () => {
@@ -88,7 +94,7 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("button", { name: "Create" }));
     expect(await screen.findByRole("heading", { name: "Aster" })).toBeInTheDocument();
     expect(invoke).toHaveBeenCalledWith("new_universe", { name: "Aster" });
-    expect(document.title).toBe("Aster • — Universe");
+    await waitFor(() => expect(document.title).toBe("Aster • — Universe"));
   });
 
   it("opens the name form with Ctrl+N, which the native menu never sees", async () => {
